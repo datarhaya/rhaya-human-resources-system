@@ -1,0 +1,457 @@
+// Database schema - PostgreSQL
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER MANAGEMENT
+// ============================================
+
+model User {
+  id              String    @id @default(cuid())
+  username        String    @unique
+  email           String    @unique
+  password        String
+  name            String
+  
+  // Profile
+  phone           String?
+  address         String?
+  dateOfBirth     DateTime?
+  placeOfBirth    String?
+  nip             String?   @unique
+  gender          String?   @default("Male")
+  
+  // Work Info
+  employeeStatus  String    @default("PKWT") 
+  joinDate        DateTime?
+  
+  plottingCompany     String?   @default("PT Rhayakan Film Indonesia")
+  contractStartDate   DateTime?
+  contractEndDate     DateTime?
+  
+  // Hierarchy
+  roleId          String
+  role            Role      @relation(fields: [roleId], references: [id])
+  divisionId      String
+  division        Division  @relation(fields: [divisionId], references: [id])
+  
+  accessLevel     Int       @default(5)
+  companyType     String    @default("subsidiary")
+  
+  // Direct supervisor
+  supervisorId    String?
+  supervisor      User?     @relation("Supervision", fields: [supervisorId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  subordinates    User[]    @relation("Supervision")
+  
+  finalApprovals        OvertimeRequest[] @relation("FinalApprover")
+  
+  // Benefits
+  bpjsHealth      String?
+  bpjsEmployment  String?
+  overtimeRate    Decimal   @default(0) @db.Decimal(10, 2)
+  
+  // System
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relations 
+  payslips                  Payslip[]
+  uploadedPayslips          Payslip[] @relation("UploadedPayslips")
+  overtimeRequests          OvertimeRequest[]
+  overtimeBalance           OvertimeBalance?
+  overtimeApprovals         OvertimeRequest[] @relation("CurrentApprover")
+  supervisorOvertimes       OvertimeRequest[] @relation("OvertimeSupervisor")
+  divisionHeadOvertimes     OvertimeRequest[] @relation("OvertimeDivisionHead")
+  overtimeRevisions         OvertimeRevision[]
+  leaveRequests             LeaveRequest[]
+  leaveBalance              LeaveBalance?
+  leaveApprovals            LeaveRequest[] @relation("LeaveCurrentApprover")
+  supervisorLeaves          LeaveRequest[] @relation("LeaveSupervisor")
+  divisionHeadLeaves        LeaveRequest[] @relation("LeaveDivisionHead")
+  balanceAdjustments        BalanceAdjustmentLog[]
+  adjustmentsMade           BalanceAdjustmentLog[] @relation("AdjustedBy")
+  overtimeRecaps            OvertimeRecap[]
+  recapsMade                OvertimeRecap[] @relation("RecappedBy")
+  toilEntries               TimeOffInLieu[]
+
+  @@index([email])
+  @@index([username])
+  @@index([supervisorId])
+  @@index([roleId])
+  @@index([divisionId])
+  @@index([accessLevel])
+  
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g., "Software Engineer", "HR Manager"
+  description String?
+  createdAt   DateTime @default(now())
+  users       User[]
+}
+
+model Division {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  headId      String?  // ✅ Make sure this has the ?
+  createdAt   DateTime @default(now())
+  users       User[]
+  
+  @@map("Division")
+}
+
+// ============================================
+// LEAVE MANAGEMENT
+// ============================================
+
+// Leave Balance - tracks annual leave quota
+model LeaveBalance {
+  id              String   @id @default(cuid())
+  employeeId      String   @unique  
+  employee        User     @relation(fields: [employeeId], references: [id])
+  
+  // Annual Leave
+  annualQuota     Int      @default(0)
+  annualUsed      Int      @default(0)
+  annualRemaining Int      @default(0)
+  
+  // Other leave tracking
+  sickLeaveUsed        Int @default(0)
+  menstrualLeaveUsed   Int @default(0)
+  unpaidLeaveUsed      Int @default(0)
+  
+  year            Int
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  toilBalance       Int      @default(0)  // Available TOIL days
+  toilUsed          Int      @default(0)  // TOIL days used
+  toilExpired       Int      @default(0)  // TOIL days expired
+  
+  @@unique([employeeId, year])
+  @@map("LeaveBalance")
+}
+
+// Leave Request
+model LeaveRequest {
+  id          String   @id @default(cuid())
+  employeeId  String   
+  employee    User     @relation(fields: [employeeId], references: [id])
+  
+  leaveType   String
+  isPaid      Boolean  @default(true)
+  
+  startDate   DateTime
+  endDate     DateTime
+  totalDays   Float
+  
+  reason      String
+  attachment  String?
+  
+  status      String   @default("PENDING")
+  
+  currentApproverId String?
+  currentApprover   User?  @relation("LeaveCurrentApprover", fields: [currentApproverId], references: [id])
+  
+  supervisorId      String?
+  supervisor        User?     @relation("LeaveSupervisor", fields: [supervisorId], references: [id])
+  supervisorStatus  String?
+  supervisorComment String?
+  supervisorDate    DateTime?
+  
+  divisionHeadId      String?
+  divisionHead        User?     @relation("LeaveDivisionHead", fields: [divisionHeadId], references: [id])
+  divisionHeadStatus  String?
+  divisionHeadComment String?
+  divisionHeadDate    DateTime?
+  
+  approvedAt  DateTime?
+  rejectedAt  DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  isToil            Boolean  @default(false)
+  toilEntry         TimeOffInLieu?
+  
+  @@map("LeaveRequest")
+}
+
+// ============================================
+// OVERTIME MANAGEMENT
+// ============================================
+
+model OvertimeRequest {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    User     @relation(fields: [employeeId], references: [id])
+  
+  submittedAt DateTime @default(now())
+  status      String   @default("PENDING")  // ← Must be String, not enum
+  
+  approvedAt            DateTime?
+  rejectedAt            DateTime?
+  
+  currentApproverId String?
+  currentApprover   User?   @relation("CurrentApprover", fields: [currentApproverId], references: [id])
+
+  finalApproverId       String?
+  finalApprover         User?     @relation("FinalApprover", fields: [finalApproverId], references: [id])
+  
+  supervisorId      String?
+  supervisor        User?   @relation("OvertimeSupervisor", fields: [supervisorId], references: [id])
+  supervisorStatus  String  @default("PENDING")  // ← Must be String, not enum
+  supervisorComment String?
+  supervisorDate    DateTime?
+  
+  divisionHeadId      String?
+  divisionHead        User?   @relation("OvertimeDivisionHead", fields: [divisionHeadId], references: [id])
+  divisionHeadStatus  String  @default("PENDING")  // ← Must be String, not enum
+  divisionHeadComment String?
+  divisionHeadDate    DateTime?
+  
+  entries     OvertimeEntry[]
+  revisions   OvertimeRevision[]
+  
+  totalHours  Float
+  totalAmount Float
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  recapId           String?
+  recap             OvertimeRecap? @relation(fields: [recapId], references: [id])
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([currentApproverId])
+}
+
+model OvertimeEntry {
+  id                String          @id @default(cuid())
+  overtimeRequestId String
+  overtimeRequest   OvertimeRequest @relation(fields: [overtimeRequestId], references: [id], onDelete: Cascade)
+  
+  date        DateTime
+  hours       Float
+  description String
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([overtimeRequestId])
+  @@index([date])
+}
+
+model OvertimeBalance {
+  id              String   @id @default(cuid())
+  employeeId      String   @unique
+  employee        User     @relation(fields: [employeeId], references: [id])
+  
+  currentBalance  Float    @default(0) // Total approved hours
+  pendingHours    Float    @default(0) // Awaiting approval
+  totalPaid       Float    @default(0) // Lifetime paid amount
+  
+  lastProcessedAt DateTime?
+  lastResetAt     DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model OvertimeRevision {
+  id                String          @id @default(cuid())
+  overtimeRequestId String
+  overtimeRequest   OvertimeRequest @relation(fields: [overtimeRequestId], references: [id], onDelete: Cascade)
+  
+  revisedBy       String
+  reviser         User     @relation(fields: [revisedBy], references: [id])
+  
+  action          String   // "EDIT", "COMMENT", "STATUS_CHANGE"
+  changes         Json     // Store what changed
+  comment         String?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([overtimeRequestId])
+}
+
+model OvertimeRecap {
+  id                String   @id @default(cuid())
+  
+  // Employee reference
+  employeeId        String
+  employee          User     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  // Period
+  month             Int      // 1-12
+  year              Int      // 2024, 2025
+  
+  // Overtime calculation
+  totalHours        Float    // Total approved overtime this month
+  paidHours         Float    // Hours paid (max 72)
+  excessHours       Float    // Hours beyond 72
+  
+  // TOIL calculation
+  carryoverHours    Float    @default(0) // Hours brought from previous month
+  totalToilHours    Float    // excessHours + carryoverHours
+  toilDaysCreated   Int      @default(0) // Complete 8-hour blocks
+  remainingHours    Float    @default(0) // Hours carried to next month
+  
+  // References to individual overtime requests
+  overtimeRequests  OvertimeRequest[]
+
+  toilEntries       TimeOffInLieu[]
+  
+  // Recap information
+  recappedById      String
+  recappedBy        User     @relation("RecappedBy", fields: [recappedById], references: [id])
+  recappedAt        DateTime @default(now())
+  
+  notes             String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // One recap per employee per month
+  @@unique([employeeId, year, month])
+  @@index([employeeId])
+  @@index([year, month])
+  @@map("OvertimeRecap")
+}
+
+model TimeOffInLieu {
+  id                String   @id @default(cuid())
+  
+  // Employee reference
+  employeeId        String
+  employee          User     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  // TOIL days
+  days              Int      // Number of TOIL days earned
+  hoursSource       Float    // Hours that created this TOIL
+  
+  // Validity period
+  earnedMonth       Int      // Month earned (1-12)
+  earnedYear        Int      // Year earned
+  expiryMonth       Int      // 3 months after earned
+  expiryYear        Int
+  
+  // Status
+  status            String   @default("available") // available, used, expired
+  usedDate          DateTime?
+  expiredDate       DateTime?
+  
+  // Reference to recap that created this TOIL
+  recapId           String?
+  recap             OvertimeRecap? @relation(fields: [recapId], references: [id])
+  
+  // Reference to leave request if used
+  leaveRequestId    String?  @unique
+  leaveRequest      LeaveRequest? @relation(fields: [leaveRequestId], references: [id])
+  
+  notes             String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([employeeId])
+  @@index([status])
+  @@index([earnedYear, earnedMonth])
+  @@index([expiryYear, expiryMonth])
+  @@map("TimeOffInLieu")
+}
+
+// ============================================
+// PAYSLIP MANAGEMENT
+// ============================================
+
+model Payslip {
+  id            String   @id @default(cuid())
+  
+  // Employee reference
+  employeeId    String
+  employee      User     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  // Period information
+  month         Int      // 1-12
+  year          Int      // 2024, 2025, etc.
+  
+  // File information
+  fileName      String   // original filename
+  fileUrl       String   // path to stored file
+  fileSize      Int      // in bytes
+  
+  // Optional metadata
+  grossSalary   Float?   // optional: for reporting
+  netSalary     Float?   // optional: for reporting
+  notes         String?  // optional notes
+  
+  // Upload information
+  uploadedById  String
+  uploadedBy    User     @relation("UploadedPayslips", fields: [uploadedById], references: [id])
+  uploadedAt    DateTime @default(now())
+  
+  // View tracking (optional)
+  viewedAt      DateTime?
+  viewCount     Int      @default(0)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Ensure one payslip per employee per month
+  @@unique([employeeId, year, month])
+  @@index([employeeId])
+  @@index([year, month])
+  @@map("Payslip")
+}
+
+// ============================================
+// SYSTEM
+// ============================================
+
+model PasswordResetToken {
+  id              String   @id @default(cuid())
+  userId          String
+  token           String   @unique
+  tempPasswordHash String  // bcrypt hashed
+  
+  expiresAt       DateTime
+  usedAt          DateTime?
+  
+  createdAt       DateTime @default(now())
+
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model BalanceAdjustmentLog {
+  id              String   @id @default(cuid())
+  
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  
+  adjustedBy      String
+  adjuster        User     @relation("AdjustedBy", fields: [adjustedBy], references: [id])
+  
+  type            String   // 'OVERTIME' or 'LEAVE'
+  amount          Float    // Hours for overtime, days/quota for leave
+  previousBalance Float
+  newBalance      Float
+  
+  reason          String
+  year            Int?     // For leave adjustments
+  
+  createdAt       DateTime @default(now())
+  
+  @@map("BalanceAdjustmentLog")
+}
