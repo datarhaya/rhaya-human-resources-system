@@ -56,4 +56,4 @@ coverage/
 *.pem
 .cache/
 temp/
-tmp/
+tmp/**/.env

@@ -31,8 +31,36 @@ const PORT = process.env.PORT || 3000;
 //   credentials: true
 // }));
 
+// app.use(cors({
+//   origin: true,  // Allow all origins
+//   credentials: true
+// }));
+
+const cors = require('cors');
+
+const allowedOrigins = [
+  'http://localhost:5173', // Development
+  'https://rhaya-human-resources-system.pages.dev/', // Production
+  process.env.FRONTEND_URL, // From Railway env var
+  /\.pages\.dev$/, // All Cloudflare Pages
+];
+
 app.use(cors({
-  origin: true,  // Allow all origins
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') return allowed === origin;
+      if (allowed instanceof RegExp) return allowed.test(origin);
+      return false;
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 
