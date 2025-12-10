@@ -40,7 +40,7 @@ const cors = require('cors');
 
 const allowedOrigins = [
   'http://localhost:5173', // Development
-  'https://rhaya-human-resources-system.pages.dev/', // Production
+  'https://rhaya-human-resources-system.pages.dev', // Production
   process.env.FRONTEND_URL, // From Railway env var
   /\.pages\.dev$/, // All Cloudflare Pages
 ];
