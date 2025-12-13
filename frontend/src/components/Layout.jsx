@@ -2,7 +2,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useTranslation } from 'react-i18next';
 import apiClient from '../api/client';
+import LanguageToggle from './LanguageToggle';
 
 // Icons
 const DashboardIcon = () => (
@@ -70,6 +72,7 @@ export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isApprovalOpen, setIsApprovalOpen] = useState(false);
   const [hasSubordinates, setHasSubordinates] = useState(false);
@@ -84,12 +87,22 @@ export default function Layout({ children }) {
     const checkSubordinates = async () => {
       if (user?.id) {
         try {
-          const response = await apiClient.get('/users');
-          const allUsers = response.data.data || [];
-          const subordinatesList = allUsers.filter(u => u.supervisorId === user.id);
-          setHasSubordinates(subordinatesList.length > 0);
+          // ⭐ MODIFIED: Only check subordinates for level <= 4
+          // This prevents 403 error for interns (level 5)
+          // Access levels: 1=Admin, 2=Subsidiary, 3=Manager, 4=Staff, 5=Intern
+          if (user.accessLevel && user.accessLevel <= 4) {
+            const response = await apiClient.get('/users/has-subordinates');
+            setHasSubordinates(response.data.hasSubordinates);
+          } else {
+            // Intern (level 5) - no subordinates check
+            setHasSubordinates(false);
+          }
         } catch (error) {
-          console.error('Error checking subordinates:', error);
+          // Only log error for users who should have access (level <= 4)
+          if (user.accessLevel && user.accessLevel <= 4) {
+            console.error('Error checking subordinates:', error.response?.data || error.message);
+          }
+          setHasSubordinates(false);
         }
       }
     };
@@ -108,31 +121,31 @@ export default function Layout({ children }) {
     navItems.push(
       {
         path: '/',
-        label: 'Dashboard',
+        label: t('nav.dashboard'),
         icon: DashboardIcon,
         type: 'link'
       },
       {
         path: '/overtime/history',
-        label: 'Overtime',
+        label: t('nav.overtime'),
         icon: ClockIcon,
         type: 'link'
       },
       {
         path: '/leave/history',
-        label: 'Leave',
+        label: t('nav.leave'),
         icon: CalendarIcon,
         type: 'link'
       },
       {
         path: '/payslips/my-payslips',
-        label: 'Payslips',
+        label: t('nav.payslips'),
         icon: MoneyIcon,
         type: 'link'
       },
       {
         path: '/profile',
-        label: 'Profile',
+        label: t('nav.profile'),
         icon: UserIcon,
         type: 'link'
       },
@@ -145,19 +158,19 @@ export default function Layout({ children }) {
 
     // Overtime Approval - Level 1-4
     if (user?.accessLevel >= 1 && user?.accessLevel <= 4) {
-      // For Level 4 (Intern), only show if they have subordinates
+      // For Level 4 (Staff), only show if they have subordinates
       if (user?.accessLevel === 4) {
         if (hasSubordinates) {
           approvalChildren.push({
             path: '/overtime/approval',
-            label: 'Overtime Approval'
+            label: t('nav.overtimeApproval')
           });
         }
       } else {
         // Level 1-3 always have overtime approval
         approvalChildren.push({
           path: '/overtime/approval',
-          label: 'Overtime Approval'
+          label: t('nav.overtimeApproval')
         });
       }
     }
@@ -166,14 +179,14 @@ export default function Layout({ children }) {
     if (user?.accessLevel >= 1 && user?.accessLevel <= 3) {
       approvalChildren.push({
         path: '/leave/approval',
-        label: 'Leave Approval'
+        label: t('nav.leaveApproval')
       });
     }
 
     // Only add Approval dropdown if there are children
     if (approvalChildren.length > 0) {
       navItems.push({
-        label: 'Approval',
+        label: t('nav.approval'),
         icon: CheckCircleIcon,
         type: 'dropdown',
         isOpen: isApprovalOpen,
@@ -188,13 +201,13 @@ export default function Layout({ children }) {
     navItems.push(
       {
         path: '/users/manage',
-        label: 'User Management',
+        label: t('nav.userManagement'),
         icon: UsersIcon,
         type: 'link'
       },
       {
         path: '/payslips/manage',
-        label: 'Payslip Management',
+        label: t('nav.payslipManagement'),
         icon: MoneyIcon,
         type: 'link'
       }
@@ -205,7 +218,7 @@ export default function Layout({ children }) {
     navItems.push(
       {
         path: '/overtime/recap-management',
-        label: 'Overtime Recap',
+        label: t('nav.overtimeRecap'),
         icon: ClockIcon,
         type: 'link'
       }
@@ -214,7 +227,7 @@ export default function Layout({ children }) {
 
   // INTERNAL POLICY (All users)
   navItems.push({
-    label: 'Internal Policy',
+    label: t('nav.internalPolicy'),
     icon: DocumentIcon,
     type: 'external',
     href: 'https://rhayaflicks.com/internalpolicy/'
@@ -234,7 +247,7 @@ export default function Layout({ children }) {
                   <span className="text-white font-bold text-xl">HR</span>
                 </div>
                 <div>
-                  <h1 className="font-bold text-lg">HR System</h1>
+                  <h1 className="font-bold text-lg">{t('login.title')}</h1>
                   <p className="text-xs text-gray-500">Rhaya Flicks</p>
                 </div>
               </div>
@@ -359,7 +372,10 @@ export default function Layout({ children }) {
         </nav>
 
         {/* User Info at Bottom */}
-        <div className="border-t bg-white p-4">
+        <div className="border-t bg-white p-4 space-y-3">
+          {/* Language Toggle */}
+          <LanguageToggle isSidebarOpen={isSidebarOpen} />
+          
           {isSidebarOpen ? (
             <div>
               <div className="flex items-center space-x-3 mb-3">
@@ -380,7 +396,7 @@ export default function Layout({ children }) {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                 </svg>
-                <span>Logout</span>
+                <span>{t('nav.logout')}</span>
               </button>
             </div>
           ) : (
@@ -393,7 +409,7 @@ export default function Layout({ children }) {
               <button
                 onClick={handleLogout}
                 className="w-10 h-10 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 flex items-center justify-center transition-colors"
-                title="Logout"
+                title={t('nav.logout')}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

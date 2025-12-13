@@ -1,6 +1,6 @@
 // backend/src/routes/user.routes.js
 import express from 'express';
-import { authenticate, authorizeAdmin } from '../middleware/auth.js';
+import { authenticate, authorizeAdmin, requireStaffOrAbove } from '../middleware/auth.js';
 import {
   getAllUsers,
   getUserById,
@@ -10,7 +10,8 @@ import {
   permanentDeleteUser,
   adjustUserBalance,
   getUserProfile,
-  updateUserProfile
+  updateUserProfile,
+  hasSubordinates
 } from '../controllers/user.controller.js';
 
 const router = express.Router();
@@ -24,6 +25,9 @@ router.put('/profile', updateUserProfile);
 
 // Get all users
 router.get('/', authorizeAdmin, getAllUsers);
+
+// Check if user has subordinates
+router.get('/has-subordinates', authenticate, hasSubordinates);
 
 // Get single user
 router.get('/:userId', authorizeAdmin, getUserById);

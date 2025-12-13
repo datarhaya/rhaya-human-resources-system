@@ -299,6 +299,13 @@ export const createUser = async (req, res) => {
   }
 };
 
+export const hasSubordinates = async (req, res) => {
+  const count = await prisma.user.count({
+    where: { supervisorId: req.user.id }
+  });
+  return res.json({ hasSubordinates: count > 0 });
+};
+
 /**
  * Update user
  * PUT /api/users/:userId
@@ -558,88 +565,6 @@ export const updateUserProfile = async (req, res) => {
     });
   }
 };
-
-/**
- * Delete user (soft delete - set isActive to false)
- * DELETE /api/users/:userId
- */
-// export const deleteUser = async (req, res) => {
-//   try {
-//     const { userId } = req.params;
-
-//     console.log('Delete request for user:', userId);
-
-//     // Check if user exists
-//     const user = await prisma.user.findUnique({
-//       where: { id: userId },
-//       select: {
-//         id: true,
-//         name: true,
-//         email: true,
-//         isActive: true
-//       }
-//     });
-
-//     if (!user) {
-//       console.log('❌ User not found:', userId);
-//       return res.status(404).json({
-//         error: 'User not found'
-//       });
-//     }
-
-//     // Don't allow deleting yourself
-//     if (req.user && req.user.id === userId) {
-//       console.log('❌ Attempt to delete own account');
-//       return res.status(400).json({
-//         error: 'You cannot delete your own account'
-//       });
-//     }
-
-//     // Check if already inactive
-//     if (!user.isActive) {
-//       console.log('⚠️ User already inactive:', user.name);
-//       return res.status(400).json({
-//         error: 'User is already deleted/inactive'
-//       });
-//     }
-
-//     // Soft delete - set isActive to false
-//     const deletedUser = await prisma.user.update({
-//       where: { id: userId },
-//       data: {
-//         isActive: false,
-//         updatedAt: new Date()
-//       },
-//       select: {
-//         id: true,
-//         name: true,
-//         email: true,
-//         isActive: true
-//       }
-//     });
-
-//     console.log(`✅ User soft-deleted: ${deletedUser.name} (${deletedUser.email})`);
-
-//     return res.json({
-//       success: true,
-//       message: `User ${deletedUser.name} has been deleted successfully`,
-//       data: {
-//         id: deletedUser.id,
-//         name: deletedUser.name,
-//         isActive: deletedUser.isActive
-//       }
-//     });
-
-//   } catch (error) {
-//     console.error('❌ Delete user error:', error);
-//     console.error('Error details:', error.message);
-    
-//     return res.status(500).json({
-//       error: 'Failed to delete user',
-//       message: error.message
-//     });
-//   }
-// };
 
 /**
  * Soft delete user (set employeeStatus to Inactive)

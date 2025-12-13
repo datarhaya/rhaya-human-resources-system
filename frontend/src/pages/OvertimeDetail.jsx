@@ -1,12 +1,14 @@
 // frontend/src/pages/OvertimeDetail.jsx
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { getOvertimeRequestById } from '../api/client';
 import { format } from 'date-fns';
 
 export default function OvertimeDetail() {
   const { requestId } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -23,7 +25,7 @@ export default function OvertimeDetail() {
       setError('');
     } catch (err) {
       console.error('Fetch error:', err);
-      setError(err.response?.data?.error || 'Failed to load overtime request');
+      setError(err.response?.data?.error || t('overtime.failedToLoad'));
     } finally {
       setLoading(false);
     }
@@ -39,10 +41,10 @@ export default function OvertimeDetail() {
     };
 
     const labels = {
-      PENDING: 'Pending Approval',
-      APPROVED: 'Approved',
-      REJECTED: 'Rejected',
-      REVISION_REQUESTED: 'Revision Requested'
+      PENDING: t('overtime.pendingApproval'),
+      APPROVED: t('overtime.approved'),
+      REJECTED: t('overtime.rejected'),
+      REVISION_REQUESTED: t('overtime.revisionRequested')
     };
 
     const icons = {
@@ -84,7 +86,7 @@ export default function OvertimeDetail() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="mt-4 text-gray-600">Loading overtime request...</p>
+          <p className="mt-4 text-gray-600">{t('overtime.loadingRequest')}</p>
         </div>
       </div>
     );
@@ -99,7 +101,7 @@ export default function OvertimeDetail() {
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
             </svg>
             <div>
-              <h3 className="text-lg font-semibold text-red-900">Error Loading Request</h3>
+              <h3 className="text-lg font-semibold text-red-900">{t('overtime.errorLoadingRequest')}</h3>
               <p className="text-sm text-red-700 mt-1">{error}</p>
             </div>
           </div>
@@ -108,7 +110,7 @@ export default function OvertimeDetail() {
               onClick={() => navigate('/overtime-history')}
               className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded hover:bg-red-700"
             >
-              Back to History
+              {t('overtime.backToHistory')}
             </button>
           </div>
         </div>
@@ -127,9 +129,9 @@ export default function OvertimeDetail() {
           <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
           </svg>
-          Back to History
+          {t('overtime.backToHistory')}
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900">Overtime Request Details</h1>
+        <h1 className="text-3xl font-bold text-gray-900">{t('overtime.detailTitle')}</h1>
       </div>
 
       {/* Status & Actions */}
@@ -142,7 +144,7 @@ export default function OvertimeDetail() {
                 to={`/overtime-edit/${request.id}`}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700"
               >
-                Edit Request
+                {t('overtime.editRequest')}
               </Link>
             </>
           )}
@@ -153,22 +155,22 @@ export default function OvertimeDetail() {
       <div className="space-y-6">
         {/* Employee Information */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Employee Information</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('overtime.employeeInformation')}</h2>
           <dl className="grid grid-cols-2 gap-4">
             <div>
-              <dt className="text-sm font-medium text-gray-500">Name</dt>
+              <dt className="text-sm font-medium text-gray-500">{t('overtime.name')}</dt>
               <dd className="mt-1 text-sm text-gray-900">{request.employee.name}</dd>
             </div>
             <div>
-              <dt className="text-sm font-medium text-gray-500">Employee ID</dt>
+              <dt className="text-sm font-medium text-gray-500">{t('overtime.employeeId')}</dt>
               <dd className="mt-1 text-sm text-gray-900">{request.employee.nip || 'N/A'}</dd>
             </div>
             <div>
-              <dt className="text-sm font-medium text-gray-500">Role</dt>
+              <dt className="text-sm font-medium text-gray-500">{t('overtime.role')}</dt>
               <dd className="mt-1 text-sm text-gray-900">{request.employee.role?.name || 'N/A'}</dd>
             </div>
             <div>
-              <dt className="text-sm font-medium text-gray-500">Division</dt>
+              <dt className="text-sm font-medium text-gray-500">{t('overtime.division')}</dt>
               <dd className="mt-1 text-sm text-gray-900">{request.employee.division?.name || 'N/A'}</dd>
             </div>
           </dl>
@@ -176,46 +178,46 @@ export default function OvertimeDetail() {
 
         {/* Request Summary */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Request Summary</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('overtime.requestSummary')}</h2>
           <div className="grid grid-cols-3 gap-6">
             <div className="bg-blue-50 rounded-lg p-4">
-              <p className="text-sm text-blue-600 font-medium">Total Hours</p>
+              <p className="text-sm text-blue-600 font-medium">{t('overtime.totalHours')}</p>
               <p className="text-3xl font-bold text-blue-900 mt-1">{request.totalHours}</p>
-              <p className="text-xs text-blue-600 mt-1">hours</p>
+              <p className="text-xs text-blue-600 mt-1">{t('overtime.hours')}</p>
             </div>
             <div className="bg-green-50 rounded-lg p-4">
-              <p className="text-sm text-green-600 font-medium">Total Days</p>
+              <p className="text-sm text-green-600 font-medium">{t('overtime.totalDays')}</p>
               <p className="text-3xl font-bold text-green-900 mt-1">
                 {(request.totalHours / 8).toFixed(2)}
               </p>
-              <p className="text-xs text-green-600 mt-1">working days</p>
+              <p className="text-xs text-green-600 mt-1">{t('overtime.workingDays')}</p>
             </div>
             <div className="bg-purple-50 rounded-lg p-4">
-              <p className="text-sm text-purple-600 font-medium">Estimated Amount</p>
+              <p className="text-sm text-purple-600 font-medium">{t('overtime.estimatedAmount')}</p>
               <p className="text-2xl font-bold text-purple-900 mt-1">
                 Rp {request.totalAmount.toLocaleString('id-ID')}
               </p>
-              <p className="text-xs text-purple-600 mt-1">before tax</p>
+              <p className="text-xs text-purple-600 mt-1">{t('overtime.beforeTax')}</p>
             </div>
           </div>
           
           <dl className="grid grid-cols-2 gap-4 mt-6">
             <div>
-              <dt className="text-sm font-medium text-gray-500">Submitted Date</dt>
+              <dt className="text-sm font-medium text-gray-500">{t('overtime.submittedDate')}</dt>
               <dd className="mt-1 text-sm text-gray-900">
                 {format(new Date(request.submittedAt), 'EEEE, MMMM dd, yyyy - HH:mm')}
               </dd>
             </div>
             <div>
-              <dt className="text-sm font-medium text-gray-500">Number of Entries</dt>
-              <dd className="mt-1 text-sm text-gray-900">{request.entries.length} dates</dd>
+              <dt className="text-sm font-medium text-gray-500">{t('overtime.numberOfEntries')}</dt>
+              <dd className="mt-1 text-sm text-gray-900">{request.entries.length} {t('overtime.dates')}</dd>
             </div>
           </dl>
         </div>
 
         {/* Overtime Entries */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Overtime Dates</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('overtime.overtimeDates')}</h2>
           <div className="space-y-3">
             {request.entries.map((entry, index) => (
               <div key={entry.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
@@ -232,7 +234,7 @@ export default function OvertimeDetail() {
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-bold text-gray-900">{entry.hours}</p>
-                  <p className="text-xs text-gray-500">hours</p>
+                  <p className="text-xs text-gray-500">{t('overtime.hours')}</p>
                 </div>
               </div>
             ))}
@@ -241,13 +243,13 @@ export default function OvertimeDetail() {
 
         {/* Approval Information */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Approval Information</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('overtime.approvalInformation')}</h2>
           
           {/* Current Approver */}
           <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
-            <p className="text-sm font-medium text-blue-900">Current Approver</p>
+            <p className="text-sm font-medium text-blue-900">{t('overtime.currentApprover')}</p>
             <p className="text-base text-blue-800 mt-1">
-              {request.currentApprover?.name || 'Not assigned'}
+              {request.currentApprover?.name || t('overtime.notAssigned')}
             </p>
             {request.currentApprover?.email && (
               <p className="text-sm text-blue-600 mt-1">{request.currentApprover.email}</p>
@@ -259,7 +261,7 @@ export default function OvertimeDetail() {
             <div className="mb-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-700">Supervisor</p>
+                  <p className="text-sm font-medium text-gray-700">{t('overtime.supervisor')}</p>
                   <p className="text-base text-gray-900">{request.supervisor.name}</p>
                 </div>
                 <div>
@@ -276,7 +278,7 @@ export default function OvertimeDetail() {
               {request.supervisorComment && (
                 <div className="mt-2 p-3 bg-gray-50 rounded border border-gray-200">
                   <p className="text-sm text-gray-700">
-                    <strong>Comment:</strong> {request.supervisorComment}
+                    <strong>{t('overtime.comment')}</strong> {request.supervisorComment}
                   </p>
                   {request.supervisorDate && (
                     <p className="text-xs text-gray-500 mt-1">
@@ -293,7 +295,7 @@ export default function OvertimeDetail() {
             <div>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-700">Division Head</p>
+                  <p className="text-sm font-medium text-gray-700">{t('overtime.divisionHead')}</p>
                   <p className="text-base text-gray-900">{request.divisionHead.name}</p>
                 </div>
                 <div>
@@ -310,7 +312,7 @@ export default function OvertimeDetail() {
               {request.divisionHeadComment && (
                 <div className="mt-2 p-3 bg-gray-50 rounded border border-gray-200">
                   <p className="text-sm text-gray-700">
-                    <strong>Comment:</strong> {request.divisionHeadComment}
+                    <strong>{t('overtime.comment')}</strong> {request.divisionHeadComment}
                   </p>
                   {request.divisionHeadDate && (
                     <p className="text-xs text-gray-500 mt-1">

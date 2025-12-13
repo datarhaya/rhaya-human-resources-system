@@ -1,10 +1,12 @@
 // frontend/src/pages/LeaveApproval.jsx
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import apiClient from '../api/client';
 
 export default function LeaveApproval() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('pending');
   const [requests, setRequests] = useState([]);
   const [allRequests, setAllRequests] = useState([]); // Store unfiltered
@@ -30,12 +32,12 @@ export default function LeaveApproval() {
   const isAdmin = user?.accessLevel === 1;
 
   const leaveTypes = [
-    { value: 'ANNUAL_LEAVE', label: 'Annual Leave' },
-    { value: 'SICK_LEAVE', label: 'Sick Leave' },
-    { value: 'MATERNITY_LEAVE', label: 'Maternity Leave' },
-    { value: 'MENSTRUAL_LEAVE', label: 'Menstrual Leave' },
-    { value: 'MARRIAGE_LEAVE', label: 'Marriage Leave' },
-    { value: 'UNPAID_LEAVE', label: 'Unpaid Leave' }
+    { value: 'ANNUAL_LEAVE', labelKey: 'annualLeave' },
+    { value: 'SICK_LEAVE', labelKey: 'sickLeave' },
+    { value: 'MATERNITY_LEAVE', labelKey: 'maternityLeave' },
+    { value: 'MENSTRUAL_LEAVE', labelKey: 'menstrualLeave' },
+    { value: 'MARRIAGE_LEAVE', labelKey: 'marriageLeave' },
+    { value: 'UNPAID_LEAVE', labelKey: 'unpaidLeave' }
   ];
 
   useEffect(() => {
@@ -77,7 +79,7 @@ export default function LeaveApproval() {
       setRequests(response.data.data || []);
     } catch (error) {
       console.error('Fetch error:', error);
-      alert('Failed to fetch leave requests');
+      alert(t('leave.fetchFailed'));
     } finally {
       setLoading(false);
     }
@@ -148,7 +150,7 @@ export default function LeaveApproval() {
 
   const handleAction = async () => {
     if (actionType === 'reject' && !comment.trim()) {
-      alert('Please provide a reason for rejection');
+      alert(t('leave.commentRequired'));
       return;
     }
 
@@ -159,14 +161,14 @@ export default function LeaveApproval() {
         comment: comment || null
       });
 
-      alert(`Leave request ${actionType === 'approve' ? 'approved' : 'rejected'} successfully`);
+      alert(t('leave.actionSuccess'));
       setShowModal(false);
       setSelectedRequest(null);
       setComment('');
       fetchRequests();
     } catch (error) {
       console.error('Action error:', error);
-      alert(error.response?.data?.error || `Failed to ${actionType} leave request`);
+      alert(error.response?.data?.error || t('leave.actionFailed'));
     } finally {
       setLoading(false);
     }
@@ -193,15 +195,15 @@ export default function LeaveApproval() {
   };
 
   const getLeaveTypeLabel = (type) => {
-    const types = {
-      ANNUAL_LEAVE: 'Annual Leave',
-      SICK_LEAVE: 'Sick Leave',
-      MATERNITY_LEAVE: 'Maternity Leave',
-      MENSTRUAL_LEAVE: 'Menstrual Leave',
-      MARRIAGE_LEAVE: 'Marriage Leave',
-      UNPAID_LEAVE: 'Unpaid Leave'
+    const typeMap = {
+      ANNUAL_LEAVE: 'annualLeave',
+      SICK_LEAVE: 'sickLeave',
+      MATERNITY_LEAVE: 'maternityLeave',
+      MENSTRUAL_LEAVE: 'menstrualLeave',
+      MARRIAGE_LEAVE: 'marriageLeave',
+      UNPAID_LEAVE: 'unpaidLeave'
     };
-    return types[type] || type;
+    return typeMap[type] ? t(`leave.${typeMap[type]}`) : type;
   };
 
   const formatDate = (date) => {
@@ -216,8 +218,8 @@ export default function LeaveApproval() {
     <div className="max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Leave Approval</h1>
-        <p className="text-sm text-gray-600 mt-1">Review and approve leave requests</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('leave.approvalTitle')}</h1>
+        <p className="text-sm text-gray-600 mt-1">{t('leave.reviewApprove')}</p>
       </div>
 
       {/* Tabs */}
@@ -232,7 +234,7 @@ export default function LeaveApproval() {
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              Pending
+              {t('leave.pending')}
               {requests.filter(r => r.status === 'PENDING').length > 0 && activeTab !== 'pending' && (
                 <span className="ml-2 px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
                   {requests.filter(r => r.status === 'PENDING').length}
@@ -249,7 +251,7 @@ export default function LeaveApproval() {
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  All Requests
+                  {t('leave.allRequests')}
                 </button>
                 <button
                   onClick={() => setActiveTab('approved')}
@@ -259,7 +261,7 @@ export default function LeaveApproval() {
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  Approved
+                  {t('leave.approved')}
                 </button>
                 <button
                   onClick={() => setActiveTab('rejected')}
@@ -269,7 +271,7 @@ export default function LeaveApproval() {
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  Rejected
+                  {t('leave.rejected')}
                 </button>
               </>
             )}
@@ -283,18 +285,18 @@ export default function LeaveApproval() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-4">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  {activeTab === 'pending' ? 'Pending Requests' : 
-                   activeTab === 'all' ? 'All Requests' : 
-                   activeTab === 'approved' ? 'Approved Requests' : 'Rejected Requests'}
+                  {activeTab === 'pending' ? t('leave.pendingRequests') : 
+                   activeTab === 'all' ? t('leave.allRequests') : 
+                   activeTab === 'approved' ? t('leave.approvedRequests') : t('leave.rejectedRequests')}
                 </h3>
                 <span className="text-sm text-gray-500">
-                  ({requests.length} {requests.length === 1 ? 'request' : 'requests'})
+                  ({requests.length} {requests.length === 1 ? t('leave.request') : t('leave.requests')})
                 </span>
               </div>
               <div className="flex items-center space-x-2">
                 {hasActiveFilters && (
                   <span className="text-sm text-blue-600 font-medium">
-                    {requests.length} of {allRequests.length} shown
+                    {requests.length} {t('leave.of')} {allRequests.length} {t('leave.shown')}
                   </span>
                 )}
                 <button
@@ -308,7 +310,7 @@ export default function LeaveApproval() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                   </svg>
-                  <span>Filter</span>
+                  <span>{t('leave.filter')}</span>
                   {hasActiveFilters && (
                     <span className="bg-white text-blue-600 rounded-full px-2 py-0.5 text-xs font-bold">
                       {Object.values(filters).filter(v => v !== '').length}
@@ -326,17 +328,17 @@ export default function LeaveApproval() {
                   {/* Leave Type */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Leave Type
+                      {t('leave.type')}
                     </label>
                     <select
                       value={filters.leaveType}
                       onChange={(e) => setFilters({...filters, leaveType: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                      <option value="">All Types</option>
+                      <option value="">{t('leave.allTypes')}</option>
                       {leaveTypes.map(type => (
                         <option key={type.value} value={type.value}>
-                          {type.label}
+                          {t(`leave.${type.labelKey}`)}
                         </option>
                       ))}
                     </select>
@@ -345,14 +347,14 @@ export default function LeaveApproval() {
                   {/* Division */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Division
+                      {t('leave.division')}
                     </label>
                     <select
                       value={filters.divisionId}
                       onChange={(e) => setFilters({...filters, divisionId: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                      <option value="">All Divisions</option>
+                      <option value="">{t('leave.allDivisions')}</option>
                       {divisions.map(div => (
                         <option key={div.id} value={div.id}>
                           {div.name}
@@ -364,13 +366,13 @@ export default function LeaveApproval() {
                   {/* Search */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Search Employee
+                      {t('leave.searchEmployee')}
                     </label>
                     <input
                       type="text"
                       value={filters.search}
                       onChange={(e) => setFilters({...filters, search: e.target.value})}
-                      placeholder="Name or NIP..."
+                      placeholder={t('leave.nameOrNip')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -380,10 +382,10 @@ export default function LeaveApproval() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Request Date Range */}
                   <div className="border-l-4 border-blue-500 pl-4">
-                    <p className="text-sm font-semibold text-gray-700 mb-2">Request Date Range</p>
+                    <p className="text-sm font-semibold text-gray-700 mb-2">{t('leave.requestDateRange')}</p>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-xs text-gray-600 mb-1">From</label>
+                        <label className="block text-xs text-gray-600 mb-1">{t('leave.from')}</label>
                         <input
                           type="date"
                           value={filters.requestDateFrom}
@@ -392,7 +394,7 @@ export default function LeaveApproval() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-600 mb-1">To</label>
+                        <label className="block text-xs text-gray-600 mb-1">{t('leave.to')}</label>
                         <input
                           type="date"
                           value={filters.requestDateTo}
@@ -405,10 +407,10 @@ export default function LeaveApproval() {
 
                   {/* Leave Date Range */}
                   <div className="border-l-4 border-green-500 pl-4">
-                    <p className="text-sm font-semibold text-gray-700 mb-2">Leave Date Range</p>
+                    <p className="text-sm font-semibold text-gray-700 mb-2">{t('leave.leaveDateRange')}</p>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-xs text-gray-600 mb-1">From</label>
+                        <label className="block text-xs text-gray-600 mb-1">{t('leave.from')}</label>
                         <input
                           type="date"
                           value={filters.leaveDateFrom}
@@ -417,7 +419,7 @@ export default function LeaveApproval() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-600 mb-1">To</label>
+                        <label className="block text-xs text-gray-600 mb-1">{t('leave.to')}</label>
                         <input
                           type="date"
                           value={filters.leaveDateTo}
@@ -436,7 +438,7 @@ export default function LeaveApproval() {
                       onClick={clearFilters}
                       className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium"
                     >
-                      Clear All Filters
+                      {t('leave.clearAll')}
                     </button>
                   </div>
                 )}
@@ -451,16 +453,16 @@ export default function LeaveApproval() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              <p className="mt-4 text-gray-600">Loading...</p>
+              <p className="mt-4 text-gray-600">{t('common.loading')}</p>
             </div>
           ) : requests.length === 0 ? (
             <div className="text-center py-12">
               <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No leave requests</h3>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">{t('leave.noRequests')}</h3>
               <p className="mt-1 text-sm text-gray-500">
-                {activeTab === 'pending' ? 'No pending requests to review' : 'No requests found'}
+                {activeTab === 'pending' ? t('leave.noPendingReview') : t('leave.noRequests')}
               </p>
             </div>
           ) : (
@@ -494,41 +496,41 @@ export default function LeaveApproval() {
                       <div className="bg-gray-50 rounded-lg p-4 mb-3">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div>
-                            <p className="text-gray-500 text-xs mb-1">Leave Type</p>
+                            <p className="text-gray-500 text-xs mb-1">{t('leave.type')}</p>
                             <p className="font-medium text-gray-900">{getLeaveTypeLabel(request.leaveType)}</p>
                           </div>
                           <div>
-                            <p className="text-gray-500 text-xs mb-1">Start Date</p>
+                            <p className="text-gray-500 text-xs mb-1">{t('leave.startDate')}</p>
                             <p className="font-medium text-gray-900">{formatDate(request.startDate)}</p>
                           </div>
                           <div>
-                            <p className="text-gray-500 text-xs mb-1">End Date</p>
+                            <p className="text-gray-500 text-xs mb-1">{t('leave.endDate')}</p>
                             <p className="font-medium text-gray-900">{formatDate(request.endDate)}</p>
                           </div>
                           <div>
-                            <p className="text-gray-500 text-xs mb-1">Duration</p>
-                            <p className="font-medium text-gray-900">{request.totalDays} day(s)</p>
+                            <p className="text-gray-500 text-xs mb-1">{t('leave.duration')}</p>
+                            <p className="font-medium text-gray-900">{request.totalDays} {t('leave.days')}</p>
                           </div>
                         </div>
                       </div>
 
                       {/* Reason */}
                       <div className="mb-3">
-                        <p className="text-sm text-gray-500 mb-1">Reason:</p>
+                        <p className="text-sm text-gray-500 mb-1">{t('leave.reason')}:</p>
                         <p className="text-sm text-gray-900">{request.reason}</p>
                       </div>
 
                       {/* Attachment */}
                       {request.attachment && (
                         <div className="mb-3">
-                          <p className="text-sm text-gray-500 mb-1">Attachment:</p>
+                          <p className="text-sm text-gray-500 mb-1">{t('leave.attachment')}:</p>
                           <a 
                             href={request.attachment} 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="text-sm text-blue-600 hover:underline"
                           >
-                            View Document →
+                            {t('leave.viewDocument')} →
                           </a>
                         </div>
                       )}
@@ -538,18 +540,18 @@ export default function LeaveApproval() {
                         <div className="mt-3 pt-3 border-t">
                           {request.status === 'APPROVED' && (
                             <p className="text-sm text-green-600">
-                              ✓ Approved on {formatDate(request.approvedAt)}
-                              {request.currentApprover && ` by ${request.currentApprover.name}`}
+                              ✓ {t('leave.approvedOn')} {formatDate(request.approvedAt)}
+                              {request.currentApprover && ` ${t('leave.by')} ${request.currentApprover.name}`}
                             </p>
                           )}
                           {request.status === 'REJECTED' && (
                             <div className="text-sm">
                               <p className="text-red-600 mb-2">
-                                ✗ Rejected on {formatDate(request.rejectedAt)}
+                                ✗ {t('leave.rejectedOn')} {formatDate(request.rejectedAt)}
                               </p>
                               {request.supervisorComment && (
                                 <div className="bg-red-50 p-3 rounded">
-                                  <p className="text-xs text-gray-600 mb-1">Reason:</p>
+                                  <p className="text-xs text-gray-600 mb-1">{t('leave.reason')}:</p>
                                   <p className="text-sm text-red-900">{request.supervisorComment}</p>
                                 </div>
                               )}
@@ -559,7 +561,7 @@ export default function LeaveApproval() {
                       )}
 
                       <p className="text-xs text-gray-400 mt-3">
-                        Submitted {formatDate(request.createdAt)}
+                        {t('leave.submitted')} {formatDate(request.createdAt)}
                       </p>
                     </div>
 
@@ -570,13 +572,13 @@ export default function LeaveApproval() {
                           onClick={() => openActionModal(request, 'approve')}
                           className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium whitespace-nowrap"
                         >
-                          Approve
+                          {t('leave.approve')}
                         </button>
                         <button
                           onClick={() => openActionModal(request, 'reject')}
                           className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium whitespace-nowrap"
                         >
-                          Reject
+                          {t('leave.reject')}
                         </button>
                       </div>
                     )}
@@ -593,25 +595,25 @@ export default function LeaveApproval() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <h2 className="text-xl font-bold mb-4">
-              {actionType === 'approve' ? 'Approve' : 'Reject'} Leave Request
+              {actionType === 'approve' ? t('leave.approve') : t('leave.reject')} {t('leave.request')}
             </h2>
 
             <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600">Employee: <span className="font-medium text-gray-900">{selectedRequest.employee?.name}</span></p>
-              <p className="text-sm text-gray-600">Leave Type: <span className="font-medium text-gray-900">{getLeaveTypeLabel(selectedRequest.leaveType)}</span></p>
-              <p className="text-sm text-gray-600">Duration: <span className="font-medium text-gray-900">{selectedRequest.totalDays} day(s)</span></p>
+              <p className="text-sm text-gray-600">{t('leave.employee')}: <span className="font-medium text-gray-900">{selectedRequest.employee?.name}</span></p>
+              <p className="text-sm text-gray-600">{t('leave.type')}: <span className="font-medium text-gray-900">{getLeaveTypeLabel(selectedRequest.leaveType)}</span></p>
+              <p className="text-sm text-gray-600">{t('leave.duration')}: <span className="font-medium text-gray-900">{selectedRequest.totalDays} {t('leave.days')}</span></p>
             </div>
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Comment {actionType === 'reject' && <span className="text-red-600">*</span>}
+                {t('leave.commentLabel')} {actionType === 'reject' && <span className="text-red-600">*</span>}
               </label>
               <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows="4"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder={actionType === 'approve' ? 'Optional approval comment...' : 'Please provide a reason for rejection...'}
+                placeholder={t('leave.commentPlaceholder')}
                 required={actionType === 'reject'}
               />
             </div>
@@ -625,7 +627,7 @@ export default function LeaveApproval() {
                 }}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                Cancel
+                {t('leave.cancel')}
               </button>
               <button
                 onClick={handleAction}
@@ -636,7 +638,7 @@ export default function LeaveApproval() {
                     : 'bg-red-600 hover:bg-red-700'
                 } disabled:bg-gray-400`}
               >
-                {loading ? 'Processing...' : actionType === 'approve' ? 'Approve' : 'Reject'}
+                {loading ? t('leave.processing') : actionType === 'approve' ? t('leave.approve') : t('leave.reject')}
               </button>
             </div>
           </div>

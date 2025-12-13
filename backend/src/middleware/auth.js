@@ -84,6 +84,41 @@ export const requireRole = (allowedLevels) => {
 };
 
 /**
+ * Check if user's role level is <= maximum allowed level
+ * REVERSE hierarchy: 1 = highest, 5 = lowest
+ * Example: maxLevel=4 allows 1,2,3,4 but excludes 5 (interns)
+ */
+export const requireMaxRoleLevel = (maxLevel) => {
+  return async (req, res, next) => {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        include: { role: true }
+      });
+
+      if (!user || !user.role) {
+        return res.status(403).json({ message: 'User role not found' });
+      }
+
+      // Check if user's role level is <= maximum allowed level
+      // Example: maxLevel=4 allows 1,2,3,4 but not 5
+      if (user.role.level > maxLevel) {
+        return res.status(403).json({ 
+          message: `Access denied. Maximum role level ${maxLevel} required.`,
+          currentLevel: user.role.level
+        });
+      }
+
+      req.userRole = user.role;
+      next();
+    } catch (error) {
+      console.error('Role check error:', error);
+      res.status(500).json({ message: 'Error checking permissions' });
+    }
+  };
+};
+
+/**
  * Check if user is admin (level 1)
  */
 export const requireAdmin = requireRole([1]);
@@ -93,5 +128,19 @@ export const requireAdmin = requireRole([1]);
  */
 export const requireManager = requireRole([1, 2, 3]);
 
+/**
+ * Check if user is HR or admin
+ */
 export const authorizeHR = requireRole([1, 2]);
+
+/**
+ * Allow access for level <= 4 (everyone except interns)
+ * This allows: Admin(1), Subsidiary(2), Manager(3), Staff(4)
+ * Excludes: Intern(5)
+ */
+export const requireStaffOrAbove = requireMaxRoleLevel(4);
+
+/**
+ * Alias for authenticate (backward compatibility)
+ */
 export const authenticateToken = authenticate;

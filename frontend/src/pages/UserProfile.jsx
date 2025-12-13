@@ -1,8 +1,10 @@
 // frontend/src/pages/UserProfile.jsx
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import apiClient from '../api/client';
 
 export default function UserProfile() {
+  const { t } = useTranslation();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -32,7 +34,7 @@ export default function UserProfile() {
       });
     } catch (error) {
       console.error('Failed to fetch profile:', error);
-      alert('Failed to load profile');
+      alert(t('profile.failedToLoadProfile'));
     } finally {
       setLoading(false);
     }
@@ -42,12 +44,12 @@ export default function UserProfile() {
     e.preventDefault();
     try {
       await apiClient.put('/users/profile', editData);
-      alert('Profile updated successfully');
+      alert(t('profile.profileUpdated'));
       setEditing(false);
       fetchProfile();
     } catch (error) {
       console.error('Update error:', error);
-      alert(error.response?.data?.error || 'Failed to update profile');
+      alert(error.response?.data?.error || t('profile.failedToUpdate'));
     }
   };
 
@@ -55,12 +57,12 @@ export default function UserProfile() {
     e.preventDefault();
     
     if (passwordData.password !== passwordData.confirmPassword) {
-      alert('New passwords do not match');
+      alert(t('profile.passwordsDoNotMatch'));
       return;
     }
 
     if (passwordData.password.length < 6) {
-      alert('Password must be at least 6 characters');
+      alert(t('profile.passwordTooShort'));
       return;
     }
 
@@ -69,7 +71,7 @@ export default function UserProfile() {
         currentPassword: passwordData.currentPassword,
         password: passwordData.password
       });
-      alert('Password changed successfully');
+      alert(t('profile.passwordChanged'));
       setChangingPassword(false);
       setPasswordData({
         currentPassword: '',
@@ -78,7 +80,7 @@ export default function UserProfile() {
       });
     } catch (error) {
       console.error('Password change error:', error);
-      alert(error.response?.data?.error || 'Failed to change password');
+      alert(error.response?.data?.error || t('profile.failedToChangePassword'));
     }
   };
 
@@ -106,7 +108,7 @@ export default function UserProfile() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-gray-600">Loading profile...</div>
+        <div className="text-lg text-gray-600">{t('profile.loadingProfile')}</div>
       </div>
     );
   }
@@ -114,7 +116,7 @@ export default function UserProfile() {
   if (!user) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-red-600">Failed to load profile</div>
+        <div className="text-lg text-red-600">{t('profile.failedToLoad')}</div>
       </div>
     );
   }
@@ -123,8 +125,8 @@ export default function UserProfile() {
     <div className="max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
-        <p className="text-gray-600 mt-1">View and manage your personal information</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('profile.myProfile')}</h1>
+        <p className="text-gray-600 mt-1">{t('profile.viewManage')}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -135,7 +137,7 @@ export default function UserProfile() {
               {user.name.charAt(0).toUpperCase()}
             </div>
             <h2 className="text-xl font-bold text-gray-900">{user.name}</h2>
-            <p className="text-gray-600">{user.nip || 'No NIP'}</p>
+            <p className="text-gray-600">{user.nip || t('profile.noNip')}</p>
             <span className={`inline-block mt-3 px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(user.employeeStatus)}`}>
               {user.employeeStatus}
             </span>
@@ -144,15 +146,15 @@ export default function UserProfile() {
             <div className="mt-6 pt-6 border-t border-gray-200">
               <div className="space-y-3">
                 <div>
-                  <p className="text-sm text-gray-600">Leave Balance</p>
+                  <p className="text-sm text-gray-600">{t('profile.leaveBalance')}</p>
                   <p className="text-2xl font-bold text-blue-600">
-                    {user.leaveBalance?.annualRemaining || 0} days
+                    {user.leaveBalance?.annualRemaining || 0} {t('profile.days')}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Overtime Balance</p>
+                  <p className="text-sm text-gray-600">{t('profile.overtimeBalance')}</p>
                   <p className="text-2xl font-bold text-green-600">
-                    {user.overtimeBalance?.currentBalance?.toFixed(1) || 0} hours
+                    {user.overtimeBalance?.currentBalance?.toFixed(1) || 0} {t('profile.hours')}
                   </p>
                 </div>
               </div>
@@ -165,32 +167,32 @@ export default function UserProfile() {
           {/* Personal Information */}
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
-              <h3 className="text-lg font-semibold text-white">Personal Information</h3>
+              <h3 className="text-lg font-semibold text-white">{t('profile.personalInformation')}</h3>
             </div>
             <div className="p-6">
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.fullName')}</label>
                   <p className="text-gray-900">{user.name}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.email')}</label>
                   <p className="text-gray-900">{user.email}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-                  <p className="text-gray-900">{user.gender || 'Not Specified'}</p>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.gender')}</label>
+                  <p className="text-gray-900">{user.gender || t('profile.notSpecified')}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.dateOfBirth')}</label>
                   <p className="text-gray-900">{formatDate(user.dateOfBirth)}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Place of Birth</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.placeOfBirth')}</label>
                   <p className="text-gray-900">{user.placeOfBirth || '-'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.phone')}</label>
                   {editing ? (
                     <input
                       type="tel"
@@ -203,7 +205,7 @@ export default function UserProfile() {
                   )}
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.address')}</label>
                   {editing ? (
                     <textarea
                       value={editData.address}
@@ -223,7 +225,7 @@ export default function UserProfile() {
                     onClick={handleUpdateProfile}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
-                    Save Changes
+                    {t('profile.saveChanges')}
                   </button>
                   <button
                     onClick={() => setEditing(false)}
@@ -237,7 +239,7 @@ export default function UserProfile() {
                   onClick={() => setEditing(true)}
                   className="mt-6 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
-                  Edit Profile
+                  {t('profile.editProfile')}
                 </button>
               )}
             </div>
@@ -246,45 +248,45 @@ export default function UserProfile() {
           {/* Employment Information */}
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <div className="bg-gradient-to-r from-green-500 to-green-600 px-6 py-4">
-              <h3 className="text-lg font-semibold text-white">Employment Information</h3>
+              <h3 className="text-lg font-semibold text-white">{t('profile.employmentInformation')}</h3>
             </div>
             <div className="p-6">
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.employeeId')}</label>
                   <p className="text-gray-900">{user.nip || '-'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.status')}</label>
                   <p className="text-gray-900">{user.employeeStatus}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Division</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.division')}</label>
                   <p className="text-gray-900">{user.division?.name}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.role')}</label>
                   <p className="text-gray-900">{user.role?.name}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Plotting Company</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.plottingCompany')}</label>
                   <p className="text-gray-900">{user.plottingCompany || '-'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Join Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.joinDate')}</label>
                   <p className="text-gray-900">{formatDate(user.joinDate)}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Contract Start</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.contractStart')}</label>
                   <p className="text-gray-900">{formatDate(user.contractStartDate)}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Contract End</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.contractEnd')}</label>
                   <p className="text-gray-900">{formatDate(user.contractEndDate)}</p>
                 </div>
                 {user.supervisor && (
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Supervisor</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.supervisor')}</label>
                     <p className="text-gray-900">{user.supervisor.name} ({user.supervisor.email})</p>
                   </div>
                 )}
@@ -295,20 +297,20 @@ export default function UserProfile() {
           {/* Benefits Information */}
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4">
-              <h3 className="text-lg font-semibold text-white">Benefits Information</h3>
+              <h3 className="text-lg font-semibold text-white">{t('profile.benefitsInformation')}</h3>
             </div>
             <div className="p-6">
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">BPJS Health</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.bpjsHealth')}</label>
                   <p className="text-gray-900">{user.bpjsHealth || '-'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">BPJS Employment</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.bpjsEmployment')}</label>
                   <p className="text-gray-900">{user.bpjsEmployment || '-'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Overtime Rate</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.overtimeRate')}</label>
                   <p className="text-gray-900">
                     {new Intl.NumberFormat('id-ID', {
                       style: 'currency',
@@ -324,13 +326,13 @@ export default function UserProfile() {
           {/* Security */}
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-white">Security</h3>
+              <h3 className="text-lg font-semibold text-white">{t('profile.security')}</h3>
               {!changingPassword && (
                 <button
                   onClick={() => setChangingPassword(true)}
                   className="px-4 py-1 bg-white text-red-600 rounded text-sm font-medium hover:bg-red-50"
                 >
-                  Change Password
+                  {t('profile.changePassword')}
                 </button>
               )}
             </div>
@@ -338,7 +340,7 @@ export default function UserProfile() {
             {changingPassword ? (
               <form onSubmit={handleChangePassword} className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('profile.currentPassword')}</label>
                   <input
                     type="password"
                     required
@@ -348,7 +350,7 @@ export default function UserProfile() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('profile.newPassword')}</label>
                   <input
                     type="password"
                     required
@@ -359,7 +361,7 @@ export default function UserProfile() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('profile.confirmNewPassword')}</label>
                   <input
                     type="password"
                     required
@@ -374,7 +376,7 @@ export default function UserProfile() {
                     type="submit"
                     className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
                   >
-                    Update Password
+                    {t('profile.updatePassword')}
                   </button>
                   <button
                     type="button"
@@ -391,7 +393,7 @@ export default function UserProfile() {
             ) 
               : (
                 <div className="p-6">
-                  <p className="text-gray-600">Last password change: <span className="font-medium">Never</span></p>
+                  <p className="text-gray-600">{t('profile.lastPasswordChange')}: <span className="font-medium">{t('profile.never')}</span></p>
                 </div>
               )
             }

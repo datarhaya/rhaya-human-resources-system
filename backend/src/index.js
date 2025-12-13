@@ -29,6 +29,7 @@ const PORT = process.env.PORT || 3000;
 // CORS Configuration - Production Ready
 const allowedOrigins = [
   'http://localhost:5173', // Development
+  'https://polyphyodont-dannielle-semiadhesive.ngrok-free.dev', // Development
   'https://rhaya-human-resources-system.pages.dev', // Production
   process.env.FRONTEND_URL, // From Railway env var
   /\.pages\.dev$/, // All Cloudflare Pages subdomains
@@ -111,6 +112,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/divisions', divisionRoutes);
 app.use('/api/leaves', leaveRoutes);
+app.use('/api/leave', leaveRoutes);
 app.use('/api/overtime', overtimeRoutes);
 app.use('/api/overtime-recap', overtimeRecapRoutes);
 app.use('/api/payslips', payslipRoutes);

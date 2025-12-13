@@ -4,6 +4,10 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useAuth } from './hooks/useAuth';
+import { useTranslation } from 'react-i18next';
+
+// Import i18n configuration
+import './i18n';
 
 // Pages
 import Login from './pages/Login';
@@ -20,8 +24,6 @@ import UserManagement from './pages/UserManagement';
 import LeaveHistory from './pages/LeaveHistory';
 import LeaveApproval from './pages/LeaveApproval';
 import OvertimeRecapManagement from './pages/OvertimeRecapManagement';
-
-
 
 // Layout
 import Layout from './components/Layout';
@@ -50,6 +52,7 @@ const queryClient = new QueryClient({
 // Protected route wrapper
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
+  const { t } = useTranslation();
   
   if (loading) {
     return (
@@ -59,7 +62,7 @@ function ProtectedRoute({ children }) {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -95,12 +98,6 @@ function App() {
           <Route path="/login" element={<Login />} />
           
           {/* Protected routes */}
-          {/* <Route path="/" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } /> */}
-
           <Route path="/" element={
               <ProtectedRoute>
                 <SmartDashboard />

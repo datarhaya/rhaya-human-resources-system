@@ -1,8 +1,11 @@
 // frontend/src/pages/OvertimeHistory.jsx
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { getMyOvertimeRequests, getMyOvertimeBalance, deleteOvertimeRequest } from '../api/client';
+import apiClient from '../api/client';  
 import { format } from 'date-fns';
+
 
 export default function OvertimeHistory() {
   const [requests, setRequests] = useState([]);
@@ -13,6 +16,7 @@ export default function OvertimeHistory() {
   const [statusFilter, setStatusFilter] = useState('all'); // all, PENDING, APPROVED, REJECTED
   const [deleteLoading, setDeleteLoading] = useState(null);
   const [leaveBalance, setLeaveBalance] = useState(null);
+  const { t } = useTranslation();
 
   // Advanced filter state
   const [filters, setFilters] = useState({
@@ -126,7 +130,7 @@ export default function OvertimeHistory() {
 
   // Handle delete request
   const handleDelete = async (requestId) => {
-    if (!confirm('Are you sure you want to delete this overtime request?')) {
+    if (!confirm(t('overtime.deleteConfirm'))) {
       return;
     }
 
@@ -155,9 +159,9 @@ export default function OvertimeHistory() {
     };
 
     const labels = {
-      PENDING: 'Pending',
-      APPROVED: 'Approved',
-      REJECTED: 'Rejected',
+      PENDING: t('overtime.pending'),
+      APPROVED: t('overtime.approved'),
+      REJECTED: t('overtime.rejected'),
       REVISION_REQUESTED: 'Revision Requested'
     };
 
@@ -181,9 +185,9 @@ export default function OvertimeHistory() {
       {/* Header */}
       <div className="mb-6 flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Overtime</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('nav.overtime')}</h1>
           <p className="text-sm text-gray-600 mt-1">
-            View and manage your overtime requests
+            {t('overtime.viewManageRequests')}
           </p>
         </div>
         <Link
@@ -193,30 +197,30 @@ export default function OvertimeHistory() {
           <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
           </svg>
-          Submit Overtime
+          {t('overtime.submitOvertimeButton')}
         </Link>
       </div>
 
       {/* Balance Card */}
       {balance && (
-        console.log('Balance:', balance) ||
+        // console.log('Balance:', balance) ||
         <div className="mb-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
-          <h2 className="text-lg font-semibold mb-4">Overtime Balance</h2>
+          <h2 className="text-lg font-semibold mb-4">{t('overtime.overtimeBalance')}</h2>
           <div className="grid grid-cols-3 gap-6">
             <div>
-              <p className="text-blue-100 text-sm">Pending Hours</p>
+              <p className="text-blue-100 text-sm">{t('overtime.pendingHours')}</p>
               <p className="text-3xl font-bold">{balance.pendingHours.toFixed(1)}</p>
-              <p className="text-blue-100 text-xs mt-1">Awaiting approval</p>
+              <p className="text-blue-100 text-xs mt-1">{t('overtime.awaitingApproval')}</p>
             </div>
             <div>
-              <p className="text-blue-100 text-sm">Approved Balance</p>
+              <p className="text-blue-100 text-sm">{t('overtime.approvedBalance')}</p>
               <p className="text-3xl font-bold">{balance.currentBalance.toFixed(1)}</p>
-              <p className="text-blue-100 text-xs mt-1">Ready for processing</p>
+              <p className="text-blue-100 text-xs mt-1">{t('overtime.readyForPayment')}</p>
             </div>
             <div>
-              <p className="text-blue-100 text-sm">Total Paid</p>
+              <p className="text-blue-100 text-sm">{t('overtime.totalPaid')}</p>
               <p className="text-3xl font-bold">{balance.totalPaid.toFixed(1)}</p>
-              <p className="text-blue-100 text-xs mt-1">All-time hours paid</p>
+              <p className="text-blue-100 text-xs mt-1">{t('overtime.allTimeHoursPaid')}</p>
             </div>
           </div>
         </div>
@@ -229,113 +233,94 @@ export default function OvertimeHistory() {
         </div>
       )}
       
-      {/* Filter Section */}
-      <div className="mb-6 bg-white rounded-lg shadow p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Overtime History ({requests.length})
-          </h3>
-          <div className="flex items-center space-x-2">
-            {hasActiveFilters && (
-              <span className="text-sm text-blue-600 font-medium">
-                {requests.length} of {allRequests.length} shown
-              </span>
-            )}
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors ${
-                showFilters || hasActiveFilters
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-              </svg>
-              <span>Filter</span>
-              {hasActiveFilters && (
-                <span className="bg-white text-blue-600 rounded-full px-2 py-0.5 text-xs font-bold">
-                  {Object.values(filters).filter(v => v !== '').length}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
+      {/* Advanced Filters */}
+      <div className="mb-6 bg-white rounded-lg shadow p-6">
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="flex items-center justify-between w-full text-left"
+        >
+          <h3 className="text-lg font-medium text-gray-900">{t('overtime.advancedFilters')}</h3>
+          <span className="text-sm text-blue-600 font-medium">
+            {showFilters ? t('overtime.hideFilters') : t('overtime.showFilters')}
+          </span>
+        </button>
 
-        {/* Filter Panel */}
         {showFilters && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
-            {/* Date Ranges */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Request Date Range */}
-              <div className="border-l-4 border-blue-500 pl-4">
-                <p className="text-sm font-semibold text-gray-700 mb-2">Request Date Range</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">From</label>
-                    <input
-                      type="date"
-                      value={filters.requestDateFrom}
-                      onChange={(e) => setFilters({...filters, requestDateFrom: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">To</label>
-                    <input
-                      type="date"
-                      value={filters.requestDateTo}
-                      onChange={(e) => setFilters({...filters, requestDateTo: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+          <div className="mt-4 space-y-4">
+            {/* Request Date Range */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t('overtime.requestDateRange')}
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">{t('overtime.fromDate')}</label>
+                  <input
+                    type="date"
+                    value={filters.requestDateFrom}
+                    onChange={(e) => setFilters({...filters, requestDateFrom: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">{t('overtime.toDate')}</label>
+                  <input
+                    type="date"
+                    value={filters.requestDateTo}
+                    onChange={(e) => setFilters({...filters, requestDateTo: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
               </div>
+            </div>
 
-              {/* Overtime Date Range */}
-              <div className="border-l-4 border-green-500 pl-4">
-                <p className="text-sm font-semibold text-gray-700 mb-2">Overtime Date Range</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">From</label>
-                    <input
-                      type="date"
-                      value={filters.overtimeDateFrom}
-                      onChange={(e) => setFilters({...filters, overtimeDateFrom: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">To</label>
-                    <input
-                      type="date"
-                      value={filters.overtimeDateTo}
-                      onChange={(e) => setFilters({...filters, overtimeDateTo: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+            {/* Overtime Date Range */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t('overtime.overtimeDateRange')}
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">{t('overtime.fromDate')}</label>
+                  <input
+                    type="date"
+                    value={filters.overtimeDateFrom}
+                    onChange={(e) => setFilters({...filters, overtimeDateFrom: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">{t('overtime.toDate')}</label>
+                  <input
+                    type="date"
+                    value={filters.overtimeDateTo}
+                    onChange={(e) => setFilters({...filters, overtimeDateTo: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
               </div>
             </div>
 
             {/* Hours Range */}
-            <div className="border-l-4 border-purple-500 pl-4">
-              <p className="text-sm font-semibold text-gray-700 mb-2">Total Hours Range</p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t('overtime.hoursRange')}
+              </label>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Minimum Hours</label>
+                  <label className="block text-xs text-gray-600 mb-1">{t('overtime.minHours')}</label>
                   <input
                     type="number"
                     min="0"
                     step="0.5"
                     value={filters.hoursMin}
                     onChange={(e) => setFilters({...filters, hoursMin: e.target.value})}
-                    placeholder="e.g., 8"
+                    placeholder="e.g., 0"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-600 mb-1">Maximum Hours</label>
+                  <label className="block text-xs text-gray-600 mb-1">{t('overtime.maxHours')}</label>
                   <input
                     type="number"
                     min="0"
@@ -347,9 +332,6 @@ export default function OvertimeHistory() {
                   />
                 </div>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
-                💡 Filter requests by total overtime hours (e.g., 8-40 hours)
-              </p>
             </div>
 
             {/* Actions */}
@@ -359,7 +341,7 @@ export default function OvertimeHistory() {
                   onClick={clearFilters}
                   className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium"
                 >
-                  Clear Filters
+                  {t('overtime.clearFilters')}
                 </button>
               </div>
             )}
@@ -380,7 +362,7 @@ export default function OvertimeHistory() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              {tab === 'all' ? 'All Requests' : tab.charAt(0) + tab.slice(1).toLowerCase()}
+              {tab === 'all' ? t('overtime.allRequests') : t(`overtime.${tab.toLowerCase()}`)}
               <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
                 statusFilter === tab ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
               }`}>
@@ -448,18 +430,18 @@ export default function OvertimeHistory() {
                     <div className="flex items-center space-x-3">
                       <StatusBadge status={request.status} />
                       <span className="text-sm text-gray-500">
-                        Submitted on {format(new Date(request.submittedAt), 'MMM dd, yyyy')}
+                        {t('overtime.submittedOn')} {format(new Date(request.submittedAt), 'MMM dd, yyyy')}
                       </span>
                     </div>
                     <div className="mt-2">
                       <p className="text-lg font-semibold text-gray-900">
-                        {request.totalHours} hours
+                        {request.totalHours} {t('overtime.hours')}
                         <span className="text-sm font-normal text-gray-500 ml-2">
-                          ({(request.totalHours / 8).toFixed(2)} days)
+                          ({(request.totalHours / 8).toFixed(2)} {t('overtime.days')})
                         </span>
                       </p>
                       <p className="text-sm text-gray-600">
-                        Approver: {request.currentApprover?.name || 'N/A'}
+                        {t('overtime.approver')} {request.currentApprover?.name || 'N/A'}
                       </p>
                     </div>
                   </div>
@@ -472,14 +454,14 @@ export default function OvertimeHistory() {
                           to={`/overtime/edit/${request.id}`}
                           className="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100"
                         >
-                          Edit
+                          {t('overtime.edit')}
                         </Link>
                         <button
                           onClick={() => handleDelete(request.id)}
                           disabled={deleteLoading === request.id}
                           className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 rounded hover:bg-red-100 disabled:opacity-50"
                         >
-                          {deleteLoading === request.id ? 'Deleting...' : 'Delete'}
+                          {deleteLoading === request.id ? t('overtime.deleting') : t('overtime.delete')}
                         </button>
                       </>
                     )}
@@ -489,21 +471,21 @@ export default function OvertimeHistory() {
                         disabled={deleteLoading === request.id}
                         className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 rounded hover:bg-red-100 disabled:opacity-50"
                       >
-                        {deleteLoading === request.id ? 'Deleting...' : 'Delete'}
+                        {deleteLoading === request.id ? t('overtime.deleting') : t('overtime.delete')}
                       </button>
                     )}
                     <Link
                       to={`/overtime/detail/${request.id}`}
                       className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
                     >
-                      View Details
+                      {t('overtime.viewDetails')}
                     </Link>
                   </div>
                 </div>
 
                 {/* Entries */}
                 <div className="mt-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Overtime Dates:</h4>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">{t('overtime.overtimeDates')}</h4>
                   <div className="space-y-2">
                     {request.entries.map((entry, index) => (
                       <div key={index} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded">
@@ -514,7 +496,7 @@ export default function OvertimeHistory() {
                           <p className="text-sm text-gray-600">{entry.description}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-semibold text-gray-900">{entry.hours} hours</p>
+                          <p className="text-sm font-semibold text-gray-900">{entry.hours} {t('overtime.hours')}</p>
                         </div>
                       </div>
                     ))}
@@ -524,15 +506,15 @@ export default function OvertimeHistory() {
                 {/* Approval Comments */}
                 {(request.supervisorComment || request.divisionHeadComment) && (
                   <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-100">
-                    <h4 className="text-sm font-medium text-blue-900 mb-1">Comments:</h4>
+                    <h4 className="text-sm font-medium text-blue-900 mb-1">{t('overtime.comments')}</h4>
                     {request.supervisorComment && (
                       <p className="text-sm text-blue-800">
-                        <strong>Supervisor:</strong> {request.supervisorComment}
+                        <strong>{t('overtime.supervisor')}</strong> {request.supervisorComment}
                       </p>
                     )}
                     {request.divisionHeadComment && (
                       <p className="text-sm text-blue-800 mt-1">
-                        <strong>Division Head:</strong> {request.divisionHeadComment}
+                        <strong>{t('overtime.divisionHead')}</strong> {request.divisionHeadComment}
                       </p>
                     )}
                   </div>

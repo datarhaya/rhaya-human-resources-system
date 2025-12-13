@@ -1,12 +1,14 @@
 // frontend/src/pages/OvertimeEdit.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { getOvertimeRequestById, editOvertimeRequest } from '../api/client';
 import { format, subDays } from 'date-fns';
 
 export default function OvertimeEdit() {
   const { requestId } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -29,7 +31,7 @@ export default function OvertimeEdit() {
       
       // Check if request can be edited
       if (data.status !== 'PENDING' && data.status !== 'REVISION_REQUESTED') {
-        setError('Only pending or revision-requested overtime can be edited');
+        setError(t('overtime.onlyPendingCanEdit'));
         setTimeout(() => navigate('/overtime/history'), 2000);
         return;
       }
@@ -47,7 +49,7 @@ export default function OvertimeEdit() {
       setError('');
     } catch (err) {
       console.error('Fetch error:', err);
-      setError(err.message || 'Failed to load overtime request');
+      setError(err.message || t('overtime.failedToLoad'));
       setTimeout(() => navigate('/overtime/history'), 2000);
     } finally {
       setLoading(false);
@@ -62,7 +64,7 @@ export default function OvertimeEdit() {
   // Remove entry row
   const removeEntry = (index) => {
     if (entries.length === 1) {
-      setError('At least one entry is required');
+      setError(t('overtime.atLeastOneEntry'));
       return;
     }
     const newEntries = entries.filter((_, i) => i !== index);
@@ -95,13 +97,13 @@ export default function OvertimeEdit() {
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i];
       if (!entry.date || !entry.hours || !entry.description.trim()) {
-        setError(`Entry ${i + 1}: All fields are required`);
+        setError(`${t('common.entry')} ${i + 1}: ${t('overtime.allFieldsRequired')}`);
         return false;
       }
 
       const hours = parseFloat(entry.hours);
       if (isNaN(hours) || hours <= 0 || hours > 12) {
-        setError(`Entry ${i + 1}: Hours must be between 0.5 and 12`);
+        setError(`${t('common.entry')} ${i + 1}: ${t('overtime.hoursBetween')}`);
         return false;
       }
 
@@ -110,12 +112,12 @@ export default function OvertimeEdit() {
       const maxDate = new Date(today);
 
       if (entryDate < minDate) {
-        setError(`Entry ${i + 1}: Date is more than 7 days ago`);
+        setError(`${t('common.entry')} ${i + 1}: ${t('overtime.dateMoreThan7Days')}`);
         return false;
       }
 
       if (entryDate > maxDate) {
-        setError(`Entry ${i + 1}: Cannot submit future dates`);
+        setError(`${t('common.entry')} ${i + 1}: ${t('overtime.cannotSubmitFuture')}`);
         return false;
       }
     }
@@ -123,7 +125,7 @@ export default function OvertimeEdit() {
     const dates = entries.map(e => e.date);
     const uniqueDates = new Set(dates);
     if (dates.length !== uniqueDates.size) {
-      setError('Duplicate dates found. Each date must be unique.');
+      setError(t('overtime.duplicateDates'));
       return false;
     }
 
@@ -151,7 +153,7 @@ export default function OvertimeEdit() {
         }))
       });
 
-      setSuccess('Overtime request updated successfully!');
+      setSuccess(t('overtime.updateSuccess'));
       
       setTimeout(() => {
         navigate('/overtime/history');
@@ -159,7 +161,7 @@ export default function OvertimeEdit() {
 
     } catch (err) {
       console.error('Submit error:', err);
-      setError(err.message || 'Failed to update overtime request');
+      setError(err.message || t('overtime.updateError'));
     } finally {
       setSubmitting(false);
     }
@@ -175,7 +177,7 @@ export default function OvertimeEdit() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="mt-4 text-gray-600">Loading overtime request...</p>
+          <p className="mt-4 text-gray-600">{t('overtime.loadingRequest')}</p>
         </div>
       </div>
     );
@@ -185,9 +187,9 @@ export default function OvertimeEdit() {
     <div className="max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Edit Overtime Request</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('overtime.editTitle')}</h1>
         <p className="text-sm text-gray-600 mt-1">
-          Update your overtime hours. Maximum 12 hours per day.
+          {t('overtime.editDescription')}
         </p>
       </div>
 
@@ -199,7 +201,7 @@ export default function OvertimeEdit() {
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
             </svg>
             <div className="flex-1">
-              <h3 className="text-sm font-medium text-orange-900">Revision Requested</h3>
+              <h3 className="text-sm font-medium text-orange-900">{t('overtime.revisionRequested')}</h3>
               <p className="text-sm text-orange-800 mt-1">{originalRequest.supervisorComment}</p>
             </div>
           </div>
@@ -228,11 +230,11 @@ export default function OvertimeEdit() {
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
             </svg>
             <div className="flex-1">
-              <h3 className="text-sm font-medium text-blue-900">Edit Guidelines:</h3>
+              <h3 className="text-sm font-medium text-blue-900">{t('overtime.editGuidelines')}</h3>
               <ul className="mt-1 text-sm text-blue-800 list-disc list-inside space-y-1">
-                <li>You can only edit within 7 days of the work date</li>
-                <li>Maximum 12 hours per day</li>
-                <li>Cannot have duplicate dates</li>
+                <li>{t('overtime.editNote1')}</li>
+                <li>{t('overtime.editNote2')}</li>
+                <li>{t('overtime.editNote3')}</li>
               </ul>
             </div>
           </div>
@@ -243,11 +245,11 @@ export default function OvertimeEdit() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hours</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('overtime.tableNumber')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('overtime.tableDate')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('overtime.tableHours')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('overtime.tableDescription')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('overtime.tableAction')}</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -273,7 +275,7 @@ export default function OvertimeEdit() {
                       max="12"
                       value={entry.hours}
                       onChange={(e) => updateEntry(index, 'hours', e.target.value)}
-                      placeholder="Max 12"
+                      placeholder={t('overtime.hoursPlaceholder')}
                       className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />
@@ -283,7 +285,7 @@ export default function OvertimeEdit() {
                       type="text"
                       value={entry.description}
                       onChange={(e) => updateEntry(index, 'description', e.target.value)}
-                      placeholder="e.g., Client deployment"
+                      placeholder={t('overtime.descriptionPlaceholder')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />
@@ -316,7 +318,7 @@ export default function OvertimeEdit() {
             <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
             </svg>
-            Add Another Date
+            {t('overtime.addAnotherDate')}
           </button>
         </div>
 
@@ -324,10 +326,10 @@ export default function OvertimeEdit() {
         <div className="px-4 py-4 border-t border-gray-200 bg-gray-50">
           <div className="flex justify-between items-center">
             <div>
-              <p className="text-sm text-gray-600">Total Summary</p>
+              <p className="text-sm text-gray-600">{t('overtime.totalSummary')}</p>
               <div className="mt-1 space-x-6">
-                <span className="text-lg font-semibold text-gray-900">{totals.hours} hours</span>
-                <span className="text-sm text-gray-500">({totals.days} days)</span>
+                <span className="text-lg font-semibold text-gray-900">{totals.hours} {t('overtime.hours')}</span>
+                <span className="text-sm text-gray-500">({totals.days} {t('overtime.days')})</span>
               </div>
             </div>
 
@@ -337,7 +339,7 @@ export default function OvertimeEdit() {
                 onClick={() => navigate('/overtime/history')}
                 className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
               >
-                Cancel
+                {t('overtime.cancel')}
               </button>
               <button
                 type="submit"
@@ -350,10 +352,10 @@ export default function OvertimeEdit() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Updating...
+                    {t('overtime.updating')}
                   </span>
                 ) : (
-                  'Update Overtime Request'
+                  t('overtime.updateRequest')
                 )}
               </button>
             </div>

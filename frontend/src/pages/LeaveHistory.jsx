@@ -1,10 +1,12 @@
 // frontend/src/pages/LeaveHistory.jsx
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import apiClient from '../api/client';
 
 export default function LeaveHistory() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('submit');
   const [loading, setLoading] = useState(false);
   const [requests, setRequests] = useState([]);
@@ -34,12 +36,12 @@ export default function LeaveHistory() {
   });
 
   const leaveTypes = [
-    { value: 'ANNUAL_LEAVE', label: 'Annual Leave (Cuti Tahunan)', isPaid: true, requiresAttachment: false },
-    { value: 'SICK_LEAVE', label: 'Sick Leave (Cuti Sakit)', isPaid: true, requiresAttachment: true, note: 'Attachment required for >2 days' },
-    { value: 'MATERNITY_LEAVE', label: 'Maternity Leave (Cuti Hamil)', isPaid: true, requiresAttachment: false },
-    { value: 'MENSTRUAL_LEAVE', label: 'Menstrual Leave (Cuti Haid)', isPaid: true, requiresAttachment: false },
-    { value: 'MARRIAGE_LEAVE', label: 'Marriage Leave (Cuti Menikah)', isPaid: true, requiresAttachment: false },
-    { value: 'UNPAID_LEAVE', label: 'Unpaid Leave (Cuti Tidak Berbayar)', isPaid: false, requiresAttachment: false, note: 'Max 14 days/year, 10 consecutive days' }
+    { value: 'ANNUAL_LEAVE', labelKey: 'annualLeave', isPaid: true, requiresAttachment: false },
+    { value: 'SICK_LEAVE', labelKey: 'sickLeave', isPaid: true, requiresAttachment: true, noteKey: 'attachmentNote' },
+    { value: 'MATERNITY_LEAVE', labelKey: 'maternityLeave', isPaid: true, requiresAttachment: false },
+    { value: 'MENSTRUAL_LEAVE', labelKey: 'menstrualLeave', isPaid: true, requiresAttachment: false },
+    { value: 'MARRIAGE_LEAVE', labelKey: 'marriageLeave', isPaid: true, requiresAttachment: false },
+    { value: 'UNPAID_LEAVE', labelKey: 'unpaidLeave', isPaid: false, requiresAttachment: false, noteKey: 'unpaidNote' }
   ];
 
   useEffect(() => {
@@ -156,7 +158,7 @@ export default function LeaveHistory() {
 
       await apiClient.post('/leave/submit', submitData);
       
-      alert('Leave request submitted successfully!');
+      alert(t('leave.submitSuccess'));
       
       // Reset form
       setFormData({
@@ -172,7 +174,7 @@ export default function LeaveHistory() {
       setActiveTab('history');
     } catch (error) {
       console.error('Submit error:', error);
-      const errorMsg = error.response?.data?.details?.join(', ') || error.response?.data?.error || 'Failed to submit leave request';
+      const errorMsg = error.response?.data?.details?.join(', ') || error.response?.data?.error || t('leave.submitError');
       alert(errorMsg);
     } finally {
       setLoading(false);
@@ -180,15 +182,15 @@ export default function LeaveHistory() {
   };
 
   const handleDelete = async (requestId) => {
-    if (!confirm('Are you sure you want to delete this leave request?')) return;
+    if (!confirm(t('leave.deleteConfirm'))) return;
 
     try {
       await apiClient.delete(`/leave/${requestId}`);
-      alert('Leave request deleted successfully');
+      alert(t('leave.deleteSuccess'));
       fetchLeaveData();
     } catch (error) {
       console.error('Delete error:', error);
-      alert(error.response?.data?.error || 'Failed to delete leave request');
+      alert(error.response?.data?.error || t('leave.deleteError'));
     }
   };
 
@@ -207,7 +209,7 @@ export default function LeaveHistory() {
 
   const getLeaveTypeLabel = (type) => {
     const leaveType = leaveTypes.find(t => t.value === type);
-    return leaveType?.label || type;
+    return leaveType ? t(`leave.${leaveType.labelKey}`) : type;
   };
 
   const formatDate = (date) => {
@@ -224,8 +226,8 @@ export default function LeaveHistory() {
     <div className="max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Leave Management</h1>
-        <p className="text-sm text-gray-600 mt-1">Submit and manage your leave requests</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('leave.management')}</h1>
+        <p className="text-sm text-gray-600 mt-1">{t('leave.submitManage')}</p>
       </div>
 
       {/* Balance Cards */}
@@ -234,60 +236,60 @@ export default function LeaveHistory() {
         {/* Annual Quota */}
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium opacity-90">Annual Quota</h3>
+            <h3 className="text-sm font-medium opacity-90">{t('leave.annualQuota')}</h3>
             <svg className="w-6 h-6 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
           </div>
           <p className="text-3xl font-bold">
-            {leaveBalance?.annualQuota || 14} days
+            {leaveBalance?.annualQuota || 14} {t('leave.days')}
           </p>
-          <p className="text-xs opacity-75 mt-1">Base allocation</p>
+          <p className="text-xs opacity-75 mt-1">{t('leave.baseAllocation')}</p>
         </div>
 
         {/* TOIL Balance */}
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium opacity-90">TOIL</h3>
+            <h3 className="text-sm font-medium opacity-90">{t('leave.toilBalance')}</h3>
             <svg className="w-6 h-6 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <p className="text-3xl font-bold">
-            {leaveBalance?.toilBalance || 0} days
+            {leaveBalance?.toilBalance || 0} {t('leave.days')}
           </p>
-          <p className="text-xs opacity-75 mt-1">Time Off In Lieu</p>
+          <p className="text-xs opacity-75 mt-1">{t('leave.toilFull')}</p>
         </div>
 
         {/* Used */}
         <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-6 text-white">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium opacity-90">Used</h3>
+            <h3 className="text-sm font-medium opacity-90">{t('leave.used')}</h3>
             <svg className="w-6 h-6 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <p className="text-3xl font-bold">
-            {(leaveBalance?.annualUsed || 0) + (leaveBalance?.toilUsed || 0)} days
+            {(leaveBalance?.annualUsed || 0) + (leaveBalance?.toilUsed || 0)} {t('leave.days')}
           </p>
           <p className="text-xs opacity-75 mt-1">
-            Annual: {leaveBalance?.annualUsed || 0} | TOIL: {leaveBalance?.toilUsed || 0}
+            {t('leave.annual')}: {leaveBalance?.annualUsed || 0} | {t('leave.toilBalance')}: {leaveBalance?.toilUsed || 0}
           </p>
         </div>
 
         {/* Available */}
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium opacity-90">Available</h3>
+            <h3 className="text-sm font-medium opacity-90">{t('leave.available')}</h3>
             <svg className="w-6 h-6 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <p className="text-3xl font-bold">
-            {(leaveBalance?.annualRemaining || 0) + (leaveBalance?.toilBalance || 0)} days
+            {(leaveBalance?.annualRemaining || 0) + (leaveBalance?.toilBalance || 0)} {t('leave.days')}
           </p>
           <p className="text-xs opacity-75 mt-1">
-            Annual: {leaveBalance?.annualRemaining || 0} | TOIL: {leaveBalance?.toilBalance || 0}
+            {t('leave.annual')}: {leaveBalance?.annualRemaining || 0} | {t('leave.toilBalance')}: {leaveBalance?.toilBalance || 0}
           </p>
         </div>
       </div>
@@ -329,7 +331,7 @@ export default function LeaveHistory() {
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              Submit Leave
+              {t('leave.submitLeave')}
             </button>
             <button
               onClick={() => setActiveTab('history')}
@@ -339,7 +341,7 @@ export default function LeaveHistory() {
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              Leave History
+              {t('leave.leaveHistory')}
             </button>
           </nav>
         </div>
@@ -351,7 +353,7 @@ export default function LeaveHistory() {
               {/* Leave Type */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Leave Type *
+                  {t('leave.type')} *
                 </label>
                 <select
                   required
@@ -361,12 +363,12 @@ export default function LeaveHistory() {
                 >
                   {leaveTypes.map(type => (
                     <option key={type.value} value={type.value}>
-                      {type.label} {!type.isPaid && '(Unpaid)'}
+                      {t(`leave.${type.labelKey}`)} {!type.isPaid && `(${t('leave.unpaidLeave')})`}
                     </option>
                   ))}
                 </select>
-                {selectedLeaveType?.note && (
-                  <p className="mt-1 text-xs text-gray-500">ℹ️ {selectedLeaveType.note}</p>
+                {selectedLeaveType?.noteKey && (
+                  <p className="mt-1 text-xs text-gray-500">ℹ️ {t(`leave.${selectedLeaveType.noteKey}`)}</p>
                 )}
               </div>
 
@@ -374,7 +376,7 @@ export default function LeaveHistory() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Start Date *
+                    {t('leave.startDate')} *
                   </label>
                   <input
                     type="date"
@@ -387,7 +389,7 @@ export default function LeaveHistory() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    End Date *
+                    {t('leave.endDate')} *
                   </label>
                   <input
                     type="date"
@@ -404,7 +406,7 @@ export default function LeaveHistory() {
               {formData.startDate && formData.endDate && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <p className="text-sm text-blue-800">
-                    <span className="font-semibold">Total Days:</span> {calculateDays(formData.startDate, formData.endDate)} days
+                    <span className="font-semibold">{t('leave.duration')}:</span> {calculateDays(formData.startDate, formData.endDate)} {t('leave.days')}
                   </p>
                 </div>
               )}
@@ -412,7 +414,7 @@ export default function LeaveHistory() {
               {/* Reason */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Reason *
+                  {t('leave.reason')} *
                 </label>
                 <textarea
                   required
@@ -420,7 +422,7 @@ export default function LeaveHistory() {
                   onChange={(e) => setFormData({...formData, reason: e.target.value})}
                   rows="4"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Please provide a detailed reason for your leave..."
+                  placeholder={t('leave.writeReason')}
                 />
               </div>
 
@@ -428,8 +430,8 @@ export default function LeaveHistory() {
               {selectedLeaveType?.requiresAttachment && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Attachment (Doctor's Certificate)
-                    {formData.leaveType === 'SICK_LEAVE' && ' - Required for >2 days'}
+                    {t('leave.attachment')}
+                    {formData.leaveType === 'SICK_LEAVE' && ` - ${t('leave.attachmentNote')}`}
                   </label>
                   <input
                     type="text"
@@ -450,7 +452,7 @@ export default function LeaveHistory() {
                 disabled={loading}
                 className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors font-medium"
               >
-                {loading ? 'Submitting...' : 'Submit Leave Request'}
+                {loading ? t('leave.submitting') : t('leave.submitRequest')}
               </button>
             </form>
           )}
@@ -462,12 +464,12 @@ export default function LeaveHistory() {
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">
-                    Leave History ({requests.length})
+                    {t('leave.leaveHistory')} ({requests.length})
                   </h3>
                   <div className="flex items-center space-x-2">
                     {hasActiveFilters && (
                       <span className="text-sm text-blue-600 font-medium">
-                        {requests.length} of {allRequests.length} shown
+                        {requests.length} {t('leave.of')} {allRequests.length} {t('leave.shown')}
                       </span>
                     )}
                     <button
@@ -481,7 +483,7 @@ export default function LeaveHistory() {
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                       </svg>
-                      <span>Filter</span>
+                      <span>{t('leave.filter')}</span>
                       {hasActiveFilters && (
                         <span className="bg-white text-blue-600 rounded-full px-2 py-0.5 text-xs font-bold">
                           {Object.values(filters).filter(v => v !== '').length}
@@ -498,17 +500,17 @@ export default function LeaveHistory() {
                       {/* Leave Type */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Leave Type
+                          {t('leave.type')}
                         </label>
                         <select
                           value={filters.leaveType}
                           onChange={(e) => setFilters({...filters, leaveType: e.target.value})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
-                          <option value="">All Types</option>
+                          <option value="">{t('leave.allTypes')}</option>
                           {leaveTypes.map(type => (
                             <option key={type.value} value={type.value}>
-                              {type.label}
+                              {t(`leave.${type.labelKey}`)}
                             </option>
                           ))}
                         </select>
@@ -517,17 +519,17 @@ export default function LeaveHistory() {
                       {/* Status */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Status
+                          {t('leave.status')}
                         </label>
                         <select
                           value={filters.status}
                           onChange={(e) => setFilters({...filters, status: e.target.value})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
-                          <option value="">All Status</option>
-                          <option value="PENDING">Pending</option>
-                          <option value="APPROVED">Approved</option>
-                          <option value="REJECTED">Rejected</option>
+                          <option value="">{t('leave.allStatuses')}</option>
+                          <option value="PENDING">{t('leave.pending')}</option>
+                          <option value="APPROVED">{t('leave.approved')}</option>
+                          <option value="REJECTED">{t('leave.rejected')}</option>
                         </select>
                       </div>
                     </div>
@@ -536,10 +538,10 @@ export default function LeaveHistory() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Request Date Range */}
                       <div className="border-l-4 border-blue-500 pl-4">
-                        <p className="text-sm font-semibold text-gray-700 mb-2">Request Date Range</p>
+                        <p className="text-sm font-semibold text-gray-700 mb-2">{t('leave.requestDateRange')}</p>
                         <div className="grid grid-cols-2 gap-2">
                           <div>
-                            <label className="block text-xs text-gray-600 mb-1">From</label>
+                            <label className="block text-xs text-gray-600 mb-1">{t('leave.from')}</label>
                             <input
                               type="date"
                               value={filters.requestDateFrom}
@@ -548,7 +550,7 @@ export default function LeaveHistory() {
                             />
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-600 mb-1">To</label>
+                            <label className="block text-xs text-gray-600 mb-1">{t('leave.to')}</label>
                             <input
                               type="date"
                               value={filters.requestDateTo}
@@ -561,7 +563,7 @@ export default function LeaveHistory() {
 
                       {/* Leave Date Range */}
                       <div className="border-l-4 border-green-500 pl-4">
-                        <p className="text-sm font-semibold text-gray-700 mb-2">Leave Date Range</p>
+                        <p className="text-sm font-semibold text-gray-700 mb-2">{t('leave.leaveDateRange')}</p>
                         <div className="grid grid-cols-2 gap-2">
                           <div>
                             <label className="block text-xs text-gray-600 mb-1">From</label>
@@ -573,7 +575,7 @@ export default function LeaveHistory() {
                             />
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-600 mb-1">To</label>
+                            <label className="block text-xs text-gray-600 mb-1">{t('leave.to')}</label>
                             <input
                               type="date"
                               value={filters.leaveDateTo}
@@ -592,7 +594,7 @@ export default function LeaveHistory() {
                           onClick={clearFilters}
                           className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium"
                         >
-                          Clear Filters
+                          {t('leave.clearAll')}
                         </button>
                       </div>
                     )}
@@ -606,7 +608,7 @@ export default function LeaveHistory() {
                   <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No leave requests</h3>
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">{t('leave.noRequests')}</h3>
                   <p className="mt-1 text-sm text-gray-500">Get started by submitting your first leave request.</p>
                 </div>
               ) : (

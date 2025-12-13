@@ -1,6 +1,7 @@
 // frontend/src/pages/OvertimeApproval.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import apiClient from '../api/client';
 import { format } from 'date-fns';
@@ -8,6 +9,7 @@ import { format } from 'date-fns';
 export default function OvertimeApproval() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('pending');
   const [requests, setRequests] = useState([]);
   const [allRequests, setAllRequests] = useState([]);
@@ -70,7 +72,7 @@ export default function OvertimeApproval() {
       setRequests(response.data.data || []);
     } catch (error) {
       console.error('Fetch error:', error);
-      alert('Failed to fetch overtime requests');
+      alert(t('overtime.fetchFailed'));
     } finally {
       setLoading(false);
     }
@@ -145,7 +147,7 @@ export default function OvertimeApproval() {
 
   const handleAction = async () => {
     if ((actionType === 'reject' || actionType === 'revision') && !comment.trim()) {
-      alert('Please provide a comment');
+      alert(t('overtime.commentRequired'));
       return;
     }
 
@@ -158,14 +160,14 @@ export default function OvertimeApproval() {
         comment: comment || null
       });
 
-      alert(`Overtime request ${actionType}d successfully`);
+      alert(t('overtime.actionSuccess'));
       setShowModal(false);
       setSelectedRequest(null);
       setComment('');
       fetchRequests();
     } catch (error) {
       console.error('Action error:', error);
-      alert(error.response?.data?.error || `Failed to ${actionType} overtime request`);
+      alert(error.response?.data?.error || t('overtime.actionFailed'));
     } finally {
       setLoading(false);
     }
@@ -196,8 +198,8 @@ export default function OvertimeApproval() {
     <div className="max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Overtime Approval</h1>
-        <p className="text-sm text-gray-600 mt-1">Review and approve overtime requests</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('overtime.approvalTitle')}</h1>
+        <p className="text-sm text-gray-600 mt-1">{t('overtime.viewManageRequests')}</p>
       </div>
 
       {/* Tabs */}
@@ -212,7 +214,7 @@ export default function OvertimeApproval() {
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              Pending
+              {t('overtime.pending')}
             </button>
             {isAdmin && (
               <>
@@ -224,7 +226,7 @@ export default function OvertimeApproval() {
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  All Requests
+                  {t('overtime.allRequests')}
                 </button>
                 <button
                   onClick={() => setActiveTab('approved')}
@@ -234,7 +236,7 @@ export default function OvertimeApproval() {
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  Approved
+                  {t('overtime.approved')}
                 </button>
                 <button
                   onClick={() => setActiveTab('rejected')}
@@ -244,7 +246,7 @@ export default function OvertimeApproval() {
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  Rejected
+                  {t('overtime.rejected')}
                 </button>
               </>
             )}
@@ -258,18 +260,18 @@ export default function OvertimeApproval() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-4">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  {activeTab === 'pending' ? 'Pending Requests' : 
-                   activeTab === 'all' ? 'All Requests' : 
-                   activeTab === 'approved' ? 'Approved Requests' : 'Rejected Requests'}
+                  {activeTab === 'pending' ? t('overtime.pendingRequests') : 
+                   activeTab === 'all' ? t('overtime.allRequests') : 
+                   activeTab === 'approved' ? t('overtime.approvedRequests') : t('overtime.rejectedRequests')}
                 </h3>
                 <span className="text-sm text-gray-500">
-                  ({requests.length} {requests.length === 1 ? 'request' : 'requests'})
+                  ({requests.length} {requests.length === 1 ? t('overtime.request') : t('overtime.requests')})
                 </span>
               </div>
               <div className="flex items-center space-x-2">
                 {hasActiveFilters && (
                   <span className="text-sm text-blue-600 font-medium">
-                    {requests.length} of {allRequests.length} shown
+                    {requests.length} {t('overtime.of')} {allRequests.length} {t('overtime.shown')}
                   </span>
                 )}
                 <button
@@ -283,7 +285,7 @@ export default function OvertimeApproval() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                   </svg>
-                  <span>Filter</span>
+                  <span>{t('overtime.filter')}</span>
                   {hasActiveFilters && (
                     <span className="bg-white text-blue-600 rounded-full px-2 py-0.5 text-xs font-bold">
                       {Object.values(filters).filter(v => v !== '').length}
@@ -300,14 +302,14 @@ export default function OvertimeApproval() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Division
+                      {t('overtime.division')}
                     </label>
                     <select
                       value={filters.divisionId}
                       onChange={(e) => setFilters({...filters, divisionId: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="">All Divisions</option>
+                      <option value="">{t('overtime.allDivisions')}</option>
                       {divisions.map(div => (
                         <option key={div.id} value={div.id}>{div.name}</option>
                       ))}
@@ -316,13 +318,13 @@ export default function OvertimeApproval() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Search Employee
+                      {t('overtime.searchEmployee')}
                     </label>
                     <input
                       type="text"
                       value={filters.search}
                       onChange={(e) => setFilters({...filters, search: e.target.value})}
-                      placeholder="Name or NIP..."
+                      placeholder={t('overtime.nameOrNip')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -331,10 +333,10 @@ export default function OvertimeApproval() {
                 {/* Date Ranges */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="border-l-4 border-blue-500 pl-4">
-                    <p className="text-sm font-semibold text-gray-700 mb-2">Request Date Range</p>
+                    <p className="text-sm font-semibold text-gray-700 mb-2">{t('overtime.requestDateRange')}</p>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-xs text-gray-600 mb-1">From</label>
+                        <label className="block text-xs text-gray-600 mb-1">{t('overtime.from')}</label>
                         <input
                           type="date"
                           value={filters.requestDateFrom}
@@ -343,7 +345,7 @@ export default function OvertimeApproval() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-600 mb-1">To</label>
+                        <label className="block text-xs text-gray-600 mb-1">{t('overtime.to')}</label>
                         <input
                           type="date"
                           value={filters.requestDateTo}
@@ -355,10 +357,10 @@ export default function OvertimeApproval() {
                   </div>
 
                   <div className="border-l-4 border-green-500 pl-4">
-                    <p className="text-sm font-semibold text-gray-700 mb-2">Overtime Date Range</p>
+                    <p className="text-sm font-semibold text-gray-700 mb-2">{t('overtime.overtimeDateRange')}</p>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-xs text-gray-600 mb-1">From</label>
+                        <label className="block text-xs text-gray-600 mb-1">{t('overtime.from')}</label>
                         <input
                           type="date"
                           value={filters.overtimeDateFrom}
@@ -367,7 +369,7 @@ export default function OvertimeApproval() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-600 mb-1">To</label>
+                        <label className="block text-xs text-gray-600 mb-1">{t('overtime.to')}</label>
                         <input
                           type="date"
                           value={filters.overtimeDateTo}
@@ -381,10 +383,10 @@ export default function OvertimeApproval() {
 
                 {/* Hours Range */}
                 <div className="border-l-4 border-purple-500 pl-4">
-                  <p className="text-sm font-semibold text-gray-700 mb-2">Total Hours Range</p>
+                  <p className="text-sm font-semibold text-gray-700 mb-2">{t('overtime.hoursRange')}</p>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">Minimum Hours</label>
+                      <label className="block text-xs text-gray-600 mb-1">{t('overtime.minHours')}</label>
                       <input
                         type="number"
                         min="0"
@@ -396,7 +398,7 @@ export default function OvertimeApproval() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">Maximum Hours</label>
+                      <label className="block text-xs text-gray-600 mb-1">{t('overtime.maxHours')}</label>
                       <input
                         type="number"
                         min="0"
@@ -416,7 +418,7 @@ export default function OvertimeApproval() {
                       onClick={clearFilters}
                       className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium"
                     >
-                      Clear All Filters
+                      {t('overtime.clearAll')}
                     </button>
                   </div>
                 )}
@@ -428,16 +430,16 @@ export default function OvertimeApproval() {
           {loading ? (
             <div className="text-center py-12">
               <div className="animate-spin h-10 w-10 border-4 border-blue-600 border-t-transparent rounded-full mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading...</p>
+              <p className="mt-4 text-gray-600">{t('common.loading')}</p>
             </div>
           ) : requests.length === 0 ? (
             <div className="text-center py-12">
               <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No overtime requests</h3>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">{t('overtime.noRequestsFound')}</h3>
               <p className="mt-1 text-sm text-gray-500">
-                {hasActiveFilters ? 'Try adjusting your filters.' : 'No requests found for this tab.'}
+                {hasActiveFilters ? t('overtime.tryAdjustingFilters') : t('overtime.noRequestsForTab')}
               </p>
             </div>
           ) : (
@@ -464,27 +466,27 @@ export default function OvertimeApproval() {
                       <div className="bg-gray-50 rounded-lg p-4 mb-3">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div>
-                            <p className="text-gray-500 text-xs mb-1">Total Hours</p>
-                            <p className="font-semibold text-gray-900">{request.totalHours} hours</p>
+                            <p className="text-gray-500 text-xs mb-1">{t('overtime.totalHours')}</p>
+                            <p className="font-semibold text-gray-900">{request.totalHours} {t('overtime.hours')}</p>
                           </div>
                           <div>
-                            <p className="text-gray-500 text-xs mb-1">Total Days</p>
-                            <p className="font-semibold text-gray-900">{(request.totalHours / 8).toFixed(2)} days</p>
+                            <p className="text-gray-500 text-xs mb-1">{t('overtime.totalDays')}</p>
+                            <p className="font-semibold text-gray-900">{(request.totalHours / 8).toFixed(2)} {t('overtime.days')}</p>
                           </div>
                           <div>
-                            <p className="text-gray-500 text-xs mb-1">Submitted</p>
+                            <p className="text-gray-500 text-xs mb-1">{t('overtime.submittedOn')}</p>
                             <p className="font-semibold text-gray-900">{format(new Date(request.submittedAt), 'MMM dd, yyyy')}</p>
                           </div>
                           <div>
-                            <p className="text-gray-500 text-xs mb-1">Entries</p>
-                            <p className="font-semibold text-gray-900">{request.entries?.length || 0} dates</p>
+                            <p className="text-gray-500 text-xs mb-1">{t('overtime.numberOfEntries')}</p>
+                            <p className="font-semibold text-gray-900">{request.entries?.length || 0} {t('overtime.dates')}</p>
                           </div>
                         </div>
                       </div>
 
                       {request.status !== 'PENDING' && request.currentApprover && (
                         <p className="text-sm text-gray-600">
-                          {request.status === 'APPROVED' ? '✓ Approved' : '✗ Rejected'} by {request.currentApprover.name}
+                          {request.status === 'APPROVED' ? `✓ ${t('overtime.approvedBy')}` : `✗ ${t('overtime.rejectedBy')}`} {request.currentApprover.name}
                         </p>
                       )}
                     </div>
@@ -495,19 +497,19 @@ export default function OvertimeApproval() {
                           onClick={() => openActionModal(request, 'approve')}
                           className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
                         >
-                          Approve
+                          {t('overtime.approve')}
                         </button>
                         <button
                           onClick={() => openActionModal(request, 'reject')}
                           className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium"
                         >
-                          Reject
+                          {t('overtime.reject')}
                         </button>
                         <button
                           onClick={() => openActionModal(request, 'revision')}
                           className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium"
                         >
-                          Request Revision
+                          {t('overtime.requestRevision')}
                         </button>
                       </div>
                     )}
@@ -523,23 +525,27 @@ export default function OvertimeApproval() {
       {showModal && selectedRequest && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h2 className="text-xl font-bold mb-4 capitalize">{actionType} Overtime Request</h2>
+            <h2 className="text-xl font-bold mb-4 capitalize">
+              {actionType === 'approve' ? t('overtime.approve') : 
+               actionType === 'reject' ? t('overtime.reject') : 
+               t('overtime.requestRevision')} {t('overtime.overtimeRequest')}
+            </h2>
             
             <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm"><span className="font-medium">Employee:</span> {selectedRequest.employee?.name}</p>
-              <p className="text-sm"><span className="font-medium">Total Hours:</span> {selectedRequest.totalHours}</p>
+              <p className="text-sm"><span className="font-medium">{t('overtime.employee')}:</span> {selectedRequest.employee?.name}</p>
+              <p className="text-sm"><span className="font-medium">{t('overtime.totalHours')}:</span> {selectedRequest.totalHours}</p>
             </div>
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Comment {(actionType === 'reject' || actionType === 'revision') && '*'}
+                {t('overtime.commentLabel')} {(actionType === 'reject' || actionType === 'revision') && '*'}
               </label>
               <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows="4"
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder={actionType === 'approve' ? 'Optional...' : 'Required...'}
+                placeholder={t('overtime.commentPlaceholder')}
               />
             </div>
 
@@ -548,14 +554,14 @@ export default function OvertimeApproval() {
                 onClick={() => setShowModal(false)}
                 className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
               >
-                Cancel
+                {t('overtime.cancel')}
               </button>
               <button
                 onClick={handleAction}
                 disabled={loading}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
               >
-                {loading ? 'Processing...' : 'Confirm'}
+                {loading ? t('overtime.processing') : t('overtime.confirm')}
               </button>
             </div>
           </div>
