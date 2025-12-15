@@ -109,10 +109,10 @@ export default function Login() {
 
         {/* Footer */}
         <div className="mt-6 text-center text-sm text-gray-600">
-          <p>{t('login.defaultCredentials')}</p>
-          <p className="font-mono bg-gray-50 p-2 rounded mt-1">
-            admin / admin123
-          </p>
+          {/* <p>{t('login.defaultCredentials')}</p> */}
+          {/* <p className="font-mono bg-gray-50 p-2 rounded mt-1">
+            admin / admin123 
+          </p> */}
         </div>
       </div>
     </div>
