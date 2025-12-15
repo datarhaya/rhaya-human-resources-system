@@ -526,6 +526,7 @@ export default function UserManagement() {
       'FREELANCE': 'bg-yellow-100 text-yellow-800',
       'PROBATION': 'bg-orange-100 text-orange-800',
       'INACTIVE': 'bg-gray-100 text-gray-800',
+      'ADMIN': 'bg-gray-100 text-gray-800',
       // Legacy support
       'Active': 'bg-green-100 text-green-800',
       'Inactive': 'bg-gray-100 text-gray-800'
