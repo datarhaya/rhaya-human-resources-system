@@ -84,7 +84,7 @@ const resources = {
         employees: 'employees',
         employee: 'employee',
         intern: 'Intern',
-        reportsTo: 'Reports to:',
+        reportsTo: 'Supervisor:',
         days: 'days',
       },
 
@@ -631,8 +631,8 @@ const resources = {
 
       // Login Page
       login: {
-        title: 'Sistem HR',
-        subtitle: 'Masuk ke akun Anda',
+        title: 'People Management Center',
+        subtitle: 'Rhaya Group',
         username: 'Nama Pengguna',
         password: 'Kata Sandi',
         signIn: 'Masuk',
@@ -665,7 +665,7 @@ const resources = {
         employees: 'karyawan',
         employee: 'karyawan',
         intern: 'Magang',
-        reportsTo: 'Melapor kepada:',
+        reportsTo: 'Supervisor:',
         days: 'hari',
       },
 

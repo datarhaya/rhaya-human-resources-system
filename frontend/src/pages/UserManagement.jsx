@@ -125,7 +125,7 @@ export default function UserManagement() {
       
       // Filter active users who can be supervisors (access level 1-4)
       const supervisors = allUsers.filter(u => 
-        u.accessLevel >= 1 && u.accessLevel <= 4 && u.employeeStatus === 'Active'
+        u.accessLevel >= 1 && u.accessLevel <= 4 && u.employeeStatus === 'PKWTT' || u.employeeStatus === 'PKWT'
       );
       setPotentialSupervisors(supervisors);
     } catch (error) {
