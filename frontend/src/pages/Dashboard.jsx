@@ -106,7 +106,7 @@ export default function Dashboard() {
         
         <div 
           className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => navigate('/leave/history')}
+          onClick={() => navigate('/overtime/history')}
         >
           <div className="flex items-center justify-between mb-2">
             <div className="text-sm text-gray-600">{t('dashboard.pendingRequests')}</div>
