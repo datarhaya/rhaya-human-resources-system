@@ -4,7 +4,7 @@
 import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
-import { moveToFinalLocation } from '../config/upload.js';  // ⭐ Import helper
+import { moveToFinalLocation } from '../config/upload.js'; 
 
 const prisma = new PrismaClient();
 
@@ -138,99 +138,6 @@ export const uploadPayslipController = async (req, res) => {
     });
   }
 };
-
-// /**
-//  * Upload payslip
-//  * POST /api/payslips/upload
-//  */
-// export const uploadPayslip = async (req, res) => {
-//   try {
-//     const { employeeId, year, month, grossSalary, netSalary, notes } = req.body;
-//     const file = req.file;
-
-//     if (!file) {
-//       return res.status(400).json({ error: 'No file uploaded' });
-//     }
-
-//     // Check if payslip already exists
-//     const existing = await prisma.payslip.findUnique({
-//       where: {
-//         employeeId_year_month: {
-//           employeeId,
-//           year: parseInt(year),
-//           month: parseInt(month)
-//         }
-//       }
-//     });
-
-//     if (existing) {
-//       // Delete old file
-//       if (fs.existsSync(existing.fileUrl)) {
-//         fs.unlinkSync(existing.fileUrl);
-//       }
-
-//       // Update existing payslip
-//       const updated = await prisma.payslip.update({
-//         where: { id: existing.id },
-//         data: {
-//           fileName: file.originalname,
-//           fileUrl: file.path,
-//           fileSize: file.size,
-//           grossSalary: grossSalary ? parseFloat(grossSalary) : null,
-//           netSalary: netSalary ? parseFloat(netSalary) : null,
-//           notes: notes || null,
-//           uploadedById: req.user.id,
-//           uploadedAt: new Date()
-//         },
-//         include: {
-//           employee: {
-//             select: { id: true, name: true, email: true }
-//           }
-//         }
-//       });
-
-//       return res.json({
-//         success: true,
-//         message: 'Payslip updated successfully',
-//         data: updated
-//       });
-//     }
-
-//     // Create new payslip
-//     const payslip = await prisma.payslip.create({
-//       data: {
-//         employeeId,
-//         year: parseInt(year),
-//         month: parseInt(month),
-//         fileName: file.originalname,
-//         fileUrl: file.path,
-//         fileSize: file.size,
-//         grossSalary: grossSalary ? parseFloat(grossSalary) : null,
-//         netSalary: netSalary ? parseFloat(netSalary) : null,
-//         notes: notes || null,
-//         uploadedById: req.user.id
-//       },
-//       include: {
-//         employee: {
-//           select: { id: true, name: true, email: true }
-//         }
-//       }
-//     });
-
-//     res.json({
-//       success: true,
-//       message: 'Payslip uploaded successfully',
-//       data: payslip
-//     });
-
-//   } catch (error) {
-//     console.error('Upload payslip error:', error);
-//     res.status(500).json({
-//       error: 'Failed to upload payslip',
-//       message: error.message
-//     });
-//   }
-// };
 
 /**
  * Get all payslips (Admin/HR view)
