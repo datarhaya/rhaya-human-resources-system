@@ -1,10 +1,8 @@
 // backend/src/controllers/payslip.controller.js
-// UPDATED: Move file to final location after upload
+// UPDATED: Uses generic storage utility
 
 import { PrismaClient } from '@prisma/client';
-import fs from 'fs';
-import path from 'path';
-import { moveToFinalLocation } from '../config/upload.js'; 
+import { uploadPayslip, getFileFromR2, deleteFromR2 } from '../config/storage.js';
 
 const prisma = new PrismaClient();
 
@@ -24,10 +22,6 @@ export const uploadPayslipController = async (req, res) => {
     }
 
     if (!employeeId || !year || !month) {
-      // Delete uploaded temp file
-      if (fs.existsSync(file.path)) {
-        fs.unlinkSync(file.path);
-      }
       return res.status(400).json({ 
         error: 'Missing required fields: employeeId, year, month' 
       });
@@ -44,26 +38,32 @@ export const uploadPayslipController = async (req, res) => {
       }
     });
 
-    // ⭐ Move file from temp to final location
-    let finalPath;
+    // Upload file to R2 (using helper function)
+    let r2Key;
     try {
-      finalPath = moveToFinalLocation(file.path, employeeId, year, month);
-    } catch (moveError) {
-      console.error('Error moving file:', moveError);
-      // Clean up temp file
-      if (fs.existsSync(file.path)) {
-        fs.unlinkSync(file.path);
-      }
+      r2Key = await uploadPayslip(
+        file.buffer, 
+        employeeId, 
+        parseInt(year), 
+        parseInt(month), 
+        file.originalname
+      );
+      console.log('✅ File uploaded to R2:', r2Key);
+    } catch (uploadError) {
+      console.error('Error uploading to R2:', uploadError);
       return res.status(500).json({ 
         error: 'Failed to save file',
-        message: moveError.message
+        message: uploadError.message
       });
     }
 
     if (existing) {
-      // Delete old file
-      if (fs.existsSync(existing.fileUrl)) {
-        fs.unlinkSync(existing.fileUrl);
+      // Delete old file from R2
+      try {
+        await deleteFromR2(existing.fileUrl);
+        console.log('🗑️  Old file deleted from R2:', existing.fileUrl);
+      } catch (deleteError) {
+        console.warn('Could not delete old file:', deleteError.message);
       }
 
       // Update existing payslip
@@ -71,7 +71,7 @@ export const uploadPayslipController = async (req, res) => {
         where: { id: existing.id },
         data: {
           fileName: file.originalname,
-          fileUrl: finalPath,
+          fileUrl: r2Key, // Store R2 key
           fileSize: file.size,
           grossSalary: grossSalary ? parseFloat(grossSalary) : null,
           netSalary: netSalary ? parseFloat(netSalary) : null,
@@ -102,7 +102,7 @@ export const uploadPayslipController = async (req, res) => {
         year: parseInt(year),
         month: parseInt(month),
         fileName: file.originalname,
-        fileUrl: finalPath,
+        fileUrl: r2Key, // Store R2 key
         fileSize: file.size,
         grossSalary: grossSalary ? parseFloat(grossSalary) : null,
         netSalary: netSalary ? parseFloat(netSalary) : null,
@@ -126,11 +126,6 @@ export const uploadPayslipController = async (req, res) => {
 
   } catch (error) {
     console.error('❌ Upload payslip error:', error);
-    
-    // Clean up uploaded file on error
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
-    }
     
     res.status(500).json({
       error: 'Failed to upload payslip',
@@ -244,7 +239,6 @@ export const downloadPayslip = async (req, res) => {
     }
 
     // Check authorization
-    // Allow if: own payslip OR admin/HR (level 1-2)
     const isOwnPayslip = payslip.employeeId === userId;
     const isAdminOrHR = req.user.accessLevel <= 2;
 
@@ -252,10 +246,8 @@ export const downloadPayslip = async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Check if file exists
-    if (!fs.existsSync(payslip.fileUrl)) {
-      return res.status(404).json({ error: 'File not found' });
-    }
+    // Get file from R2
+    const fileBuffer = await getFileFromR2(payslip.fileUrl);
 
     // Update view count
     await prisma.payslip.update({
@@ -267,7 +259,9 @@ export const downloadPayslip = async (req, res) => {
     });
 
     // Send file
-    res.download(payslip.fileUrl, payslip.fileName);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${payslip.fileName}"`);
+    res.send(fileBuffer);
 
   } catch (error) {
     console.error('Download payslip error:', error);
@@ -294,9 +288,12 @@ export const deletePayslip = async (req, res) => {
       return res.status(404).json({ error: 'Payslip not found' });
     }
 
-    // Delete file from disk
-    if (fs.existsSync(payslip.fileUrl)) {
-      fs.unlinkSync(payslip.fileUrl);
+    // Delete file from R2
+    try {
+      await deleteFromR2(payslip.fileUrl);
+      console.log('🗑️  File deleted from R2:', payslip.fileUrl);
+    } catch (deleteError) {
+      console.warn('Could not delete file from R2:', deleteError.message);
     }
 
     // Delete from database

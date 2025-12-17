@@ -1,63 +1,104 @@
 // backend/src/config/upload.js
-// SIMPLIFIED VERSION - Store temporarily, then move in controller
+// UPDATED: Memory storage for direct R2 upload (no filesystem)
 
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 
-// Ensure upload directory exists
-const uploadDir = 'uploads/payslips/temp';
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+// Store files in memory as Buffer (NOT on disk)
+const storage = multer.memoryStorage();
 
-// Configure storage - simple temporary storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // Store in temp directory first
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    // Use timestamp + random string for temp filename
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'temp-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-// File filter - only PDFs
-const fileFilter = (req, file, cb) => {
+// File filter for payslips - only PDFs
+const payslipFilter = (req, file, cb) => {
   if (file.mimetype === 'application/pdf') {
     cb(null, true);
   } else {
-    cb(new Error('Only PDF files are allowed'), false);
+    cb(new Error('Only PDF files are allowed for payslips'), false);
   }
 };
 
-// Create upload middleware
+// File filter for documents - PDFs and images
+const documentFilter = (req, file, cb) => {
+  const allowedTypes = [
+    'application/pdf',
+    'image/jpeg',
+    'image/png',
+    'image/jpg'
+  ];
+  
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only PDF and image files are allowed'), false);
+  }
+};
+
+// File filter for company files - multiple types
+const companyFileFilter = (req, file, cb) => {
+  const allowedTypes = [
+    'application/pdf',
+    'image/jpeg',
+    'image/png',
+    'image/jpg',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ];
+  
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('File type not allowed'), false);
+  }
+};
+
+// Multer middleware for payslips
 export const uploadPayslip = multer({
   storage: storage,
-  fileFilter: fileFilter,
+  fileFilter: payslipFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB max
+    fileSize: 5 * 1024 * 1024 // 5MB
   }
 });
 
-// Helper function to move file to final location
-export const moveToFinalLocation = (tempPath, employeeId, year, month) => {
-  const monthPadded = month.toString().padStart(2, '0');
-  const finalDir = path.join('uploads/payslips', year.toString(), monthPadded);
-  
-  // Create directory if doesn't exist
-  if (!fs.existsSync(finalDir)) {
-    fs.mkdirSync(finalDir, { recursive: true });
+// Multer middleware for contracts
+export const uploadContract = multer({
+  storage: storage,
+  fileFilter: payslipFilter, // Contracts are also PDFs
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB
   }
-  
-  const ext = path.extname(tempPath);
-  const finalFilename = `${employeeId}_payslip_${year}_${monthPadded}${ext}`;
-  const finalPath = path.join(finalDir, finalFilename);
-  
-  // Move file
-  fs.renameSync(tempPath, finalPath);
-  
-  return finalPath;
+});
+
+// Multer middleware for employee documents
+export const uploadDocument = multer({
+  storage: storage,
+  fileFilter: documentFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB
+  }
+});
+
+// Multer middleware for company files
+export const uploadCompanyFile = multer({
+  storage: storage,
+  fileFilter: companyFileFilter,
+  limits: {
+    fileSize: 20 * 1024 * 1024 // 20MB
+  }
+});
+
+// Generic upload middleware
+export const uploadGeneric = multer({
+  storage: storage,
+  limits: {
+    fileSize: 20 * 1024 * 1024 // 20MB
+  }
+});
+
+export default {
+  uploadPayslip,
+  uploadContract,
+  uploadDocument,
+  uploadCompanyFile,
+  uploadGeneric
 };
