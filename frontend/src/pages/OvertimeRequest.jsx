@@ -4,6 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { submitOvertimeRequest } from '../api/client';
 import { format, subDays, getDay } from 'date-fns';
+import i18n from '../i18n';
+import DatePicker from 'react-datepicker';
+import { registerLocale } from 'react-datepicker';
+import { id, enUS } from 'date-fns/locale';
+import "react-datepicker/dist/react-datepicker.css";
 
 export default function OvertimeRequest() {
   const navigate = useNavigate();
@@ -19,6 +24,10 @@ export default function OvertimeRequest() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const sevenDaysAgo = format(subDays(new Date(), 7), 'yyyy-MM-dd');
 
+  // Register Indonesian locale
+  registerLocale('id', id);
+  registerLocale('en', enUS);
+
   // Check if date is a weekday
   const isWeekday = (dateString) => {
     if (!dateString) return false;
@@ -32,6 +41,12 @@ export default function OvertimeRequest() {
     if (!dateString) return '';
     const date = new Date(dateString);
     return format(date, 'EEEE'); // Full day name (e.g., "Monday")
+  };
+
+  const isLastEntryFilled = () => {
+    if (entries.length === 0) return true;
+    const lastEntry = entries[entries.length - 1];
+    return lastEntry.date && lastEntry.hours && lastEntry.description;
   };
 
   // Add new entry row
@@ -208,6 +223,9 @@ export default function OvertimeRequest() {
                   {t('overtime.tableNumber')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {t('overtime.tableDay')}
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   {t('overtime.tableDate')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -227,55 +245,72 @@ export default function OvertimeRequest() {
                   <td className="px-4 py-3 text-sm text-gray-900">
                     {index + 1}
                   </td>
+                  
+                  {/* Day Column */}
                   <td className="px-4 py-3">
-                    <div className="space-y-2">
-                      {/* Date Input */}
-                      <input
-                        type="date"
-                        value={entry.date}
-                        onChange={(e) => updateEntry(index, 'date', e.target.value)}
-                        min={sevenDaysAgo}
-                        max={today}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      />
-                      
-                      {/* Day Display + Warning */}
-                      {entry.date && (
-                        <div className="flex items-center space-x-2">
-                          {/* Day Name */}
-                          <span className={`text-xs font-medium ${
-                            isWeekday(entry.date) 
-                              ? 'text-orange-600' 
-                              : 'text-green-600'
-                          }`}>
-                            {getDayName(entry.date)}
-                          </span>
-                          
-                          {/* Weekday Warning Icon */}
-                          {isWeekday(entry.date) && (
-                            <div className="group relative">
-                              <div className="flex items-center justify-center w-5 h-5 bg-orange-100 border-2 border-orange-400 rounded-full cursor-help">
-                                <span className="text-orange-600 text-xs font-bold">!</span>
-                              </div>
-                              {/* Tooltip */}
-                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                                <div className="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 whitespace-nowrap">
-                                  <div className="font-semibold mb-1">{t('overtime.weekdaySelected')}</div>
-                                  <div>{t('overtime.weekdayWarning')}</div>
-                                  <div className="text-gray-300 mt-1">{t('overtime.verifyDate')}</div>
-                                  {/* Tooltip Arrow */}
-                                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
-                                    <div className="border-4 border-transparent border-t-gray-900"></div>
-                                  </div>
+                    {entry.date ? (
+                      <div className="flex items-center space-x-2">
+                        <span className={`text-sm font-medium ${
+                          isWeekday(entry.date) 
+                            ? 'text-yellow-600' 
+                            : 'text-green-600'
+                        }`}>
+                          {getDayName(entry.date)}
+                        </span>
+                        
+                        {/* Weekday Warning Icon */}
+                        {isWeekday(entry.date) && (
+                          <div className="group relative">
+                            <div className="flex items-center justify-center w-5 h-5 bg-yellow-100 border-2 border-yellow-400 rounded-full cursor-help">
+                              <span className="text-yellow-600 text-xs font-bold">!</span>
+                            </div>
+                            
+                            {/* Tooltip - positioned to the right */}
+                            <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 hidden group-hover:block z-50 pointer-events-none">
+                              <div className="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 shadow-lg" style={{ minWidth: '250px' }}>
+                                <div className="font-semibold mb-1">{t('overtime.weekdaySelected')}</div>
+                                <div>{t('overtime.weekdayWarning')}</div>
+                                <div className="text-gray-300 mt-1">{t('overtime.verifyDate')}</div>
+                                
+                                {/* Tooltip Arrow pointing left */}
+                                <div className="absolute right-full top-1/2 transform -translate-y-1/2">
+                                  <div className="border-8 border-transparent border-r-gray-900"></div>
                                 </div>
                               </div>
                             </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-400">-</span>
+                    )}
                   </td>
+
+                  {/* Date Column */}
+                  <td className="px-4 py-3">
+                    <DatePicker
+                      selected={entry.date ? new Date(entry.date) : null}
+                      onChange={(date) => {
+                        if (date) {
+                          const formattedDate = date.toISOString().split('T')[0];
+                          updateEntry(index, 'date', formattedDate);
+                        }
+                      }}
+                      minDate={new Date(sevenDaysAgo)}
+                      maxDate={new Date(today)}
+                      dateFormat="dd/MM/yyyy"
+                      locale={i18n.language === 'id' ? 'id' : 'en'}
+                      placeholderText={t('overtime.selectDate')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                      wrapperClassName="w-full"
+                      required
+                      showYearDropdown
+                      showMonthDropdown
+                      dropdownMode="select"
+                    />
+                  </td>
+
+                  {/* Hours Column */}
                   <td className="px-4 py-3">
                     <input
                       type="number"
@@ -285,20 +320,45 @@ export default function OvertimeRequest() {
                       value={entry.hours}
                       onChange={(e) => updateEntry(index, 'hours', e.target.value)}
                       placeholder={t('overtime.hoursPlaceholder')}
-                      className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-28 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />
                   </td>
+
+                  {/* Description Column */}
                   <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={entry.description}
-                      onChange={(e) => updateEntry(index, 'description', e.target.value)}
-                      placeholder={t('overtime.descriptionPlaceholder')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
+                    <div className="w-full">
+                      <textarea
+                        value={entry.description}
+                        onChange={(e) => {
+                          if (e.target.value.length <= 500) {
+                            updateEntry(index, 'description', e.target.value);
+                          }
+                        }}
+                        placeholder={t('overtime.descriptionPlaceholder')}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y min-h-[80px]"
+                        rows="3"
+                        maxLength="500"
+                        required
+                      />
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-xs text-gray-500">
+                          {t('overtime.supportsFormatting')}
+                        </span>
+                        <span className={`text-xs ${
+                          entry.description.length >= 450 
+                            ? 'text-red-600 font-medium' 
+                            : entry.description.length >= 400
+                            ? 'text-yellow-600'
+                            : 'text-gray-500'
+                        }`}>
+                          {entry.description.length}/500
+                        </span>
+                      </div>
+                    </div>
                   </td>
+
+                  {/* Action Column */}
                   <td className="px-4 py-3">
                     <button
                       type="button"
@@ -322,13 +382,22 @@ export default function OvertimeRequest() {
           <button
             type="button"
             onClick={addEntry}
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100"
+            disabled={entries.length >= 5 || !isLastEntryFilled()}
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed"
           >
             <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
             </svg>
             {t('overtime.addAnotherDate')}
+            {entries.length >= 5 && (
+              <span className="ml-2 text-xs">(max 5)</span>
+            )}
           </button>
+          {!isLastEntryFilled() && entries.length < 5 && (
+            <p className="mt-2 text-xs text-gray-500">
+              {t('overtime.fillPreviousEntry')}
+            </p>
+          )}
         </div>
 
         {/* Summary */}
@@ -345,7 +414,6 @@ export default function OvertimeRequest() {
                 </span>
               </div>
             </div>
-
             <div className="flex space-x-3">
               <button
                 type="button"
