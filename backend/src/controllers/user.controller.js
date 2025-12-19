@@ -244,16 +244,29 @@ export const createUser = async (req, res) => {
 
       // 3. Create leave balance for current year
       const currentYear = new Date().getFullYear();
-      const joinYear = new Date(joinDate || new Date()).getFullYear();
-      
-      // Calculate prorated leave if joined mid-year
-      let annualQuota = 14; // Default quota
-      if (joinYear === currentYear) {
-        const joinMonth = new Date(joinDate || new Date()).getMonth();
-        // Prorated: (12 - joinMonth) / 12 * 14
-        const monthsRemaining = 12 - joinMonth;
-        annualQuota = Math.round((monthsRemaining / 12) * 14);
+      const joinDateTime = new Date(joinDate || new Date());
+
+      // Calculate annual quota based on employee status
+      let annualQuota = 0;
+
+      if (employeeStatus === 'PKWTT') {
+        // PKWTT automatically gets 14 days
+        annualQuota = 14;
+      } else if (employeeStatus === 'PKWT') {
+        // Calculate months since joining
+        const now = new Date();
+        const monthsSinceJoining = (now.getFullYear() - joinDateTime.getFullYear()) * 12 + 
+                                  (now.getMonth() - joinDateTime.getMonth());
+        
+        if (monthsSinceJoining >= 12) {
+          // PKWT with 12+ months gets 14 days
+          annualQuota = 14;
+        } else {
+          // PKWT with less than 12 months gets 10 days
+          annualQuota = 10;
+        }
       }
+      // Other statuses (Intern, Contract, etc.) get 0 days - already set above
 
       const leaveBalance = await tx.leaveBalance.create({
         data: {
@@ -268,7 +281,7 @@ export const createUser = async (req, res) => {
         }
       });
 
-      console.log(`✅ Created leave balance for ${newUser.name} (quota: ${annualQuota} days)`);
+      console.log(`✅ Created leave balance for ${newUser.name} (status: ${employeeStatus}, quota: ${annualQuota} days)`);
 
       return {
         user: newUser,
