@@ -176,7 +176,7 @@ export default function UserManagement() {
     
     const matchesDivision = filterDivision === '' || u.divisionId === filterDivision;
     const matchesAccessLevel = filterAccessLevel === '' || u.accessLevel.toString() === filterAccessLevel;
-    const matchesStatus = filterStatus === '' || u.employeeStatus === filterStatus;  // ⭐ NEW
+    const matchesStatus = filterStatus === '' || u.employeeStatus === filterStatus; 
     
     return matchesSearch && matchesDivision && matchesAccessLevel && matchesStatus;
   });
@@ -526,7 +526,7 @@ export default function UserManagement() {
       'FREELANCE': 'bg-yellow-100 text-yellow-800',
       'PROBATION': 'bg-orange-100 text-orange-800',
       'INACTIVE': 'bg-gray-100 text-gray-800',
-      'ADMIN': 'bg-gray-100 text-gray-800',
+      'ADMIN': 'bg-red-100 text-red-800',
       // Legacy support
       'Active': 'bg-green-100 text-green-800',
       'Inactive': 'bg-gray-100 text-gray-800'
@@ -633,6 +633,7 @@ export default function UserManagement() {
               <option value="INTERNSHIP">Internship</option>
               <option value="FREELANCE">Freelance</option>
               <option value="PROBATION">Probation</option>
+              <option value="ADMIN">Admin</option>
               <option value="INACTIVE">Inactive</option>
             </select>
           </div>
@@ -776,7 +777,7 @@ export default function UserManagement() {
         </div>
       </div>
 
-      {/* ===== MODAL - RENDERED INLINE (NOT AS NESTED COMPONENT) ===== */}
+      {/* ===== MODAL ===== */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -796,7 +797,7 @@ export default function UserManagement() {
                     </button>
                   </div>
 
-                  {/* View mode content - keep as is */}
+                  {/* View mode content */}
                   <div className="space-y-6">
                   {/* Avatar and Basic Info */}
                     <div className="flex items-center space-x-4 p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg">
@@ -866,16 +867,16 @@ export default function UserManagement() {
                           <p className="text-gray-900">{selectedUser.plottingCompany || 'N/A'}</p>
                         </div>
                         <div>
+                          <label className="text-sm font-medium text-gray-500">Join Date</label>
+                          <p className="text-gray-900">{formatDate(selectedUser.joinDate)}</p>
+                        </div>
+                        <div>
                           <label className="text-sm font-medium text-gray-500">Contract Start</label>
                           <p className="text-gray-900">{formatDate(selectedUser.contractStartDate)}</p>
                         </div>
                         <div>
                           <label className="text-sm font-medium text-gray-500">Contract End</label>
                           <p className="text-gray-900">{formatDate(selectedUser.contractEndDate)}</p>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-gray-500">Join Date</label>
-                          <p className="text-gray-900">{formatDate(selectedUser.joinDate)}</p>
                         </div>
                         <div>
                           <label className="text-sm font-medium text-gray-500">Supervisor</label>
@@ -1467,6 +1468,7 @@ export default function UserManagement() {
                           <option value="FREELANCE">Freelance</option>
                           <option value="PROBATION">Probation</option>
                           <option value="INACTIVE">Inactive</option>
+                          <option value="ADMIN">Admin</option>
                         </select>
                       </div>
                       <div>
@@ -1568,7 +1570,7 @@ export default function UserManagement() {
                   value="soft"
                   checked={deleteMode === 'soft'}
                   onChange={(e) => setDeleteMode(e.target.value)}
-                  disabled={userToDelete.employeeStatus === 'Inactive'}  // ⭐ ADD THIS
+                  disabled={userToDelete.employeeStatus === 'Inactive'}  
                   className="mt-1 mr-3"
                 />
                 <div className="flex-1">

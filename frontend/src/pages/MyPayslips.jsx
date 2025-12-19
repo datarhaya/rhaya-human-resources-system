@@ -62,9 +62,6 @@ export default function MyPayslips() {
                   Uploaded: {new Date(p.uploadedAt).toLocaleDateString()}
                 </p>
               </div>
-              {/* <svg className="w-12 h-12 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"/>
-              </svg> */}
             </div>
             <button
               onClick={() => downloadPayslip(p.id, p.fileName)}

@@ -237,14 +237,18 @@ const resources = {
 
         tableNumber: '#',
         tableDate: 'Date',
-        tableHours: 'Hours',
+        tableHours: 'Duration (Hours)',
         tableDescription: 'Description',
         tableAction: 'Action',
+        tableDay: 'Day',
+        fillPreviousEntry: 'Please fill the previous entry before adding a new one',
         
         // Form fields
+        selectDate: 'Select date',
         hoursPlaceholder: 'Max 12',
         descriptionPlaceholder: 'e.g., Client deployment, Bug fixing',
         addAnotherDate: 'Add Another Date',
+        supportsFormatting: 'e.g., SDN_resize (output file), Admin LKMK.',
         
         // Summary
         totalSummary: 'Total Summary',
@@ -817,14 +821,18 @@ const resources = {
         // Table headers
         tableNumber: '#',
         tableDate: 'Tanggal',
-        tableHours: 'Jam',
+        tableHours: 'Durasi (Jam)',
         tableDescription: 'Deskripsi',
         tableAction: 'Aksi',
+        tableDay: 'Hari',
+        fillPreviousEntry: 'Silakan isi entri sebelumnya sebelum menambahkan yang baru',
         
         // Form fields
+        selectDate: 'Pilih tanggal',
         hoursPlaceholder: 'Maks 12',
         descriptionPlaceholder: 'mis., Deployment klien, Perbaikan bug',
         addAnotherDate: 'Tambah Tanggal Lain',
+        supportsFormatting: 'Contoh Deskripsi: SDN_resize (output file), Admin LKMK.',
         
         // Summary
         totalSummary: 'Ringkasan Total',

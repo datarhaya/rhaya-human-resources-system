@@ -13,3 +13,53 @@ body {
   padding: 0;
   box-sizing: border-box;
 }
+
+.react-datepicker-wrapper {
+  width: 100%;
+}
+
+.react-datepicker__input-container {
+  width: 100%;
+}
+
+.react-datepicker__input-container input {
+  width: 100%;
+}
+
+.react-datepicker {
+  font-family: inherit;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.react-datepicker__header {
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.react-datepicker__current-month,
+.react-datepicker__day-name {
+  color: #1f2937;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background-color: #2563eb !important;
+  color: white !important;
+}
+
+.react-datepicker__day:hover:not(.react-datepicker__day--disabled) {
+  background-color: #dbeafe;
+}
+
+/* Disabled days - MUST come after weekend rule */
+.react-datepicker__day--disabled {
+  color: #9ca3af !important;
+  cursor: not-allowed !important;
+}
+
+/* Only color weekends that are NOT disabled */
+.react-datepicker__day--weekend:not(.react-datepicker__day--disabled) {
+  color: #059669;
+  font-weight: 500;
+}
