@@ -93,12 +93,12 @@ export const submitOvertimeRequest = async (req, res) => {
     const approverId = await overtimeService.determineApprover(employee);
 
     // Add this debug:
-    console.log('🔍 Debug - Approver determination:');
-    console.log('  Employee ID:', employeeId);
-    console.log('  Employee supervisor:', employee.supervisorId);
-    console.log('  Determined approverId:', approverId);
+    console.log('Debug - Approver determination:');
+    console.log('Employee ID:', employeeId);
+    console.log('Employee supervisor:', employee.supervisorId);
+    console.log('Determined approverId:', approverId);
     
-    // ✅ Create overtime request WITH currentApproverId
+    // Create overtime request WITH currentApproverId
     const overtimeRequest = await overtimeService.createOvertimeRequest({
       employeeId,
       entries,
@@ -108,7 +108,7 @@ export const submitOvertimeRequest = async (req, res) => {
       currentApproverId: approverId, 
       supervisorId: employee.supervisorId 
     });
-    console.log('✅ Created request with currentApproverId:', overtimeRequest.currentApproverId);
+    console.log('Created request with currentApproverId:', overtimeRequest.currentApproverId);
 
     // Update pending hours in balance
     await overtimeService.updatePendingHours(employeeId, totalHours, 'ADD');
@@ -769,24 +769,24 @@ export const requestRevision = async (req, res) => {
       data: updateData,
       include: {
         employee: true,
-        currentApprover: true // ✅ Include to show who requested revision
+        currentApprover: true // Include to show who requested revision
       }
     });
 
-    if (updatedRequest.status === 'REVISION_REQUESTED') {
-      await prisma.overtimeBalance.upsert({
-        where: { employeeId: request.employeeId },
-        update: {
-          pendingHours: { 
-            decrement: request.totalHours }
-        },
-        create: {
-          employeeId: request.employeeId,
-          currentBalance: request.totalHours,
-          totalPaid: 0
-        }
-      });
-    }
+    // if (updatedRequest.status === 'REVISION_REQUESTED') {
+    //   await prisma.overtimeBalance.upsert({
+    //     where: { employeeId: request.employeeId },
+    //     update: {
+    //       pendingHours: { 
+    //         decrement: request.totalHours }
+    //     },
+    //     create: {
+    //       employeeId: request.employeeId,
+    //       currentBalance: request.totalHours,
+    //       totalPaid: 0
+    //     }
+    //   });
+    // }
 
     return res.json({
       success: true,
