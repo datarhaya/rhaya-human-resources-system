@@ -176,10 +176,12 @@ export default function OvertimeDetail() {
           </dl>
         </div>
 
-        {/* Request Summary */}
+        {/* Enhanced Request Summary */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('overtime.requestSummary')}</h2>
-          <div className="grid grid-cols-3 gap-6">
+          
+          {/* Summary Stats */}
+          <div className="grid grid-cols-3 gap-6 mb-6">
             <div className="bg-blue-50 rounded-lg p-4">
               <p className="text-sm text-blue-600 font-medium">{t('overtime.totalHours')}</p>
               <p className="text-3xl font-bold text-blue-900 mt-1">{request.totalHours}</p>
@@ -200,8 +202,9 @@ export default function OvertimeDetail() {
               <p className="text-xs text-purple-600 mt-1">{t('overtime.beforeTax')}</p>
             </div>
           </div>
-          
-          <dl className="grid grid-cols-2 gap-4 mt-6">
+
+          {/* Submission Details */}
+          <dl className="grid grid-cols-2 gap-4 pb-6 border-b border-gray-200">
             <div>
               <dt className="text-sm font-medium text-gray-500">{t('overtime.submittedDate')}</dt>
               <dd className="mt-1 text-sm text-gray-900">
@@ -213,31 +216,66 @@ export default function OvertimeDetail() {
               <dd className="mt-1 text-sm text-gray-900">{request.entries.length} {t('overtime.dates')}</dd>
             </div>
           </dl>
-        </div>
 
-        {/* Overtime Entries */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('overtime.overtimeDates')}</h2>
-          <div className="space-y-3">
-            {request.entries.map((entry, index) => (
-              <div key={entry.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <div className="flex items-center space-x-4">
-                  <div className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-800 font-bold">{index + 1}</span>
+          {/* Individual Entries with Descriptions */}
+          <div className="mt-6">
+            <h3 className="text-md font-semibold text-gray-900 mb-4">
+              {t('overtime.detailedBreakdown')}
+            </h3>
+            <div className="space-y-3">
+              {request.entries.map((entry, index) => (
+                <div key={entry.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-sm transition-all">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-sm">
+                        <span className="text-white font-bold text-sm">{index + 1}</span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {format(new Date(entry.date), 'EEEE, MMMM dd, yyyy')}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {format(new Date(entry.date), 'MMM dd, yyyy')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-blue-600">{entry.hours}</p>
+                      <p className="text-xs text-gray-500">{t('overtime.hours')}</p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-900">
-                      {format(new Date(entry.date), 'EEEE, MMMM dd, yyyy')}
-                    </p>
-                    <p className="text-sm text-gray-600 mt-1">{entry.description}</p>
+                  
+                  {/* Entry Description */}
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <div className="flex items-start space-x-2">
+                      <svg className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-gray-500 mb-1">{t('overtime.description')}</p>
+                        <p className="text-sm text-gray-700 leading-relaxed">{entry.description}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Work Duration Visualization */}
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <span>{t('overtime.duration')}</span>
+                      <span className="font-medium text-gray-700">
+                        {entry.hours} {t('overtime.hours')} = {(entry.hours / 8).toFixed(2)} {t('overtime.days')}
+                      </span>
+                    </div>
+                    <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all"
+                        style={{ width: `${Math.min((entry.hours / 12) * 100, 100)}%` }}
+                      ></div>
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold text-gray-900">{entry.hours}</p>
-                  <p className="text-xs text-gray-500">{t('overtime.hours')}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
@@ -278,7 +316,7 @@ export default function OvertimeDetail() {
               {request.supervisorComment && (
                 <div className="mt-2 p-3 bg-gray-50 rounded border border-gray-200">
                   <p className="text-sm text-gray-700">
-                    <strong>{t('overtime.comment')}</strong> {request.supervisorComment}
+                    <strong>{t('overtime.comment')}:</strong> {request.supervisorComment}
                   </p>
                   {request.supervisorDate && (
                     <p className="text-xs text-gray-500 mt-1">
@@ -312,7 +350,7 @@ export default function OvertimeDetail() {
               {request.divisionHeadComment && (
                 <div className="mt-2 p-3 bg-gray-50 rounded border border-gray-200">
                   <p className="text-sm text-gray-700">
-                    <strong>{t('overtime.comment')}</strong> {request.divisionHeadComment}
+                    <strong>{t('overtime.comment')}:</strong> {request.divisionHeadComment}
                   </p>
                   {request.divisionHeadDate && (
                     <p className="text-xs text-gray-500 mt-1">

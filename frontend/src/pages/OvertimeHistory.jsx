@@ -172,6 +172,13 @@ export default function OvertimeHistory() {
     );
   };
 
+  // Helper function to truncate text
+  const truncateText = (text, maxLength = 80) => {
+    if (!text) return '';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  };
+
   // Filter stats
   const stats = {
     all: allRequests.length,
@@ -204,140 +211,150 @@ export default function OvertimeHistory() {
 
       {/* Balance Card */}
       {balance && (
-        // console.log('Balance:', balance) ||
         <div className="mb-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
-          <h2 className="text-lg font-semibold mb-4">{t('overtime.overtimeBalance')}</h2>
-          <div className="grid grid-cols-3 gap-6">
+          <div className="flex justify-between items-start">
             <div>
-              <p className="text-blue-100 text-sm">{t('overtime.pendingHours')}</p>
-              <p className="text-3xl font-bold">{balance.pendingHours.toFixed(1)}</p>
-              <p className="text-blue-100 text-xs mt-1">{t('overtime.awaitingApproval')}</p>
+              <h2 className="text-lg font-semibold mb-1">{t('overtime.yourOvertimeBalance')}</h2>
+              <div className="flex items-baseline space-x-2">
+                <span className="text-4xl font-bold">{balance.currentBalance.toFixed(1)}</span>
+                <span className="text-xl">{t('overtime.hours')}</span>
+              </div>
+              <p className="text-blue-100 text-sm mt-2">
+                {(balance.currentBalance / 8).toFixed(2)} {t('overtime.workingDays')}
+              </p>
             </div>
-            <div>
-              <p className="text-blue-100 text-sm">{t('overtime.approvedBalance')}</p>
-              <p className="text-3xl font-bold">{balance.currentBalance.toFixed(1)}</p>
-              <p className="text-blue-100 text-xs mt-1">{t('overtime.readyForPayment')}</p>
-            </div>
-            <div>
-              <p className="text-blue-100 text-sm">{t('overtime.totalPaid')}</p>
-              <p className="text-3xl font-bold">{balance.totalPaid.toFixed(1)}</p>
-              <p className="text-blue-100 text-xs mt-1">{t('overtime.allTimeHoursPaid')}</p>
+            <div className="text-right">
+              <p className="text-sm text-blue-100">{t('overtime.pendingHours')}</p>
+              <p className="text-2xl font-semibold">{balance.pendingHours.toFixed(1)}</p>
             </div>
           </div>
+          
+          {leaveBalance && (
+            <div className="mt-4 pt-4 border-t border-blue-400">
+              <div className="flex justify-between text-sm">
+                <span className="text-blue-100">{t('overtime.convertedToLeave')}</span>
+                <span className="font-semibold">{leaveBalance.overtimeConverted || 0} {t('overtime.days')}</span>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Error Message */}
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-800">{error}</p>
-        </div>
-      )}
-      
       {/* Advanced Filters */}
-      <div className="mb-6 bg-white rounded-lg shadow p-6">
+      <div className="mb-4 bg-white rounded-lg shadow p-4">
         <button
           onClick={() => setShowFilters(!showFilters)}
           className="flex items-center justify-between w-full text-left"
         >
-          <h3 className="text-lg font-medium text-gray-900">{t('overtime.advancedFilters')}</h3>
-          <span className="text-sm text-blue-600 font-medium">
+          <div className="flex items-center text-sm font-medium text-gray-700">
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
             {showFilters ? t('overtime.hideFilters') : t('overtime.showFilters')}
-          </span>
+            {hasActiveFilters && (
+              <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-600 rounded-full">
+                {Object.values(filters).filter(v => v !== '').length}
+              </span>
+            )}
+          </div>
+          <svg 
+            className={`w-5 h-5 text-gray-400 transform transition-transform ${showFilters ? 'rotate-180' : ''}`} 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
         </button>
 
         {showFilters && (
-          <div className="mt-4 space-y-4">
-            {/* Request Date Range */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('overtime.requestDateRange')}
-              </label>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">{t('overtime.fromDate')}</label>
-                  <input
-                    type="date"
-                    value={filters.requestDateFrom}
-                    onChange={(e) => setFilters({...filters, requestDateFrom: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">{t('overtime.toDate')}</label>
-                  <input
-                    type="date"
-                    value={filters.requestDateTo}
-                    onChange={(e) => setFilters({...filters, requestDateTo: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Overtime Date Range */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('overtime.overtimeDateRange')}
-              </label>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">{t('overtime.fromDate')}</label>
-                  <input
-                    type="date"
-                    value={filters.overtimeDateFrom}
-                    onChange={(e) => setFilters({...filters, overtimeDateFrom: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">{t('overtime.toDate')}</label>
-                  <input
-                    type="date"
-                    value={filters.overtimeDateTo}
-                    onChange={(e) => setFilters({...filters, overtimeDateTo: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-                  />
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Request Date Range */}
+              <div className="border-l-4 border-yellow-500 pl-4">
+                <p className="text-sm font-semibold text-gray-700 mb-2">{t('overtime.requestDateRange')}</p>
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">{t('overtime.from')}</label>
+                    <input
+                      type="date"
+                      value={filters.requestDateFrom}
+                      onChange={(e) => setFilters({...filters, requestDateFrom: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">{t('overtime.to')}</label>
+                    <input
+                      type="date"
+                      value={filters.requestDateTo}
+                      onChange={(e) => setFilters({...filters, requestDateTo: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Hours Range */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('overtime.hoursRange')}
-              </label>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">{t('overtime.minHours')}</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    value={filters.hoursMin}
-                    onChange={(e) => setFilters({...filters, hoursMin: e.target.value})}
-                    placeholder="e.g., 0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-                  />
+              {/* Overtime Date Range */}
+              <div className="border-l-4 border-orange-500 pl-4">
+                <p className="text-sm font-semibold text-gray-700 mb-2">{t('overtime.overtimeDateRange')}</p>
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">{t('overtime.from')}</label>
+                    <input
+                      type="date"
+                      value={filters.overtimeDateFrom}
+                      onChange={(e) => setFilters({...filters, overtimeDateFrom: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">{t('overtime.to')}</label>
+                    <input
+                      type="date"
+                      value={filters.overtimeDateTo}
+                      onChange={(e) => setFilters({...filters, overtimeDateTo: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">{t('overtime.maxHours')}</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    value={filters.hoursMax}
-                    onChange={(e) => setFilters({...filters, hoursMax: e.target.value})}
-                    placeholder="e.g., 40"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-                  />
+              </div>
+
+              {/* Hours Range */}
+              <div className="border-l-4 border-purple-500 pl-4">
+                <p className="text-sm font-semibold text-gray-700 mb-2">{t('overtime.hoursRange')}</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">{t('overtime.minHours')}</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={filters.hoursMin}
+                      onChange={(e) => setFilters({...filters, hoursMin: e.target.value})}
+                      placeholder="e.g., 8"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">{t('overtime.maxHours')}</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={filters.hoursMax}
+                      onChange={(e) => setFilters({...filters, hoursMax: e.target.value})}
+                      placeholder="e.g., 40"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Actions */}
             {hasActiveFilters && (
-              <div className="flex justify-end">
+              <div className="flex justify-end mt-4">
                 <button
                   onClick={clearFilters}
                   className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium"
@@ -421,7 +438,7 @@ export default function OvertimeHistory() {
         </div>
       )}
 
-      {/* Requests List */}
+      {/* Requests List - Updated Display Format */}
       {!loading && requests.length > 0 && (
         <div className="space-y-4">
           {requests.map((request) => (
@@ -430,27 +447,16 @@ export default function OvertimeHistory() {
                 {/* Header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-3 mb-3">
                       <StatusBadge status={request.status} />
                       <span className="text-sm text-gray-500">
                         {t('overtime.submittedOn')} {format(new Date(request.submittedAt), 'MMM dd, yyyy')}
                       </span>
                     </div>
-                    <div className="mt-2">
-                      <p className="text-lg font-semibold text-gray-900">
-                        {request.totalHours} {t('overtime.hours')}
-                        <span className="text-sm font-normal text-gray-500 ml-2">
-                          ({(request.totalHours / 8).toFixed(2)} {t('overtime.days')})
-                        </span>
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {t('overtime.approver')} {request.currentApprover?.name || 'N/A'}
-                      </p>
-                    </div>
                   </div>
 
                   {/* Actions */}
-                  <div className="flex space-x-2">
+                  <div className="flex space-x-2 ml-4">
                     {(request.status === 'PENDING' || request.status === 'REVISION_REQUESTED') && (
                       <>
                         <Link
@@ -479,31 +485,88 @@ export default function OvertimeHistory() {
                     )}
                     <Link
                       to={`/overtime/detail/${request.id}`}
-                      className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
+                      className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700"
                     >
                       {t('overtime.viewDetails')}
                     </Link>
                   </div>
                 </div>
 
-                {/* Entries */}
-                <div className="mt-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">{t('overtime.overtimeDates')}</h4>
-                  <div className="space-y-2">
-                    {request.entries.map((entry, index) => (
-                      <div key={index} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded">
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">
-                            {format(new Date(entry.date), 'EEE, MMM dd, yyyy')}
-                          </p>
-                          <p className="text-sm text-gray-600">{entry.description}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold text-gray-900">{entry.hours} {t('overtime.hours')}</p>
-                        </div>
+                {/* Improved Display Section - Matching Admin View */}
+                <div className="bg-gray-50 rounded-lg p-4 mb-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Total Hours */}
+                    <div>
+                      <p className="text-gray-500 text-xs mb-1">{t('overtime.totalHours')}</p>
+                      <p className="font-semibold text-gray-900">{request.totalHours} {t('overtime.hours')}</p>
+                    </div>
+
+                    {/* Overtime Dates */}
+                    <div>
+                      <p className="text-gray-500 text-xs mb-1">{t('overtime.overtimeDates')}</p>
+                      <div className="text-sm text-gray-900">
+                        {request.entries && request.entries.length > 0 ? (
+                          <ul className="list-disc list-inside space-y-0.5">
+                            {request.entries.slice(0, 3).map((entry, idx) => (
+                              <li key={idx} className="text-xs">
+                                {format(new Date(entry.date), 'MMM dd, yyyy')} ({entry.hours}h)
+                              </li>
+                            ))}
+                            {request.entries.length > 3 && (
+                              <li className="text-xs text-blue-600 font-medium">
+                                +{request.entries.length - 3} more dates
+                              </li>
+                            )}
+                          </ul>
+                        ) : (
+                          <span className="text-xs text-gray-400">No dates</span>
+                        )}
                       </div>
-                    ))}
+                    </div>
+
+                    {/* Submitted On */}
+                    <div>
+                      <p className="text-gray-500 text-xs mb-1">{t('overtime.submittedOn')}</p>
+                      <p className="font-semibold text-gray-900 text-sm">
+                        {format(new Date(request.submittedAt), 'MMM dd, yyyy')}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {format(new Date(request.submittedAt), 'HH:mm')}
+                      </p>
+                    </div>
                   </div>
+
+                  {/* Entry Descriptions */}
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-gray-500 text-xs mb-2">{t('overtime.entryDescriptions')}</p>
+                    <div className="space-y-2">
+                      {request.entries && request.entries.slice(0, 2).map((entry, idx) => (
+                        <div key={idx} className="flex items-start space-x-2">
+                          <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></span>
+                          <p className="text-xs text-gray-700">
+                            <span className="font-medium">{format(new Date(entry.date), 'MMM dd')}:</span> {truncateText(entry.description, 80)}
+                          </p>
+                        </div>
+                      ))}
+                      {request.entries && request.entries.length > 2 && (
+                        <p className="text-xs text-blue-600 font-medium pl-4">
+                          +{request.entries.length - 2} more entries
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Approver Info */}
+                <div className="flex items-center justify-between text-sm">
+                  <p className="text-gray-600">
+                    {t('overtime.approver')} <span className="font-medium text-gray-900">{request.currentApprover?.name || 'N/A'}</span>
+                  </p>
+                  {request.status !== 'PENDING' && request.currentApprover && (
+                    <p className="text-gray-600">
+                      {request.status === 'APPROVED' ? `✓ ${t('overtime.approvedBy')}` : `✗ ${t('overtime.rejectedBy')}`} {request.currentApprover.name}
+                    </p>
+                  )}
                 </div>
 
                 {/* Approval Comments */}

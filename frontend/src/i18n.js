@@ -136,6 +136,16 @@ const resources = {
         note2: 'Maximum 12 hours per day',
         note3: 'Overtime should typically be for weekends or holidays',
         note4: 'Cannot submit duplicate dates (check your pending/approved requests)',
+
+        revision: "Revision",
+        overtimeDates: "Overtime Dates",
+        entryDescriptions: "Entry Descriptions",
+        viewDetails: "View Details",
+        detailedBreakdown: "Detailed Breakdown",
+        description: "Description",
+        duration : "Duration",
+        yourOvertimeBalance: "Your Overtime Balance",
+        convertedToLeave: "Converted to Leave",
         
         // Edit page
         editTitle: 'Edit Overtime Request',
@@ -723,7 +733,15 @@ const resources = {
         note2: 'Maksimum 12 jam per hari',
         note3: 'Lembur biasanya untuk akhir pekan atau hari libur',
         note4: 'Tidak dapat mengajukan tanggal duplikat (periksa permintaan tertunda/disetujui Anda)',
-        
+
+        revision: "Revisi",
+        overtimeDates: "Taggal Lembur",
+        entryDescriptions: "Deskripsi Lembur",
+        viewDetails: "Lihat Detail",
+        detailedBreakdown: "Rincian Terperinci",
+        description: "Deskripsi",
+        duration : "Durasi",
+
         // Edit page
         editTitle: 'Ubah Permintaan Lembur',
         editDescription: 'Perbarui jam lembur Anda. Maksimum 12 jam per hari.',
