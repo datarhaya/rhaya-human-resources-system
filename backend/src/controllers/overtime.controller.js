@@ -483,7 +483,7 @@ export const approveOvertimeRequest = async (req, res) => {
     }
 
     // Authorization check
-    const isAdmin = approverLevel <= 2; // ⭐ Level 1 or 2
+    const isAdmin = approverLevel <= 2; 
     const isCurrentApprover = request.currentApproverId === approverId;
 
     if (!isAdmin && !isCurrentApprover) {
@@ -644,8 +644,8 @@ export const rejectOvertimeRequest = async (req, res) => {
     // Update with rejection - keep currentApproverId for history
     let updateData = {
       status: 'REJECTED',
-      rejectedAt: new Date()
-      
+      rejectedAt: new Date(),
+      currentApproverId: approverId  // ✅ Add this
     };
 
     // Log rejection in appropriate field
@@ -746,7 +746,8 @@ export const requestRevision = async (req, res) => {
 
     // Update request - keep currentApproverId for history
     let updateData = {
-      status: 'REVISION_REQUESTED'
+      status: 'REVISION_REQUESTED',
+      currentApproverId: approverId  
     };
 
     // Log revision request
