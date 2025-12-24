@@ -105,6 +105,7 @@ const resources = {
         rejected: 'Rejected',
         active: 'Active',
         inactive: 'Inactive',
+        revisionRequested: 'Revision Requested'
       },
 
       // Date & Time
@@ -322,6 +323,7 @@ const resources = {
         pending: 'Pending',
         approved: 'Approved',
         rejected: 'Rejected',
+        revisionRequested: 'Revision Requested',
         
         // Actions
         edit: 'Edit',
@@ -690,6 +692,7 @@ const resources = {
         rejected: 'Ditolak',
         active: 'Aktif',
         inactive: 'Tidak Aktif',
+        revisionRequested: 'Revision Requested',
       },
 
       // Date & Time
@@ -906,6 +909,7 @@ const resources = {
         pending: 'Tertunda',
         approved: 'Disetujui',
         rejected: 'Ditolak',
+        revisionRequested: 'Revisi',
         
         // Actions
         edit: 'Ubah',
@@ -984,6 +988,7 @@ const resources = {
         pending: 'Tertunda',
         approved: 'Disetujui',
         rejected: 'Ditolak',
+        revisionRequested: 'Revisi',
         
         // Buttons
         submitRequest: 'Ajukan Permintaan Cuti',

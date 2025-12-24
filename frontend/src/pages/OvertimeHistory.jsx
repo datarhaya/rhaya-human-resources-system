@@ -162,7 +162,7 @@ export default function OvertimeHistory() {
       PENDING: t('overtime.pending'),
       APPROVED: t('overtime.approved'),
       REJECTED: t('overtime.rejected'),
-      REVISION_REQUESTED: 'Revision Requested'
+      REVISION_REQUESTED: t('overtime.revisionRequested')
     };
 
     return (
@@ -177,7 +177,8 @@ export default function OvertimeHistory() {
     all: allRequests.length,
     PENDING: allRequests.filter(r => r.status === 'PENDING').length,
     APPROVED: allRequests.filter(r => r.status === 'APPROVED').length,
-    REJECTED: allRequests.filter(r => r.status === 'REJECTED').length
+    REJECTED: allRequests.filter(r => r.status === 'REJECTED').length,
+    REVISION_REQUESTED: allRequests.filter(r => r.status === 'REVISION_REQUESTED').length
   };
 
   return (
@@ -352,7 +353,7 @@ export default function OvertimeHistory() {
       {/* Filter Tabs */}
       <div className="mb-4 border-b border-gray-200 bg-white rounded-t-lg px-4">
         <nav className="-mb-px flex space-x-6">
-          {['all', 'PENDING', 'APPROVED', 'REJECTED'].map((tab) => (
+          {['all', 'PENDING', 'APPROVED', 'REVISION_REQUESTED', 'REJECTED'].map((tab) => (
             <button
               key={tab}
               onClick={() => setStatusFilter(tab)}
@@ -362,7 +363,9 @@ export default function OvertimeHistory() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              {tab === 'all' ? t('overtime.allRequests') : t(`overtime.${tab.toLowerCase()}`)}
+              {tab === 'all' 
+                ? t('overtime.allRequests') 
+                : t(`overtime.${tab.toLowerCase().replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())}`)}
               <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
                 statusFilter === tab ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
               }`}>
