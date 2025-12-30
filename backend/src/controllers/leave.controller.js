@@ -391,7 +391,8 @@ export const rejectLeaveRequest = async (req, res) => {
 
     let updateData = {
       status: 'REJECTED',
-      rejectedAt: new Date()
+      rejectedAt: new Date(),
+      currentApproverId: approverId  
     };
 
     // Log rejection in appropriate field

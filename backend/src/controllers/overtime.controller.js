@@ -2,6 +2,7 @@
 import * as overtimeService from '../services/overtime.service.js';
 import { isAfter, subDays, startOfDay } from 'date-fns';
 import { PrismaClient } from '@prisma/client';
+import { sendOvertimeApprovedEmail } from '../services/email.service.js';
 const prisma = new PrismaClient();
 
 // ============================================
@@ -494,7 +495,7 @@ export const approveOvertimeRequest = async (req, res) => {
 
     let updateData = {};
     
-    // ⭐ ADMIN OVERRIDE (Level 1-2) - Can approve anything directly
+    // ADMIN OVERRIDE (Level 1-2) - Can approve anything directly
     if (isAdmin && !isCurrentApprover) {
       updateData = {
         status: 'APPROVED',
@@ -509,24 +510,30 @@ export const approveOvertimeRequest = async (req, res) => {
         currentApproverId: approverId
       };
     }
-    // Supervisor approval stage
+    
+    // Supervisor approval
     else if (request.supervisorId && !request.supervisorDate) {
-      const nextApproverId = request.employee.division?.headId || null;
+      // const nextApproverId = request.employee.division?.headId || null;
       
       updateData = {
         supervisorStatus: 'APPROVED',
         supervisorComment: comment || null,
         supervisorDate: new Date(),
-        currentApproverId: nextApproverId, 
-        status: nextApproverId ? 'PENDING_DIVISION_HEAD' : 'APPROVED', // ⭐ Changed status
-        approvedAt: nextApproverId ? null : new Date()
+        currentApproverId: approverId,
+        status: 'APPROVED',
+        approvedAt: new Date(),
+
+        // currentApproverId: nextApproverId, 
+        // status: nextApproverId ? 'PENDING_DIVISION_HEAD' : 'APPROVED', 
+        // approvedAt: nextApproverId ? null : new Date()
       };
       
-      if (!nextApproverId) {
-        updateData.currentApproverId = approverId;
-      }
+      // if (!nextApproverId) {
+      //   updateData.currentApproverId = approverId;
+      // }
     }
-    // Division head approval stage - FINAL
+
+    // Division head approval 
     else if (request.employee.division?.headId && !request.divisionHeadDate) {
       updateData = {
         divisionHeadStatus: 'APPROVED',
@@ -549,7 +556,7 @@ export const approveOvertimeRequest = async (req, res) => {
       };
     }
 
-    console.log('Approval update data:', updateData); // ⭐ Debug log
+    console.log('Approval update data:', updateData); // Debug log
 
     const updatedRequest = await prisma.overtimeRequest.update({
       where: { id: requestId },
@@ -560,7 +567,7 @@ export const approveOvertimeRequest = async (req, res) => {
       }
     });
 
-    console.log('✅ Updated request status:', updatedRequest.status); // ⭐ Debug log
+    console.log('✅ Updated request status:', updatedRequest.status); // Debug log
 
     // If fully approved, update balance
     if (updatedRequest.status === 'APPROVED') {
@@ -578,6 +585,18 @@ export const approveOvertimeRequest = async (req, res) => {
       });
       
       console.log('✅ Balance updated for employee:', request.employeeId);
+    }
+
+    // Send email notification
+    try {
+      await sendOvertimeApprovedEmail(
+        request.employee,
+        request
+      );
+      console.log('✅ Approval email sent to:', request.employee.email);
+    } catch (emailError) {
+      // Don't fail the request if email fails
+      console.error('⚠️ Email failed but overtime approved:', emailError);
     }
 
     return res.json({
@@ -645,7 +664,7 @@ export const rejectOvertimeRequest = async (req, res) => {
     let updateData = {
       status: 'REJECTED',
       rejectedAt: new Date(),
-      currentApproverId: approverId  // ✅ Add this
+      currentApproverId: approverId  
     };
 
     // Log rejection in appropriate field
