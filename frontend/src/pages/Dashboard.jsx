@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { getMyOvertimeBalance, getMyOvertimeRequests } from '../api/client';
+import { getMyOvertimeBalance, getMyOvertimeRequests, getMyLeaveBalance } from '../api/client';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -18,6 +18,14 @@ export default function Dashboard() {
     cacheTime: 10 * 60 * 1000,
   });
 
+  // Fetch leave balance with caching
+  const { data: leaveBalance, isLoading: leaveBalanceLoading } = useQuery({
+    queryKey: ['leaveBalance'],
+    queryFn: getMyLeaveBalance,
+    staleTime: 3 * 60 * 1000,
+    cacheTime: 10 * 60 * 1000,
+  });
+
   // Fetch pending requests count with caching
   const { data: pendingRequests, isLoading: pendingLoading } = useQuery({
     queryKey: ['overtimeRequests', 'pending'],
@@ -27,7 +35,7 @@ export default function Dashboard() {
     select: (data) => data.length,
   });
 
-  const loading = balanceLoading || pendingLoading;
+  const loading = balanceLoading || pendingLoading || leaveBalanceLoading;
 
   // Get access level label
   const getAccessLevelLabel = (level) => {
@@ -69,15 +77,28 @@ export default function Dashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
+        <div 
+          className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/leave/history')}
+        >
           <div className="flex items-center justify-between mb-2">
             <div className="text-sm text-gray-600">{t('dashboard.leaveBalance')}</div>
             <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
-          <div className="text-3xl font-bold text-blue-600">14 {t('dashboard.days')}</div>
-          <div className="text-xs text-gray-500 mt-1">{t('dashboard.annualLeaveRemaining')}</div>
+          <div className="text-3xl font-bold text-blue-600">
+            {loading ? (
+              <span className="text-2xl">...</span>
+            ) : leaveBalance ? (
+              `${leaveBalance.annualRemaining || 0} ${t('dashboard.days')}`
+            ) : (
+              `0 ${t('dashboard.days')}`
+            )}
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            {t('dashboard.annualLeaveRemaining')} • {t('dashboard.clickToView')}
+          </div>
         </div>
         
         <div 

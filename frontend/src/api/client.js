@@ -191,7 +191,8 @@ export const getMyLeaveRequests = async (params = {}) => {
  * Get my leave balance
  */
 export const getMyLeaveBalance = async () => {
-  const response = await apiClient.get('/leave/my-balance');
+  const currentYear = new Date().getFullYear();
+  const response = await apiClient.get(`/leave/balance/${currentYear}`);
   return response.data.data;
 };
 

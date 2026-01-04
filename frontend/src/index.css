@@ -64,9 +64,6 @@ body {
   font-weight: 500;
 }
 
-/* Add this to your global CSS file or Tailwind config */
-/* ErrorDialog fade-in animation */
-
 @keyframes fadeIn {
   from {
     opacity: 0;
