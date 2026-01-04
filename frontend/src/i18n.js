@@ -29,6 +29,7 @@ const resources = {
         yes: 'Yes',
         no: 'No',
         entry: 'Entry',
+        ok: 'OK',
       },
 
       // Navigation
@@ -369,6 +370,51 @@ const resources = {
         request: 'Request Leave',
         history: 'Leave History',
         approval: 'Leave Approval',
+
+        title: 'Leave Management',
+        description: 'Submit and manage your leave requests',
+
+        // Important notes
+        importantNotes: 'Important Notes',
+        note1: 'Weekends (Saturday & Sunday) are excluded from leave calculations',
+        note2: 'Maximum 5 working days per leave request (except maternity leave)',
+        note3: 'Maximum 5 working days per month',
+        note4: 'Menstrual leave can only be requested for today or previous dates',
+        note5: 'Maternity leave is automatically calculated as 90 days from start date',
+        
+        // Balance labels
+        annualUsed: 'Annual Used',
+        annualRemaining: 'Annual Remaining',
+        sickLeaveUsed: 'Sick Leave Used',
+        menstrualLeaveUsed: 'Menstrual Leave Used',
+        
+        // Form labels
+        myRequests: 'My Leave Requests',
+        selectStartDate: 'Select start date',
+        selectEndDate: 'Select end date',
+        reasonPlaceholder: 'Explain your reason for taking leave...',
+        attachmentPlaceholder: 'Paste attachment URL here (e.g., Google Drive link)',
+        reset: 'Reset',
+        submit: 'Submit Request',
+        
+        // Notes for specific leave types
+        maternityNote: 'End date will be automatically calculated (90 days)',
+        maternityCalculationNote: 'Auto-calculated (90 days)',
+        menstrualNote: 'Only today or previous dates allowed, 1 day only',
+        
+        // Filter labels
+        showFilters: 'Show Filters',
+        hideFilters: 'Hide Filters',
+        
+        // Approval page
+        commentRequired: 'Comment is required for rejection',
+        commentPlaceholder: 'Add your comments here...',
+        noPendingReview: 'No pending leave requests to review',
+        
+        // Additional messages
+        weekendExcluded: 'Weekends excluded',
+        workingDays: 'Working Days',
+        exceedsLimit: 'Exceeds 5-day limit',
         
         // Balance cards
         annualQuota: 'Annual Quota',
@@ -493,6 +539,23 @@ const resources = {
         rejectedOn: 'Rejected on',
         submitted: 'Submitted',
         noPendingReview: 'No pending requests to review',
+
+        // Error Dialog
+        error: 'Error',
+        success: 'Success',
+        validationError: 'Validation Error',
+        submitError: 'Failed to submit leave request',
+        submitSuccess: 'Leave request submitted successfully!',
+        selectDates: 'Please select start and end dates',
+        invalidDates: 'Invalid date range',
+        
+        // Existing translations you might already have
+        annualLeave: 'Annual Leave',
+        sickLeave: 'Sick Leave',
+        maternityLeave: 'Maternity Leave',
+        menstrualLeave: 'Menstrual Leave',
+        marriageLeave: 'Marriage Leave',
+        unpaidLeave: 'Unpaid Leave',
       },
 
       // Payslips
@@ -626,6 +689,7 @@ const resources = {
         yes: 'Ya',
         no: 'Tidak',
         entry: 'Entri',
+        ok: 'OK',
       },
 
       // Navigation
@@ -963,7 +1027,52 @@ const resources = {
         request: 'Ajukan Cuti',
         history: 'Riwayat Cuti',
         approval: 'Persetujuan Cuti',
+
+        title: 'Manajemen Cuti',
+        description: 'Ajukan dan kelola permintaan cuti Anda',
+
+        // Catatan penting
+        importantNotes: 'Catatan Penting',
+        note1: 'Akhir pekan (Sabtu & Minggu) tidak dihitung dalam perhitungan cuti',
+        note2: 'Maksimal 5 hari kerja per permintaan cuti (kecuali cuti melahirkan)',
+        note3: 'Maksimal 5 hari kerja per bulan',
+        note4: 'Cuti haid hanya dapat diajukan untuk hari ini atau tanggal sebelumnya',
+        note5: 'Cuti melahirkan otomatis dihitung 90 hari dari tanggal mulai',
+
+        // Label saldo
+        annualUsed: 'Cuti Tahunan Terpakai',
+        annualRemaining: 'Cuti Tahunan Tersisa',
+        sickLeaveUsed: 'Cuti Sakit Terpakai',
+        menstrualLeaveUsed: 'Cuti Haid Terpakai',
         
+        // Label formulir
+        myRequests: 'Permintaan Cuti Saya',
+        selectStartDate: 'Pilih tanggal mulai',
+        selectEndDate: 'Pilih tanggal selesai',
+        reasonPlaceholder: 'Jelaskan alasan Anda mengambil cuti...',
+        attachmentPlaceholder: 'Tempel URL lampiran di sini (mis., tautan Google Drive)',
+        reset: 'Reset',
+        submit: 'Kirim Permintaan',
+
+        // Catatan untuk jenis cuti tertentu
+        maternityNote: 'Tanggal selesai akan dihitung otomatis (90 hari)',
+        maternityCalculationNote: 'Auto-perhitungan (90 days)',
+        menstrualNote: 'Hanya hari ini atau tanggal sebelumnya yang diperbolehkan, 1 hari saja',
+        
+        // Label filter
+        showFilters: 'Tampilkan Filter',
+        hideFilters: 'Sembunyikan Filter',
+        
+        // Halaman persetujuan
+        commentRequired: 'Komentar diperlukan untuk penolakan',
+        commentPlaceholder: 'Tambahkan komentar Anda di sini...',
+        noPendingReview: 'Tidak ada permintaan cuti yang tertunda untuk ditinjau',
+        
+        // Pesan tambahan
+        weekendExcluded: 'Akhir pekan dikecualikan',
+        workingDays: 'Hari Kerja',
+        exceedsLimit: 'Melebihi batas 5 hari',
+
         // Balance cards
         annualQuota: 'Kuota Tahunan',
         toilBalance: 'TOIL',
@@ -1088,6 +1197,23 @@ const resources = {
         rejectedOn: 'Ditolak pada',
         submitted: 'Diajukan',
         noPendingReview: 'Tidak ada permintaan tertunda untuk ditinjau',
+        
+        // Error Dialog
+        error: 'Kesalahan',
+        success: 'Berhasil',
+        validationError: 'Kesalahan Validasi',
+        submitError: 'Gagal mengajukan permintaan cuti',
+        submitSuccess: 'Permintaan cuti berhasil diajukan!',
+        selectDates: 'Silakan pilih tanggal mulai dan tanggal selesai',
+        invalidDates: 'Rentang tanggal tidak valid',
+        
+        // Existing translations you might already have
+        annualLeave: 'Cuti Tahunan',
+        sickLeave: 'Cuti Sakit',
+        maternityLeave: 'Cuti Melahirkan',
+        menstrualLeave: 'Cuti Haid',
+        marriageLeave: 'Cuti Menikah',
+        unpaidLeave: 'Cuti Tidak Dibayar',
       },
 
       // Payslips

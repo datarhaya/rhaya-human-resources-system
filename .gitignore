@@ -38,6 +38,7 @@ Thumbs.db
 
 # Uploads (user files)
 uploads/
+backend/uploads/
 **/uploads/
 
 # Database

@@ -70,7 +70,7 @@ model User {
   divisionHeadOvertimes     OvertimeRequest[] @relation("OvertimeDivisionHead")
   overtimeRevisions         OvertimeRevision[]
   leaveRequests             LeaveRequest[]
-  leaveBalances             LeaveBalance[]  // One-to-many (multiple years)
+  leaveBalance              LeaveBalance?
   leaveApprovals            LeaveRequest[] @relation("LeaveCurrentApprover")
   supervisorLeaves          LeaveRequest[] @relation("LeaveSupervisor")
   divisionHeadLeaves        LeaveRequest[] @relation("LeaveDivisionHead")
@@ -116,9 +116,7 @@ model Division {
 // Leave Balance - tracks annual leave quota
 model LeaveBalance {
   id              String   @id @default(cuid())
-  
-
-  employeeId      String   
+  employeeId      String   @unique  
   employee        User     @relation(fields: [employeeId], references: [id])
   
   // Annual Leave

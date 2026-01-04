@@ -40,11 +40,19 @@ apiClient.interceptors.response.use(
     
     // Return formatted error
     const message = error.response?.data?.error || 'An error occurred';
-    return Promise.reject({ message, status: error.response?.status });
+    return Promise.reject({
+      message: error.response?.data?.message || error.response?.data?.error || 'An error occurred',
+      status: error.response?.status,
+      data: error.response?.data  
+    });
   }
 );
 
 export default apiClient;
+
+// ============================================
+// OVERTIME FUNCTIONS
+// ============================================
 
 export const submitOvertimeRequest = async (data) => {
   const response = await apiClient.post('/overtime/submit', data);
@@ -156,5 +164,93 @@ export const resetOvertimeBalance = async (userId) => {
  */
 export const getOvertimeStatistics = async (params = {}) => {
   const response = await apiClient.get('/overtime/admin/statistics', { params });
+  return response.data.data;
+};
+
+// ============================================
+// LEAVE FUNCTIONS
+// ============================================
+
+/**
+ * Submit leave request
+ */
+export const submitLeaveRequest = async (data) => {
+  const response = await apiClient.post('/leave/submit', data);
+  return response.data.data;
+};
+
+/**
+ * Get my leave requests
+ */
+export const getMyLeaveRequests = async (params = {}) => {
+  const response = await apiClient.get('/leave/my-requests', { params });
+  return response.data.data;
+};
+
+/**
+ * Get my leave balance
+ */
+export const getMyLeaveBalance = async () => {
+  const response = await apiClient.get('/leave/my-balance');
+  return response.data.data;
+};
+
+/**
+ * Get leave balance by year
+ */
+export const getLeaveBalanceByYear = async (year) => {
+  const response = await apiClient.get(`/leave/balance/${year}`);
+  return response.data.data;
+};
+
+/**
+ * Get pending leave approvals (for approvers)
+ */
+export const getPendingLeaveApprovals = async () => {
+  const response = await apiClient.get('/leave/pending-approval/list');
+  return response.data.data;
+};
+
+/**
+ * Approve leave request
+ */
+export const approveLeaveRequest = async (requestId, comment) => {
+  const response = await apiClient.post(`/leave/${requestId}/approve`, { comment });
+  return response.data.data;
+};
+
+/**
+ * Reject leave request
+ */
+export const rejectLeaveRequest = async (requestId, comment) => {
+  const response = await apiClient.post(`/leave/${requestId}/reject`, { comment });
+  return response.data.data;
+};
+
+/**
+ * Get leave request details
+ */
+export const getLeaveRequestDetails = async (requestId) => {
+  const response = await apiClient.get(`/leave/${requestId}`);
+  return response.data.data;
+};
+
+/**
+ * Delete leave request (only if pending)
+ */
+export const deleteLeaveRequest = async (requestId) => {
+  const response = await apiClient.delete(`/leave/${requestId}`);
+  return response.data;
+};
+
+// ============================================
+// ADMIN LEAVE FUNCTIONS
+// ============================================
+
+/**
+ * Get all leave requests (Admin)
+ */
+export const getAllLeaveRequests = async (params = {}) => {
+  const response = await apiClient.get('/leave/admin/all-requests', { params });
   return response.data.data;
 };

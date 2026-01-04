@@ -27,8 +27,8 @@ export const submitLeaveRequest = async (req, res) => {
       }
     });
 
-    // Validate leave request
-    const validationErrors = await leaveService.validateLeaveRequest(
+    // Validate the leave request
+    const errors = await leaveService.validateLeaveRequest(
       employeeId,
       leaveType,
       startDate,
@@ -36,10 +36,14 @@ export const submitLeaveRequest = async (req, res) => {
       totalDays
     );
 
-    if (validationErrors.length > 0) {
+    // IMPORTANT: Return errors in correct format with details array
+    if (errors.length > 0) {
+      console.log('Validation errors:', errors);
       return res.status(400).json({
+        success: false,
         error: 'Validation failed',
-        details: validationErrors
+        message: 'Validation failed',  // Some frontends check this
+        details: errors  // ← Array of error messages
       });
     }
 
