@@ -311,7 +311,7 @@ export async function sendOvertimeApprovedEmail(user, overtimeRequest) {
               APPROVED
             </div>
             
-            <p>Great news! Your overtime request has been approved and the hours have been added to your balance.</p>
+            <p>Your overtime request has been approved and the hours have been added to your balance.</p>
             
             <div class="details-card">
               <h3>Request Details</h3>
