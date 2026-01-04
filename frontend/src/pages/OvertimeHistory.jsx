@@ -560,7 +560,7 @@ export default function OvertimeHistory() {
                 {/* Approver Info */}
                 <div className="flex items-center justify-between text-sm">
                   <p className="text-gray-600">
-                    {t('overtime.approver')} <span className="font-medium text-gray-900">{request.currentApprover?.name || 'N/A'}</span>
+                    {t('overtime.approver')}: <span className="font-medium text-gray-900">{request.currentApprover?.name || 'N/A'}</span>
                   </p>
                   {request.status !== 'PENDING' && request.currentApprover && (
                     <p className="text-gray-600">
@@ -575,12 +575,12 @@ export default function OvertimeHistory() {
                     <h4 className="text-sm font-medium text-blue-900 mb-1">{t('overtime.comments')}</h4>
                     {request.supervisorComment && (
                       <p className="text-sm text-blue-800">
-                        <strong>{t('overtime.supervisor')}</strong> {request.supervisorComment}
+                        <strong>{t('overtime.supervisor')}:</strong> {request.supervisorComment}
                       </p>
                     )}
                     {request.divisionHeadComment && (
                       <p className="text-sm text-blue-800 mt-1">
-                        <strong>{t('overtime.divisionHead')}</strong> {request.divisionHeadComment}
+                        <strong>{t('overtime.divisionHead')}:</strong> {request.divisionHeadComment}
                       </p>
                     )}
                   </div>

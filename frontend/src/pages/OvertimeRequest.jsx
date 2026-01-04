@@ -31,7 +31,7 @@ export default function OvertimeRequest() {
   // Check if date is a weekday
   const isWeekday = (dateString) => {
     if (!dateString) return false;
-    const date = new Date(dateString);
+    const date = new Date(dateString + 'T00:00:00');
     const day = getDay(date); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
     return day >= 1 && day <= 5; // Monday to Friday
   };
@@ -39,7 +39,7 @@ export default function OvertimeRequest() {
   // Get day name from date
   const getDayName = (dateString) => {
     if (!dateString) return '';
-    const date = new Date(dateString);
+    const date = new Date(dateString + 'T00:00:00');
     return format(date, 'EEEE'); // Full day name (e.g., "Monday")
   };
 
@@ -103,9 +103,9 @@ export default function OvertimeRequest() {
       }
 
       // Check date range
-      const entryDate = new Date(entry.date);
-      const minDate = new Date(sevenDaysAgo);
-      const maxDate = new Date(today);
+      const entryDate = new Date(entry.date + 'T00:00:00');
+      const minDate = new Date(sevenDaysAgo + 'T00:00:00');
+      const maxDate = new Date(today + 'T00:00:00');
 
       if (entryDate < minDate) {
         setError(`${t('common.entry')} ${i + 1}: ${t('overtime.dateMoreThan7Days')}`);
@@ -289,15 +289,19 @@ export default function OvertimeRequest() {
                   {/* Date Column */}
                   <td className="px-4 py-3">
                     <DatePicker
-                      selected={entry.date ? new Date(entry.date) : null}
+                      selected={entry.date ? new Date(entry.date + 'T00:00:00') : null}
                       onChange={(date) => {
                         if (date) {
-                          const formattedDate = date.toISOString().split('T')[0];
+                          // Format date using local timezone (avoid UTC conversion)
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                          const day = String(date.getDate()).padStart(2, '0');
+                          const formattedDate = `${year}-${month}-${day}`;
                           updateEntry(index, 'date', formattedDate);
                         }
                       }}
-                      minDate={new Date(sevenDaysAgo)}
-                      maxDate={new Date(today)}
+                      minDate={new Date(sevenDaysAgo + 'T00:00:00')}
+                      maxDate={new Date(today + 'T00:00:00')}
                       dateFormat="dd/MM/yyyy"
                       locale={i18n.language === 'id' ? 'id' : 'en'}
                       placeholderText={t('overtime.selectDate')}
