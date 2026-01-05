@@ -75,6 +75,14 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDivision, setFilterDivision] = useState('');
   const [filterAccessLevel, setFilterAccessLevel] = useState('');
+  
+  // Sorting state
+  const [sortField, setSortField] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
 
   // Access control check
   useEffect(() => {
@@ -167,6 +175,16 @@ export default function UserManagement() {
   };
 
   // Filter users based on search and filters
+  // Calculate stats
+  const stats = {
+    total: users.length,
+    active: users.filter(u => u.employeeStatus !== 'INACTIVE').length,
+    inactive: users.filter(u => u.employeeStatus === 'INACTIVE').length,
+    pkwtt: users.filter(u => u.employeeStatus === 'PKWTT').length,
+    pkwt: users.filter(u => u.employeeStatus === 'PKWT').length,
+  };
+
+  // Filter users
   const filteredUsers = users.filter(u => {
     const matchesSearch = searchTerm === '' || 
       u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -179,6 +197,70 @@ export default function UserManagement() {
     const matchesStatus = filterStatus === '' || u.employeeStatus === filterStatus; 
     
     return matchesSearch && matchesDivision && matchesAccessLevel && matchesStatus;
+  });
+  
+  // Sort filtered users
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
+    let aVal, bVal;
+    
+    switch(sortField) {
+      case 'name':
+        aVal = a.name.toLowerCase();
+        bVal = b.name.toLowerCase();
+        break;
+      case 'email':
+        aVal = a.email.toLowerCase();
+        bVal = b.email.toLowerCase();
+        break;
+      case 'accessLevel':
+        aVal = a.accessLevel;
+        bVal = b.accessLevel;
+        break;
+      case 'division':
+        aVal = a.division?.name.toLowerCase() || '';
+        bVal = b.division?.name.toLowerCase() || '';
+        break;
+      case 'status':
+        aVal = a.employeeStatus.toLowerCase();
+        bVal = b.employeeStatus.toLowerCase();
+        break;
+      default:
+        return 0;
+    }
+    
+    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+  
+  // Paginate sorted users
+  const totalPages = Math.ceil(sortedUsers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedUsers = sortedUsers.slice(startIndex, endIndex);
+  
+  // Handle sort
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    setCurrentPage(1); // Reset to first page when sorting
+  };
+  
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterDivision, filterAccessLevel, filterStatus, itemsPerPage]);
+  
+  // Sort supervisors by access level then alphabetically
+  const sortedSupervisors = [...potentialSupervisors].sort((a, b) => {
+    if (a.accessLevel !== b.accessLevel) {
+      return a.accessLevel - b.accessLevel; // Lower access level first (1, 2, 3, 4)
+    }
+    return a.name.localeCompare(b.name);
   });
 
   // Reset form to initial state
@@ -640,6 +722,52 @@ export default function UserManagement() {
         </div>
       </div>
 
+      {/* Stats Cards */}
+      <div className="mb-6 grid grid-cols-5 gap-4">
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="text-sm text-gray-600">Total Employees</div>
+          <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="text-sm text-gray-600">Active</div>
+          <div className="text-2xl font-bold text-green-600">{stats.active}</div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="text-sm text-gray-600">Inactive</div>
+          <div className="text-2xl font-bold text-gray-600">{stats.inactive}</div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="text-sm text-gray-600">PKWTT</div>
+          <div className="text-2xl font-bold text-blue-600">{stats.pkwtt}</div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="text-sm text-gray-600">PKWT</div>
+          <div className="text-2xl font-bold text-indigo-600">{stats.pkwt}</div>
+        </div>
+      </div>
+
+      {/* Items per page selector */}
+      <div className="mb-4 flex justify-between items-center">
+        <div className="flex items-center space-x-2">
+          <label className="text-sm text-gray-600">Show:</label>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+            className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          <span className="text-sm text-gray-600">entries</span>
+        </div>
+        <div className="text-sm text-gray-600">
+          Showing {startIndex + 1} to {Math.min(endIndex, sortedUsers.length)} of {sortedUsers.length} entries
+          {sortedUsers.length !== users.length && ` (filtered from ${users.length} total)`}
+        </div>
+      </div>
+
 
       {/* Users Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -647,20 +775,60 @@ export default function UserManagement() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
+                <th 
+                  onClick={() => handleSort('name')}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Name</span>
+                    {sortField === 'name' && (
+                      <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Email
+                <th 
+                  onClick={() => handleSort('email')}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Email</span>
+                    {sortField === 'email' && (
+                      <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Access Level
+                <th 
+                  onClick={() => handleSort('accessLevel')}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Access Level</span>
+                    {sortField === 'accessLevel' && (
+                      <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Division
+                <th 
+                  onClick={() => handleSort('division')}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Division</span>
+                    {sortField === 'division' && (
+                      <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                <th 
+                  onClick={() => handleSort('status')}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Status</span>
+                    {sortField === 'status' && (
+                      <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                    )}
+                  </div>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -668,7 +836,7 @@ export default function UserManagement() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredUsers.length === 0 ? (
+              {paginatedUsers.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="px-6 py-12 text-center">
                     <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -683,7 +851,7 @@ export default function UserManagement() {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((u) => (
+                paginatedUsers.map((u) => (
                   <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -777,28 +945,98 @@ export default function UserManagement() {
         </div>
       </div>
 
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-4 flex justify-center items-center space-x-2">
+          <button
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage === 1}
+            className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            ««
+          </button>
+          <button
+            onClick={() => setCurrentPage(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            «
+          </button>
+          
+          {/* Page numbers */}
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            let pageNum;
+            if (totalPages <= 5) {
+              pageNum = i + 1;
+            } else if (currentPage <= 3) {
+              pageNum = i + 1;
+            } else if (currentPage >= totalPages - 2) {
+              pageNum = totalPages - 4 + i;
+            } else {
+              pageNum = currentPage - 2 + i;
+            }
+            
+            return (
+              <button
+                key={pageNum}
+                onClick={() => setCurrentPage(pageNum)}
+                className={`px-3 py-1 border rounded ${
+                  currentPage === pageNum 
+                    ? 'bg-blue-600 text-white' 
+                    : 'hover:bg-gray-50'
+                }`}
+              >
+                {pageNum}
+              </button>
+            );
+          })}
+          
+          <button
+            onClick={() => setCurrentPage(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            »
+          </button>
+          <button
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            »»
+          </button>
+        </div>
+      )}
+
       {/* ===== MODAL ===== */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] flex flex-col">
+            {/* Modal Header - Sticky */}
+            <div className="px-6 py-4 border-b flex-shrink-0">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {modalMode === 'view' && 'User Details'}
+                  {modalMode === 'create' && 'Create New User'}
+                  {modalMode === 'edit' && 'Edit User'}
+                  {modalMode === 'balance' && 'Adjust Balance'}
+                </h2>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            
+            {/* Modal Body - Scrollable */}
+            <div className="px-6 py-4 overflow-y-auto flex-1">
               {/* VIEW MODE */}
               {modalMode === 'view' && selectedUser && (
                 <div>
-                  <div className="flex justify-between items-start mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900">User Details</h2>
-                    <button
-                      onClick={() => setShowModal(false)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  {/* View mode content */}
-                  <div className="space-y-6">
                   {/* Avatar and Basic Info */}
                     <div className="flex items-center space-x-4 p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg">
                       <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
@@ -953,30 +1191,16 @@ export default function UserManagement() {
                       )}
                     </div>
 
-                  </div>
                 </div>
               )}
 
               {/* BALANCE ADJUSTMENT MODE */}
               {modalMode === 'balance' && selectedUser && (
-                <div>
-                  <div className="flex justify-between items-start mb-6">
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-900">Adjust Balance</h2>
-                      <p className="text-sm text-gray-600 mt-1">{selectedUser.name}</p>
-                    </div>
-                    <button
-                      onClick={() => setShowModal(false)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  <form onSubmit={handleAdjustBalance} className="space-y-6">
-                    {/* Current Balances Display */}
+                <form onSubmit={handleAdjustBalance} className="space-y-6" id="balanceForm">
+                  {/* User info subtitle */}
+                  <p className="text-sm text-gray-600 -mt-2">{selectedUser.name}</p>
+                  
+                  {/* Current Balances Display */}
                     <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
                       <div>
                         <p className="text-xs text-gray-600">Current Overtime</p>
@@ -1083,45 +1307,12 @@ export default function UserManagement() {
                         />
                       </div>
                     </div>
-
-                    {/* Submit Buttons */}
-                    <div className="flex space-x-3 pt-4 border-t">
-                      <button
-                        type="button"
-                        onClick={() => setShowModal(false)}
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                      >
-                        Adjust Balance
-                      </button>
-                    </div>
                   </form>
-                </div>
               )}
 
               {/* CREATE/EDIT MODE */}
               {(modalMode === 'create' || modalMode === 'edit') && (
-                <div>
-                <div className="flex justify-between items-start mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    {modalMode === 'create' ? 'Create New User' : 'Edit User'}
-                  </h2>
-                  <button
-                    onClick={() => setShowModal(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-6" id="userForm">
                   {/* Account Information */}
                   <div className="border-l-4 border-blue-500 pl-4">
                     <h3 className="font-semibold text-gray-900 mb-3">Account Information</h3>
@@ -1286,7 +1477,7 @@ export default function UserManagement() {
                               required
                               value={formData.roleId}
                               onChange={(e) => setFormData({...formData, roleId: e.target.value})}
-                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                              className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                             >
                               <option value="">Select Role</option>
                               {roles.map(role => (
@@ -1296,7 +1487,7 @@ export default function UserManagement() {
                             <button
                               type="button"
                               onClick={() => setIsCreatingRole(true)}
-                              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                              className="flex-shrink-0 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                               title="Create new role"
                             >
                               +
@@ -1343,7 +1534,7 @@ export default function UserManagement() {
                               required
                               value={formData.divisionId}
                               onChange={(e) => setFormData({...formData, divisionId: e.target.value})}
-                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                              className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                             >
                               <option value="">Select Division</option>
                               {divisions.map(div => (
@@ -1353,7 +1544,7 @@ export default function UserManagement() {
                             <button
                               type="button"
                               onClick={() => setIsCreatingDivision(true)}
-                              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                              className="flex-shrink-0 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                               title="Create new division"
                             >
                               +
@@ -1407,11 +1598,11 @@ export default function UserManagement() {
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                         >
                           <option value="">No Supervisor</option>
-                          {potentialSupervisors
+                          {sortedSupervisors
                             .filter(s => !selectedUser || s.id !== selectedUser.id)
                             .map(sup => (
                               <option key={sup.id} value={sup.id}>
-                                {sup.name} - {getAccessLevelLabel(sup.accessLevel)}
+                                {sup.name}
                               </option>
                             ))}
                         </select>
@@ -1511,27 +1702,62 @@ export default function UserManagement() {
                       </div>
                     </div>
                   </div>
-
-                  {/* Submit Buttons */}
-                  <div className="flex space-x-3 pt-4 border-t">
-                    <button
-                      type="button"
-                      onClick={() => setShowModal(false)}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
-                      {modalMode === 'create' ? 'Create User' : 'Update User'}
-                    </button>
-                  </div>
                 </form>
-              </div>
               )}
             </div>
+            
+            {/* Modal Footer - Sticky */}
+            {(modalMode === 'create' || modalMode === 'edit') && (
+              <div className="px-6 py-4 border-t flex-shrink-0 bg-gray-50">
+                <div className="flex space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 bg-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    form="userForm"
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    {modalMode === 'create' ? 'Create User' : 'Update User'}
+                  </button>
+                </div>
+              </div>
+            )}
+            {modalMode === 'balance' && (
+              <div className="px-6 py-4 border-t flex-shrink-0 bg-gray-50">
+                <div className="flex space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 bg-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    form="balanceForm"
+                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                  >
+                    Adjust Balance
+                  </button>
+                </div>
+              </div>
+            )}
+            {modalMode === 'view' && (
+              <div className="px-6 py-4 border-t flex-shrink-0 bg-gray-50">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Close
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1682,4 +1908,3 @@ export default function UserManagement() {
     </div>
   );
 }
-
