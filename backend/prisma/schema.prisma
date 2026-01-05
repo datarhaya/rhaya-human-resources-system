@@ -18,6 +18,8 @@ model User {
   email           String    @unique
   password        String
   name            String
+
+  lastPasswordChange  DateTime?
   
   // Profile
   phone           String?
@@ -117,7 +119,6 @@ model Division {
 model LeaveBalance {
   id              String   @id @default(cuid())
   
-
   employeeId      String   
   employee        User     @relation(fields: [employeeId], references: [id])
   

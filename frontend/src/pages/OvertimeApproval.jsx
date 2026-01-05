@@ -212,7 +212,7 @@ export default function OvertimeApproval() {
           {t('overtime.approvalTitle')}
         </h1>
         <p className="text-sm text-gray-600 mt-1">
-          {t('overtime.reviewAndApprove')}
+          {t('overtime.viewManageRequests')}
         </p>
       </div>
 
@@ -251,7 +251,7 @@ export default function OvertimeApproval() {
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  {t('overtime.all')}
+                  {t('overtime.allRequests')}
                 </button>
                 <button
                   onClick={() => setActiveTab('approved')}

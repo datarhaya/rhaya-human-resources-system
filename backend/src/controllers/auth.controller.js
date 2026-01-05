@@ -24,6 +24,9 @@ export const login = async (req, res, next) => {
           select: { id: true, name: true, email: true }
         },
         subordinates: {
+          where: {
+            employeeStatus: { not: 'INACTIVE' }
+          },
           select: { 
             id: true, 
             name: true, 
@@ -100,6 +103,9 @@ export const getCurrentUser = async (req, res, next) => {
           select: { id: true, name: true, email: true }
         },
         subordinates: {
+          where: {
+            employeeStatus: { not: 'INACTIVE' }
+          },
           select: { 
             id: true, 
             name: true, 
@@ -151,7 +157,10 @@ export const changePassword = async (req, res, next) => {
     // Update password
     await prisma.user.update({
       where: { id: req.user.id },
-      data: { password: hashedPassword }
+      data: { 
+        password: hashedPassword,
+        lastPasswordChange: new Date()
+      }
     });
 
     res.json({ message: 'Password changed successfully' });

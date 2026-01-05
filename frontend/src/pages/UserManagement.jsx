@@ -176,12 +176,19 @@ export default function UserManagement() {
 
   // Filter users based on search and filters
   // Calculate stats
+  // const stats = {
+  //   total: users.filter(u => u.employeeStatus !== 'ADMIN').length,
+  //   active: users.filter(u => u.employeeStatus !== 'INACTIVE' && u.employeeStatus !== 'ADMIN').length,
+  //   inactive: users.filter(u => u.employeeStatus === 'INACTIVE').length,
+  //   pkwtt: users.filter(u => u.employeeStatus === 'PKWTT').length,
+  //   pkwt: users.filter(u => u.employeeStatus === 'PKWT').length,
+  // };
   const stats = {
-    total: users.length,
-    active: users.filter(u => u.employeeStatus !== 'INACTIVE').length,
+    total: users.filter(u => u.employeeStatus !== 'ADMIN').length,
+    permanent: users.filter(u => u.employeeStatus === 'PKWTT').length,
+    contract: users.filter(u => ['PKWT', 'PROBATION'].includes(u.employeeStatus)).length,
+    temporary: users.filter(u => ['INTERNSHIP', 'FREELANCE'].includes(u.employeeStatus)).length,
     inactive: users.filter(u => u.employeeStatus === 'INACTIVE').length,
-    pkwtt: users.filter(u => u.employeeStatus === 'PKWTT').length,
-    pkwt: users.filter(u => u.employeeStatus === 'PKWT').length,
   };
 
   // Filter users
@@ -727,22 +734,27 @@ export default function UserManagement() {
         <div className="bg-white rounded-lg shadow p-4">
           <div className="text-sm text-gray-600">Total Employees</div>
           <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+          <div className="text-xs text-gray-500 mt-1">Excluding Admin</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-600">Active</div>
-          <div className="text-2xl font-bold text-green-600">{stats.active}</div>
+          <div className="text-sm text-gray-600">Permanent</div>
+          <div className="text-2xl font-bold text-green-600">{stats.permanent}</div>
+          <div className="text-xs text-gray-500 mt-1">PKWTT</div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="text-sm text-gray-600">Contract</div>
+          <div className="text-2xl font-bold text-blue-600">{stats.contract}</div>
+          <div className="text-xs text-gray-500 mt-1">PKWT • Probation</div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="text-sm text-gray-600">Temporary</div>
+          <div className="text-2xl font-bold text-purple-600">{stats.temporary}</div>
+          <div className="text-xs text-gray-500 mt-1">Internship • Freelance</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <div className="text-sm text-gray-600">Inactive</div>
           <div className="text-2xl font-bold text-gray-600">{stats.inactive}</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-600">PKWTT</div>
-          <div className="text-2xl font-bold text-blue-600">{stats.pkwtt}</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-600">PKWT</div>
-          <div className="text-2xl font-bold text-indigo-600">{stats.pkwt}</div>
+          <div className="text-xs text-gray-500 mt-1">Past Employees</div>
         </div>
       </div>
 
@@ -1166,19 +1178,12 @@ export default function UserManagement() {
                           <label className="text-sm font-medium text-green-700">
                             Leave Balance {new Date().getFullYear()}
                           </label>
-                          {console.log('selectedUser Data:', selectedUser.leaveBalance)}
                           <p className="text-2xl font-bold text-green-900">
-                            {selectedUser.leaveBalance?.annualRemaining != null 
-                              ? selectedUser.leaveBalance.annualRemaining 
-                              : '0'} days
+                            {((selectedUser.leaveBalance?.annualRemaining || 0) + 
+                              (selectedUser.leaveBalance?.toilBalance || 0))} days
                           </p>
                           <p className="text-xs text-green-600 mt-1">
-                            Quota: {selectedUser.leaveBalance?.annualQuota != null 
-                              ? selectedUser.leaveBalance.annualQuota 
-                              : '0'} days
-                            {selectedUser.leaveBalance?.annualUsed > 0 && 
-                              ` (Used: ${selectedUser.leaveBalance.annualUsed})`
-                            }
+                            Annual: {selectedUser.leaveBalance?.annualRemaining || 0} | TOIL: {selectedUser.leaveBalance?.toilBalance || 0}
                           </p>
                         </div>
                       </div>
@@ -1201,7 +1206,7 @@ export default function UserManagement() {
                   <p className="text-sm text-gray-600 -mt-2">{selectedUser.name}</p>
                   
                   {/* Current Balances Display */}
-                    <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="grid grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
                       <div>
                         <p className="text-xs text-gray-600">Current Overtime</p>
                         <p className="text-lg font-bold text-gray-900">
@@ -1209,12 +1214,23 @@ export default function UserManagement() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-600">Current Leave Quota {new Date().getFullYear()}</p>
+                        <p className="text-xs text-gray-600">Annual Leave {new Date().getFullYear()}</p>
                         <p className="text-lg font-bold text-gray-900">
                           {selectedUser.leaveBalance?.annualQuota || 0} days
                           <span className="text-sm text-gray-600 ml-2">
                             ({selectedUser.leaveBalance?.annualRemaining || 0} remaining)
                           </span>
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-600">TOIL Balance</p>
+                        <p className="text-lg font-bold text-gray-900">
+                          {selectedUser.leaveBalance?.toilBalance || 0} days
+                          {selectedUser.leaveBalance?.toilUsed > 0 && (
+                            <span className="text-sm text-gray-600 ml-2">
+                              ({selectedUser.leaveBalance.toilUsed} used)
+                            </span>
+                          )}
                         </p>
                       </div>
                     </div>

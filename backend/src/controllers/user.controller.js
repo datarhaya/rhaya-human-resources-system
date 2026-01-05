@@ -116,14 +116,17 @@ export const getUserById = async (req, res) => {
             annualRemaining: true,
             sickLeaveUsed: true,
             menstrualLeaveUsed: true,
-            toilBalance: true,        // ✅ Added TOIL
-            toilUsed: true,           // ✅ Added TOIL
-            toilExpired: true         // ✅ Added TOIL
+            toilBalance: true,        
+            toilUsed: true,           
+            toilExpired: true         
           },
           take: 1
         },
         // Optional: Get subordinates
         subordinates: {
+          where: { 
+            employeeStatus: { not: 'INACTIVE' }
+          },
           select: {
             id: true,
             name: true,
@@ -326,7 +329,10 @@ export const createUser = async (req, res) => {
 
 export const hasSubordinates = async (req, res) => {
   const count = await prisma.user.count({
-    where: { supervisorId: req.user.id }
+    where: { 
+      supervisorId: req.user.id,
+      employeeStatus: { notIn: ['INACTIVE', 'ADMIN'] }
+    }
   });
   return res.json({ hasSubordinates: count > 0 });
 };
@@ -576,6 +582,7 @@ export const updateUserProfile = async (req, res) => {
       }
 
       updateData.password = await bcrypt.hash(password, 10);
+      updateData.lastPasswordChange = new Date();
     }
 
     const updatedUser = await prisma.user.update({
