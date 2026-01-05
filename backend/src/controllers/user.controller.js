@@ -12,6 +12,8 @@ export const getAllUsers = async (req, res) => {
   try {
     console.log('Fetching all users...');
     
+    const currentYear = new Date().getFullYear();
+    
     const users = await prisma.user.findMany({
       include: {
         role: { select: { id: true, name: true } },
@@ -24,28 +26,34 @@ export const getAllUsers = async (req, res) => {
             totalPaid: true
           }
         },
-        leaveBalance: {
-          where: { year: 2025 },
+        leaveBalances: {  // ← Changed to plural!
+          where: { year: currentYear },
           select: {
             year: true,
             annualQuota: true,
             annualUsed: true,
             annualRemaining: true,
             sickLeaveUsed: true,
-            menstrualLeaveUsed: true
-          }
+            menstrualLeaveUsed: true,
+            toilBalance: true,
+            toilUsed: true
+          },
+          take: 1
         }
       },
       orderBy: { name: 'asc' }
     });
 
-    // Handle leaveBalance format
+    // Handle leaveBalances format - it's an array, take first element
     const usersWithFormattedBalance = users.map(user => ({
       ...user,
-      leaveBalance: Array.isArray(user.leaveBalance) && user.leaveBalance.length > 0
-        ? user.leaveBalance[0]
-        : (typeof user.leaveBalance === 'object' ? user.leaveBalance : null)
+      leaveBalance: user.leaveBalances && user.leaveBalances.length > 0  // ← Changed to plural
+        ? user.leaveBalances[0]  // ← Changed to plural
+        : null,
+      leaveBalances: undefined  // Remove the array, keep only leaveBalance (singular) for frontend
     }));
+
+    console.log(`✅ Fetched ${usersWithFormattedBalance.length} users for year ${currentYear}`);
 
     return res.json({
       success: true,
@@ -97,7 +105,7 @@ export const getUserById = async (req, res) => {
             totalPaid: true
           }
         },
-        leaveBalance: {
+        leaveBalances: {  // ← Changed to plural!
           where: {
             year: new Date().getFullYear()
           },
@@ -107,7 +115,10 @@ export const getUserById = async (req, res) => {
             annualUsed: true,
             annualRemaining: true,
             sickLeaveUsed: true,
-            menstrualLeaveUsed: true
+            menstrualLeaveUsed: true,
+            toilBalance: true,        // ✅ Added TOIL
+            toilUsed: true,           // ✅ Added TOIL
+            toilExpired: true         // ✅ Added TOIL
           },
           take: 1
         },
@@ -134,7 +145,8 @@ export const getUserById = async (req, res) => {
     // Format the response
     const formattedUser = {
       ...user,
-      leaveBalance: user.leaveBalance[0] || null
+      leaveBalance: user.leaveBalances && user.leaveBalances.length > 0 ? user.leaveBalances[0] : null,  // ← Changed to plural
+      leaveBalances: undefined  // Remove array from response
     };
 
     return res.json({
@@ -486,8 +498,21 @@ export const getUserProfile = async (req, res) => {
         division: { select: { id: true, name: true } },
         supervisor: { select: { id: true, name: true, email: true } },
         overtimeBalance: true,
-        leaveBalance: {
-          where: { year: new Date().getFullYear() }
+        leaveBalances: {  // ✅ Changed to plural
+          where: { year: new Date().getFullYear() },
+          select: {
+            year: true,
+            annualQuota: true,
+            annualUsed: true,
+            annualRemaining: true,
+            sickLeaveUsed: true,
+            menstrualLeaveUsed: true,
+            unpaidLeaveUsed: true,
+            toilBalance: true,      // ✅ Added TOIL
+            toilUsed: true,         // ✅ Added TOIL
+            toilExpired: true       // ✅ Added TOIL
+          },
+          take: 1
         }
       }
     });
@@ -502,7 +527,8 @@ export const getUserProfile = async (req, res) => {
       success: true,
       data: {
         ...userWithoutPassword,
-        leaveBalance: user.leaveBalance[0] || null
+        leaveBalance: user.leaveBalances?.[0] || null,  // ✅ Changed to plural with safe access
+        leaveBalances: undefined  // Remove array from response
       }
     });
 
@@ -781,17 +807,26 @@ export const adjustUserBalance = async (req, res) => {
     const { overtime, leave } = req.body;
 
     // Check user exists
+    const currentYear = new Date().getFullYear();
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
         overtimeBalance: true,
-        leaveBalance: true
+        leaveBalances: {  // ← Changed to plural!
+          where: { year: currentYear },
+          take: 1
+        }
       }
     });
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
+
+    // Get current year's leave balance (it's an array now)
+    const currentLeaveBalance = user.leaveBalances && user.leaveBalances.length > 0   // ← Changed to plural
+      ? user.leaveBalances[0]   // ← Changed to plural
+      : null;
 
     const results = {};
 
@@ -842,7 +877,7 @@ export const adjustUserBalance = async (req, res) => {
 
     // Adjust leave balance
     if (leave && leave.annualQuota !== undefined) {
-      const year = leave.year || new Date().getFullYear();
+      const year = leave.year || currentYear;
       
       const leaveBalance = await prisma.leaveBalance.upsert({
         where: { 
@@ -853,7 +888,7 @@ export const adjustUserBalance = async (req, res) => {
         },
         update: {
           annualQuota: leave.annualQuota,
-          annualRemaining: leave.annualQuota - (user.leaveBalance?.annualUsed || 0)
+          annualRemaining: leave.annualQuota - (currentLeaveBalance?.annualUsed || 0)
         },
         create: {
           employeeId: userId,
@@ -863,7 +898,10 @@ export const adjustUserBalance = async (req, res) => {
           annualRemaining: leave.annualQuota,
           sickLeaveUsed: 0,
           menstrualLeaveUsed: 0,
-          unpaidLeaveUsed: 0
+          unpaidLeaveUsed: 0,
+          toilBalance: 0,
+          toilUsed: 0,
+          toilExpired: 0
         }
       });
 
@@ -874,7 +912,7 @@ export const adjustUserBalance = async (req, res) => {
           adjustedBy: req.user.id,
           type: 'LEAVE',
           amount: leave.annualQuota,
-          previousBalance: user.leaveBalance?.annualQuota || 0,
+          previousBalance: currentLeaveBalance?.annualQuota || 0,
           newBalance: leave.annualQuota,
           reason: leave.reason || 'Manual adjustment by admin',
           year
@@ -883,7 +921,7 @@ export const adjustUserBalance = async (req, res) => {
 
       results.leave = {
         year,
-        previousQuota: user.leaveBalance?.annualQuota || 0,
+        previousQuota: currentLeaveBalance?.annualQuota || 0,
         newQuota: leave.annualQuota,
         remaining: leaveBalance.annualRemaining
       };

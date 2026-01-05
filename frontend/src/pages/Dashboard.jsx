@@ -91,13 +91,14 @@ export default function Dashboard() {
             {loading ? (
               <span className="text-2xl">...</span>
             ) : leaveBalance ? (
-              `${leaveBalance.annualRemaining || 0} ${t('dashboard.days')}`
+              `${((leaveBalance?.annualRemaining || 0) + (leaveBalance?.toilBalance || 0))} ${t('dashboard.days')}`
             ) : (
               `0 ${t('dashboard.days')}`
             )}
           </div>
           <div className="text-xs text-gray-500 mt-1">
-            {t('dashboard.annualLeaveRemaining')} • {t('dashboard.clickToView')}
+            {/* {t('dashboard.annualLeaveRemaining')} • {t('dashboard.clickToView')} */}
+            {t('leave.annual')}: {leaveBalance?.annualRemaining || 0} | {t('leave.toilBalance')}: {leaveBalance?.toilBalance || 0} • {t('dashboard.clickToView')}
           </div>
         </div>
         

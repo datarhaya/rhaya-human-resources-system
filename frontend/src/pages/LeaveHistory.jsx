@@ -510,8 +510,13 @@ export default function LeaveHistory() {
             <div className="text-2xl font-bold text-green-600">{balance.annualRemaining || 14}</div>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-sm text-gray-600">{t('leave.sickLeaveUsed')}</div>
-            <div className="text-2xl font-bold text-purple-600">{balance.sickLeaveUsed || 0}</div>
+            {/* <div className="text-sm text-gray-600">{t('leave.sickLeaveUsed')}</div>
+            <div className="text-2xl font-bold text-purple-600">{balance.sickLeaveUsed || 0}</div> */}
+            <div className="text-sm text-gray-600">{t('leave.available')}</div>
+            <div className="text-2xl font-bold text-purple-600">{(leaveBalance?.annualRemaining || 0) + (leaveBalance?.toilBalance || 0)} {t('leave.days')}</div>
+            <p className="text-xs opacity-75 mt-1">
+              {t('leave.annual')}: {leaveBalance?.annualRemaining || 0} | {t('leave.toilBalance')}: {leaveBalance?.toilBalance || 0}
+            </p>
           </div>
         </div>
       )}
