@@ -591,7 +591,7 @@ export default function LeaveHistory() {
                 
                 {currentLeaveType?.noteKey && (
                   <p className="mt-2 text-sm text-gray-600">
-                    ℹ️ {t(`leave.${currentLeaveType.noteKey}`)}
+                    {t(`leave.${currentLeaveType.noteKey}`)}
                   </p>
                 )}
               </div>
@@ -675,8 +675,8 @@ export default function LeaveHistory() {
                 <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-600">Working Days (excluding weekends)</p>
-                      <p className="text-2xl font-bold text-blue-600">{workingDays} {workingDays === 1 ? 'day' : 'days'}</p>
+                      <p className="text-sm text-gray-600">{t('leave.dayCalculation')}</p>
+                      <p className="text-2xl font-bold text-blue-600">{workingDays} {workingDays === 1 ? t('leave.Days') : t('leave.Days')}</p>
                     </div>
                     {formData.leaveType !== 'MATERNITY_LEAVE' && workingDays > 5 && (
                       <div className="text-red-600 text-sm font-medium">

@@ -2,6 +2,7 @@
 import express from 'express';
 import * as overtimeController from '../controllers/overtime.controller.js';
 import { authenticate } from '../middleware/auth.js';
+import { checkRecapLock } from '../middleware/recapLock.middleware.js';
 
 const router = express.Router();
 
@@ -35,10 +36,13 @@ router.get('/:requestId', authenticate, overtimeController.getOvertimeRequestByI
 router.get('/pending-approval/list', authenticate, overtimeController.getPendingApprovals);
 
 // Approve overtime request
-router.post('/:requestId/approve', authenticate, overtimeController.approveOvertimeRequest);
+// router.post('/:requestId/approve', authenticate, overtimeController.approveOvertimeRequest);
+router.post('/:requestId/approve', authenticate, checkRecapLock, overtimeController.approveOvertimeRequest);
 
 // Reject overtime request
-router.post('/:requestId/reject', authenticate, overtimeController.rejectOvertimeRequest);
+// router.post('/:requestId/reject', authenticate, overtimeController.rejectOvertimeRequest);
+router.post('/:requestId/reject', authenticate, checkRecapLock, overtimeController.rejectOvertimeRequest);
+
 
 // Request revision
 router.post('/:requestId/request-revision', authenticate, overtimeController.requestRevision);

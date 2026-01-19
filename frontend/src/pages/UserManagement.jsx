@@ -25,7 +25,16 @@ export default function UserManagement() {
   const [deleteMode, setDeleteMode] = useState('soft'); // 'soft' or 'hard'
   const [userToDelete, setUserToDelete] = useState(null);
   const [deleteConfirmUsername, setDeleteConfirmUsername] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  
+  // Multi-select filter state (arrays)
+  const [filterDivisions, setFilterDivisions] = useState([]);
+  const [filterAccessLevels, setFilterAccessLevels] = useState([]);
+  const [filterStatuses, setFilterStatuses] = useState([]);
+  
+  // Multi-select dropdown visibility
+  const [showDivisionFilter, setShowDivisionFilter] = useState(false);
+  const [showAccessFilter, setShowAccessFilter] = useState(false);
+  const [showStatusFilter, setShowStatusFilter] = useState(false);
 
   // Create new role/division inline
   const [isCreatingRole, setIsCreatingRole] = useState(false);
@@ -71,10 +80,8 @@ export default function UserManagement() {
     leaveReason: ''
   });
 
-  // Search and filter state
+  // Search state
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterDivision, setFilterDivision] = useState('');
-  const [filterAccessLevel, setFilterAccessLevel] = useState('');
   
   // Sorting state
   const [sortField, setSortField] = useState('name');
@@ -175,14 +182,7 @@ export default function UserManagement() {
   };
 
   // Filter users based on search and filters
-  // Calculate stats
-  // const stats = {
-  //   total: users.filter(u => u.employeeStatus !== 'ADMIN').length,
-  //   active: users.filter(u => u.employeeStatus !== 'INACTIVE' && u.employeeStatus !== 'ADMIN').length,
-  //   inactive: users.filter(u => u.employeeStatus === 'INACTIVE').length,
-  //   pkwtt: users.filter(u => u.employeeStatus === 'PKWTT').length,
-  //   pkwt: users.filter(u => u.employeeStatus === 'PKWT').length,
-  // };
+  // Calculate stats (exclude ADMIN, grouped by employment type)
   const stats = {
     total: users.filter(u => u.employeeStatus !== 'ADMIN').length,
     permanent: users.filter(u => u.employeeStatus === 'PKWTT').length,
@@ -199,9 +199,9 @@ export default function UserManagement() {
       u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.nip && u.nip.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesDivision = filterDivision === '' || u.divisionId === filterDivision;
-    const matchesAccessLevel = filterAccessLevel === '' || u.accessLevel.toString() === filterAccessLevel;
-    const matchesStatus = filterStatus === '' || u.employeeStatus === filterStatus; 
+    const matchesDivision = filterDivisions.length === 0 || filterDivisions.includes(u.divisionId);
+    const matchesAccessLevel = filterAccessLevels.length === 0 || filterAccessLevels.includes(u.accessLevel.toString());
+    const matchesStatus = filterStatuses.length === 0 || filterStatuses.includes(u.employeeStatus); 
     
     return matchesSearch && matchesDivision && matchesAccessLevel && matchesStatus;
   });
@@ -257,10 +257,42 @@ export default function UserManagement() {
     setCurrentPage(1); // Reset to first page when sorting
   };
   
+  // Multi-select toggle functions
+  const toggleDivision = (divisionId) => {
+    setFilterDivisions(prev => 
+      prev.includes(divisionId) 
+        ? prev.filter(id => id !== divisionId)
+        : [...prev, divisionId]
+    );
+  };
+  
+  const toggleAccessLevel = (level) => {
+    setFilterAccessLevels(prev => 
+      prev.includes(level) 
+        ? prev.filter(l => l !== level)
+        : [...prev, level]
+    );
+  };
+  
+  const toggleStatus = (status) => {
+    setFilterStatuses(prev => 
+      prev.includes(status) 
+        ? prev.filter(s => s !== status)
+        : [...prev, status]
+    );
+  };
+  
+  const clearFilters = () => {
+    setSearchTerm('');
+    setFilterDivisions([]);
+    setFilterAccessLevels([]);
+    setFilterStatuses([]);
+  };
+  
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterDivision, filterAccessLevel, filterStatus, itemsPerPage]);
+  }, [searchTerm, filterDivisions, filterAccessLevels, filterStatuses, itemsPerPage]);
   
   // Sort supervisors by access level then alphabetically
   const sortedSupervisors = [...potentialSupervisors].sort((a, b) => {
@@ -607,6 +639,20 @@ export default function UserManagement() {
     setShowModal(true);
   };
 
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.relative')) {
+        setShowDivisionFilter(false);
+        setShowAccessFilter(false);
+        setShowStatusFilter(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const getStatusBadgeColor = (status) => {
     const statusColors = {
       'PKWTT': 'bg-green-100 text-green-800',
@@ -674,59 +720,125 @@ export default function UserManagement() {
             />
           </div>
 
-          {/* Division Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Division</label>
-            <select
-              value={filterDivision}
-              onChange={(e) => setFilterDivision(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Divisions</option>
-              {divisions.map(div => (
-                <option key={div.id} value={div.id}>{div.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Access Level Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Access Level</label>
-            <select
-              value={filterAccessLevel}
-              onChange={(e) => setFilterAccessLevel(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Levels</option>
-              <option value="1">Level 1 - Admin</option>
-              <option value="2">Level 2 - HR</option>
-              <option value="3">Level 3 - Manager</option>
-              <option value="4">Level 4 - Staff</option>
-              <option value="5">Level 5 - Intern</option>
-            </select>
-          </div>
-
-          {/* Employee Status Filter */}
+          {/* Division Multi-Select */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Status
+              Division {filterDivisions.length > 0 && `(${filterDivisions.length})`}
             </label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Statuses</option>
-              <option value="PKWTT">PKWTT</option>
-              <option value="PKWT">PKWT</option>
-              <option value="INTERNSHIP">Internship</option>
-              <option value="FREELANCE">Freelance</option>
-              <option value="PROBATION">Probation</option>
-              <option value="ADMIN">Admin</option>
-              <option value="INACTIVE">Inactive</option>
-            </select>
+            <div className="relative">
+              <details className="group">
+                <summary className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white cursor-pointer hover:bg-gray-50 flex items-center justify-between list-none">
+                  <span className="text-sm text-gray-700">
+                    {filterDivisions.length === 0 
+                      ? 'All Divisions' 
+                      : `${filterDivisions.length} selected`}
+                  </span>
+                  <svg className="w-4 h-4 text-gray-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </summary>
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {divisions.map(div => (
+                    <label key={div.id} className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={filterDivisions.includes(div.id)}
+                        onChange={() => toggleDivision(div.id)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                      />
+                      <span className="text-sm text-gray-700">{div.name}</span>
+                    </label>
+                  ))}
+                  {divisions.length === 0 && (
+                    <div className="px-3 py-2 text-sm text-gray-500">No divisions available</div>
+                  )}
+                </div>
+              </details>
+            </div>
+          </div>
+
+          {/* Access Level Multi-Select */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Access Level {filterAccessLevels.length > 0 && `(${filterAccessLevels.length})`}
+            </label>
+            <div className="relative">
+              <details className="group">
+                <summary className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white cursor-pointer hover:bg-gray-50 flex items-center justify-between list-none">
+                  <span className="text-sm text-gray-700">
+                    {filterAccessLevels.length === 0 
+                      ? 'All Levels' 
+                      : `${filterAccessLevels.length} selected`}
+                  </span>
+                  <svg className="w-4 h-4 text-gray-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </summary>
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg">
+                  {['1', '2', '3', '4', '5'].map(level => (
+                    <label key={level} className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={filterAccessLevels.includes(level)}
+                        onChange={() => toggleAccessLevel(level)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                      />
+                      <span className="text-sm text-gray-700">
+                        Level {level} - {level === '1' ? 'Admin' : level === '2' ? 'HR' : level === '3' ? 'Manager' : level === '4' ? 'Staff' : 'Intern'}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </details>
+            </div>
+          </div>
+
+          {/* Status Multi-Select */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Status {filterStatuses.length > 0 && `(${filterStatuses.length})`}
+            </label>
+            <div className="relative">
+              <details className="group">
+                <summary className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white cursor-pointer hover:bg-gray-50 flex items-center justify-between list-none">
+                  <span className="text-sm text-gray-700">
+                    {filterStatuses.length === 0 
+                      ? 'All Statuses' 
+                      : `${filterStatuses.length} selected`}
+                  </span>
+                  <svg className="w-4 h-4 text-gray-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </summary>
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg">
+                  {['PKWTT', 'PKWT', 'INTERNSHIP', 'FREELANCE', 'PROBATION', 'ADMIN', 'INACTIVE'].map(status => (
+                    <label key={status} className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={filterStatuses.includes(status)}
+                        onChange={() => toggleStatus(status)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                      />
+                      <span className="text-sm text-gray-700">{status}</span>
+                    </label>
+                  ))}
+                </div>
+              </details>
+            </div>
           </div>
         </div>
+
+        {/* Clear Filters Button */}
+        {(searchTerm || filterDivisions.length > 0 || filterAccessLevels.length > 0 || filterStatuses.length > 0) && (
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={clearFilters}
+              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Clear All Filters
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Stats Cards */}

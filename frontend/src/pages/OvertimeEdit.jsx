@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getOvertimeRequestById, editOvertimeRequest } from '../api/client';
-import { format, subDays } from 'date-fns';
+import { format, subDays, addDays } from 'date-fns';
 
 export default function OvertimeEdit() {
   const { requestId } = useParams();
@@ -15,13 +15,42 @@ export default function OvertimeEdit() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [originalRequest, setOriginalRequest] = useState(null);
+  const [lastRecapDate, setLastRecapDate] = useState(null); 
 
   // Calculate date limits
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const sevenDaysAgo = format(subDays(new Date(), 7), 'yyyy-MM-dd');
+  const fetchLastRecapDate = async () => {
+    try {
+      const response = await fetch('/api/overtime-recap/system-settings', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      const data = await response.json();
+      setLastRecapDate(data.data?.lastRecapDate || null);
+    } catch (error) {
+      console.error('Failed to fetch last recap date:', error);
+    }
+  };
+
+  const getMinDate = () => {
+    const today = new Date();
+    const sevenDaysAgo = subDays(today, 7);
+    
+    if (lastRecapDate) {
+      const recapCutoff = new Date(lastRecapDate);
+      const dayAfterRecap = addDays(recapCutoff, 1);
+      const minDate = dayAfterRecap > sevenDaysAgo ? dayAfterRecap : sevenDaysAgo;
+      return format(minDate, 'yyyy-MM-dd');
+    }
+    
+    return format(sevenDaysAgo, 'yyyy-MM-dd');
+  };
+
+  const getMaxDate = () => {
+    return format(new Date(), 'yyyy-MM-dd');
+  };
 
   useEffect(() => {
     fetchRequest();
+    fetchLastRecapDate();
   }, [requestId]);
 
   const fetchRequest = async () => {
@@ -108,8 +137,8 @@ export default function OvertimeEdit() {
       }
 
       const entryDate = new Date(entry.date);
-      const minDate = new Date(sevenDaysAgo);
-      const maxDate = new Date(today);
+      const minDate = new Date(getMinDate());
+      const maxDate = new Date(getMaxDate());
 
       if (entryDate < minDate) {
         setError(`${t('common.entry')} ${i + 1}: ${t('overtime.dateMoreThan7Days')}`);
@@ -261,8 +290,8 @@ export default function OvertimeEdit() {
                       type="date"
                       value={entry.date}
                       onChange={(e) => updateEntry(index, 'date', e.target.value)}
-                      min={sevenDaysAgo}
-                      max={today}
+                      min={getMinDate()}
+                      max={getMaxDate()}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />

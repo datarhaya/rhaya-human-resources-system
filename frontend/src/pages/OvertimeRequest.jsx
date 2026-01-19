@@ -1,9 +1,9 @@
 // frontend/src/pages/OvertimeRequest.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { submitOvertimeRequest } from '../api/client';
-import { format, subDays, getDay } from 'date-fns';
+import { format, subDays, getDay, addDays } from 'date-fns';
 import i18n from '../i18n';
 import DatePicker from 'react-datepicker';
 import { registerLocale } from 'react-datepicker';
@@ -19,10 +19,43 @@ export default function OvertimeRequest() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [lastRecapDate, setLastRecapDate] = useState(null); 
+
+  useEffect(() => {
+      fetchLastRecapDate();
+    }, []);
 
   // Calculate date limits
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const sevenDaysAgo = format(subDays(new Date(), 7), 'yyyy-MM-dd');
+  const fetchLastRecapDate = async () => {
+    try {
+      const response = await fetch('/api/overtime-recap/system-settings', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      const data = await response.json();
+      setLastRecapDate(data.data?.lastRecapDate || null);
+    } catch (error) {
+      console.error('Failed to fetch last recap date:', error);
+    }
+  };
+
+  // Calculate date limits with recap restriction
+  const getMinDate = () => {
+    const today = new Date();
+    const sevenDaysAgo = subDays(today, 7);
+    
+    if (lastRecapDate) {
+      const recapCutoff = new Date(lastRecapDate);
+      const dayAfterRecap = addDays(recapCutoff, 1);
+      const minDate = dayAfterRecap > sevenDaysAgo ? dayAfterRecap : sevenDaysAgo;
+      return minDate;
+    }
+    
+    return sevenDaysAgo;
+  };
+
+  const getMaxDate = () => {
+    return new Date();
+  };
 
   // Register Indonesian locale
   registerLocale('id', id);
@@ -104,8 +137,10 @@ export default function OvertimeRequest() {
 
       // Check date range
       const entryDate = new Date(entry.date + 'T00:00:00');
-      const minDate = new Date(sevenDaysAgo + 'T00:00:00');
-      const maxDate = new Date(today + 'T00:00:00');
+      const minDate = getMinDate();
+      minDate.setHours(0, 0, 0, 0);
+      const maxDate = getMaxDate();
+      maxDate.setHours(23, 59, 59, 999);
 
       if (entryDate < minDate) {
         setError(`${t('common.entry')} ${i + 1}: ${t('overtime.dateMoreThan7Days')}`);
@@ -300,8 +335,8 @@ export default function OvertimeRequest() {
                           updateEntry(index, 'date', formattedDate);
                         }
                       }}
-                      minDate={new Date(sevenDaysAgo + 'T00:00:00')}
-                      maxDate={new Date(today + 'T00:00:00')}
+                      minDate={getMinDate()}
+                      maxDate={getMaxDate()}
                       dateFormat="dd/MM/yyyy"
                       locale={i18n.language === 'id' ? 'id' : 'en'}
                       placeholderText={t('overtime.selectDate')}

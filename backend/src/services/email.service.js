@@ -55,22 +55,31 @@ function getOvertimeDescription(overtimeRequest) {
 /**
  * Send email via SMTP2go API
  */
-export async function sendEmail({ to, subject, html, text }) {
+export async function sendEmail({ to, subject, html, text, cc }) {
   try {
     if (!API_KEY) {
       throw new Error('SMTP2GO_API_KEY not configured');
     }
 
+    // Build email payload
+    const emailPayload = {
+      api_key: API_KEY,
+      to: [to],
+      sender: `${process.env.SMTP_FROM_NAME || 'HR System'} <${process.env.SMTP_FROM_EMAIL}>`,
+      subject: subject,
+      html_body: html,
+      text_body: text || html.replace(/<[^>]*>/g, '')
+    };
+
+    // Add CC if provided
+    if (cc) {
+      // Support both string and array for CC
+      emailPayload.cc = Array.isArray(cc) ? cc : [cc];
+    }
+
     const response = await axios.post(
       SMTP2GO_API_URL,
-      {
-        api_key: API_KEY,
-        to: [to],
-        sender: `${process.env.SMTP_FROM_NAME || 'HR System'} <${process.env.SMTP_FROM_EMAIL}>`,
-        subject: subject,
-        html_body: html,
-        text_body: text || html.replace(/<[^>]*>/g, '')
-      },
+      emailPayload,
       {
         headers: {
           'Content-Type': 'application/json'
@@ -85,6 +94,7 @@ export async function sendEmail({ to, subject, html, text }) {
       if (succeeded > 0) {
         console.log('✅ Email sent successfully via SMTP2go API:', {
           to: to,
+          cc: cc || 'none',
           subject: subject,
           messageId: response.data.data.email_id
         });
@@ -99,6 +109,7 @@ export async function sendEmail({ to, subject, html, text }) {
         
         console.error('❌ SMTP2go API reported failure:', {
           to: to,
+          cc: cc || 'none',
           error: errorMsg
         });
         
@@ -118,6 +129,7 @@ export async function sendEmail({ to, subject, html, text }) {
   } catch (error) {
     console.error('❌ Email send error:', {
       to: to,
+      cc: cc || 'none',
       subject: subject,
       error: error.message,
       response: error.response?.data
@@ -352,6 +364,7 @@ export async function sendOvertimeApprovedEmail(user, overtimeRequest) {
 
   return sendEmail({
     to: user.email,
+    cc: process.env.HR_EMAIL || 'hr@rhayaflicks.com', // CC to HR
     subject: 'Overtime Request Approved',
     html: html
   });
@@ -555,6 +568,7 @@ export async function sendOvertimeRejectedEmail(user, overtimeRequest) {
 
   return sendEmail({
     to: user.email,
+    cc: process.env.HR_EMAIL || 'hr@rhayaflicks.com', // CC to HR
     subject: 'Overtime Request - Not Approved',
     html: html
   });
@@ -1103,11 +1117,923 @@ export async function sendWelcomeEmail(user, tempPassword) {
   });
 }
 
+/**
+ * Send overtime reminder email (Bahasa Indonesia)
+ * For reminding employees about overtime submission deadline
+ */
+export async function sendOvertimeReminderEmail({
+  employeeName,
+  employeeEmail,
+  recapDate,
+  fromDate,
+  toDate,
+  periodLabel,
+  systemUrl
+}) {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          line-height: 1.6;
+          color: ${BRAND_COLORS.textPrimary};
+          margin: 0;
+          padding: 0;
+          background-color: #F9F9F9;
+        }
+        .email-wrapper {
+          width: 100%;
+          background-color: #F9F9F9;
+          padding: 40px 20px;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          background: ${BRAND_COLORS.accent};
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header {
+          background: linear-gradient(135deg, ${BRAND_COLORS.primary} 0%, ${BRAND_COLORS.secondary} 100%);
+          color: ${BRAND_COLORS.accent};
+          padding: 40px 30px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 24px;
+          font-weight: 600;
+        }
+        .urgent-badge {
+          display: inline-block;
+          background: #DC3545;
+          color: white;
+          padding: 8px 20px;
+          border-radius: 20px;
+          font-weight: 600;
+          font-size: 13px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 10px;
+        }
+        .content {
+          padding: 40px 30px;
+        }
+        .content p {
+          margin: 0 0 16px 0;
+          font-size: 15px;
+          line-height: 1.6;
+        }
+        .greeting {
+          font-size: 16px;
+          margin-bottom: 20px;
+        }
+        .info-card {
+          background: ${BRAND_COLORS.cardBg};
+          border: 1px solid ${BRAND_COLORS.cardBorder};
+          border-radius: 10px;
+          padding: 25px;
+          margin: 25px 0;
+        }
+        .info-card h3 {
+          margin: 0 0 15px 0;
+          font-size: 16px;
+          font-weight: 600;
+          color: ${BRAND_COLORS.primary};
+        }
+        .info-row {
+          display: flex;
+          padding: 10px 0;
+          border-bottom: 1px solid ${BRAND_COLORS.cardBorder};
+        }
+        .info-row:last-child {
+          border-bottom: none;
+        }
+        .info-label {
+          font-weight: 600;
+          color: ${BRAND_COLORS.textPrimary};
+          min-width: 120px;
+        }
+        .info-value {
+          color: ${BRAND_COLORS.textSecondary};
+          flex: 1;
+        }
+        .warning-box {
+          background: #FFF3CD;
+          border: 2px solid #FFE69C;
+          border-radius: 8px;
+          padding: 20px;
+          margin: 25px 0;
+        }
+        .warning-box h3 {
+          margin: 0 0 10px 0;
+          font-size: 15px;
+          font-weight: 600;
+          color: #856404;
+          display: flex;
+          align-items: center;
+        }
+        .warning-icon {
+          width: 20px;
+          height: 20px;
+          background: #FFC107;
+          border-radius: 50%;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          margin-right: 8px;
+          font-weight: bold;
+          color: ${BRAND_COLORS.secondary};
+        }
+        .checklist {
+          margin: 15px 0;
+          padding-left: 0;
+          list-style: none;
+        }
+        .checklist li {
+          padding: 8px 0;
+          padding-left: 30px;
+          position: relative;
+        }
+        .checklist li:before {
+          content: "✓";
+          position: absolute;
+          left: 0;
+          color: #28A745;
+          font-weight: bold;
+          font-size: 18px;
+        }
+        .button {
+          display: inline-block;
+          background: ${BRAND_COLORS.primary};
+          color: white;
+          padding: 14px 35px;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 15px;
+          margin-top: 25px;
+          text-align: center;
+        }
+        .button:hover {
+          background: ${BRAND_COLORS.secondary};
+        }
+        .footer {
+          padding: 30px;
+          background: ${BRAND_COLORS.cardBg};
+          text-align: center;
+          color: ${BRAND_COLORS.textSecondary};
+          font-size: 14px;
+          border-top: 1px solid ${BRAND_COLORS.cardBorder};
+        }
+        .footer-signature {
+          font-weight: 600;
+          color: ${BRAND_COLORS.textPrimary};
+          margin-bottom: 10px;
+        }
+        
+        @media only screen and (max-width: 600px) {
+          .email-wrapper {
+            padding: 20px 10px;
+          }
+          .content {
+            padding: 30px 20px;
+          }
+          .info-card {
+            padding: 20px 15px;
+          }
+          .info-row {
+            flex-direction: column;
+          }
+          .info-label {
+            min-width: auto;
+            margin-bottom: 5px;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="email-wrapper">
+        <div class="container">
+          <div class="header">
+            <div class="urgent-badge">⚠️ PENTING</div>
+            <h1>Batas Akhir Submit Lembur</h1>
+          </div>
+          
+          <div class="content">
+            <p class="greeting">Kepada <strong>${employeeName}</strong>,</p>
+            
+            <p>Dengan hormat,</p>
+            
+            <p>
+              Kami informasikan bahwa <strong>hari ini, ${recapDate}</strong>, adalah 
+              <strong>batas akhir</strong> untuk submit lembur periode payroll bulan ini.
+            </p>
+            
+            <div class="info-card">
+              <h3>📅 PERIODE LEMBUR</h3>
+              
+              <div class="info-row">
+                <div class="info-label">Periode:</div>
+                <div class="info-value">${periodLabel}</div>
+              </div>
+              
+              <div class="info-row">
+                <div class="info-label">Dari Tanggal:</div>
+                <div class="info-value">${fromDate}</div>
+              </div>
+              
+              <div class="info-row">
+                <div class="info-label">Sampai Tanggal:</div>
+                <div class="info-value">${toDate}</div>
+              </div>
+            </div>
+            
+            <div class="warning-box">
+              <h3>
+                <span class="warning-icon">!</span>
+                PENTING - HARAP DIPERHATIKAN
+              </h3>
+              
+              <ul class="checklist">
+                <li>Semua lembur dalam periode tersebut <strong>HARUS sudah disubmit hari ini</strong></li>
+                <li>Setelah hari ini, submit lembur untuk tanggal-tanggal tersebut akan <strong>DIKUNCI</strong></li>
+                <li>Pastikan semua supervisor/atasan sudah <strong>menyetujui lembur Anda</strong></li>
+                <li>Lembur yang belum diapprove <strong>tidak akan masuk payroll</strong></li>
+              </ul>
+            </div>
+            
+            <p style="text-align: center; margin-top: 30px;">
+              <strong>Submit lembur Anda sekarang:</strong>
+            </p>
+            
+            <p style="text-align: center;">
+              <a href="${systemUrl}/overtime/submit" class="button">
+                Submit Lembur Sekarang
+              </a>
+            </p>
+            
+            <p style="margin-top: 30px; font-size: 14px; color: ${BRAND_COLORS.textSecondary};">
+              Jika Anda sudah submit semua lembur dan sudah diapprove atasan, 
+              Anda tidak perlu melakukan tindakan apapun.
+            </p>
+            
+            <p style="margin-top: 20px; font-size: 14px; color: ${BRAND_COLORS.textSecondary};">
+              Jika ada pertanyaan atau kendala, segera hubungi departemen HR.
+            </p>
+          </div>
+          
+          <div class="footer">
+            <div class="footer-signature">Human Resources Department</div>
+            <div>PT Rhayakan Film Indonesia</div>
+            <div style="margin-top: 15px; font-size: 12px; color: #999;">
+              Email otomatis dari HR System. Mohon tidak membalas email ini.
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const text = `
+[PENTING] Batas Akhir Submit Lembur - ${recapDate}
+
+Kepada ${employeeName},
+
+Dengan hormat,
+
+Kami informasikan bahwa hari ini, ${recapDate}, adalah batas akhir untuk submit lembur periode payroll bulan ini.
+
+PERIODE LEMBUR:
+• Periode: ${periodLabel}
+• Dari: ${fromDate}
+• Sampai: ${toDate}
+
+PENTING:
+✓ Semua lembur dalam periode tersebut HARUS sudah disubmit hari ini
+✓ Setelah hari ini, submit lembur untuk tanggal-tanggal tersebut akan DIKUNCI
+✓ Pastikan semua supervisor sudah menyetujui lembur Anda
+✓ Lembur yang belum diapprove tidak akan masuk payroll
+
+Submit lembur Anda sekarang:
+${systemUrl}/overtime/submit
+
+Jika sudah submit semua lembur dan sudah diapprove, Anda tidak perlu melakukan tindakan apapun.
+
+Jika ada pertanyaan, hubungi HR.
+
+Terima kasih,
+Human Resources Department
+PT Rhayakan Film Indonesia
+  `;
+
+  return sendEmail({
+    to: employeeEmail,
+    subject: `[PENTING] Batas Akhir Submit Lembur - ${recapDate}`,
+    html: html,
+    text: text
+  });
+}
+
+/**
+ * Send overtime request notification to approver (SPV/Admin)
+ */
+export async function sendOvertimeRequestNotification(approver, overtimeRequest, employee) {
+  const overtimeHours = getOvertimeHours(overtimeRequest);
+  const description = getOvertimeDescription(overtimeRequest);
+  const systemUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+  // Format all overtime dates from entries
+  let overtimeDatesText = '';
+  let overtimeDatesHtml = '';
+  
+  if (overtimeRequest.entries && overtimeRequest.entries.length > 0) {
+    const sortedEntries = overtimeRequest.entries.sort((a, b) => new Date(a.date) - new Date(b.date));
+    overtimeDatesHtml = sortedEntries.map(entry => `
+      <div class="detail-row">
+        <div class="detail-label">${new Date(entry.date).toLocaleDateString('en-US', { 
+          weekday: 'short', 
+          month: 'short', 
+          day: 'numeric',
+          year: 'numeric'
+        })}:</div>
+        <div class="detail-value"><strong>${entry.hours} hours</strong> - ${entry.description}</div>
+      </div>
+    `).join('');
+    
+    overtimeDatesText = sortedEntries.map(entry => 
+      `• ${new Date(entry.date).toLocaleDateString('en-US', { dateStyle: 'medium' })}: ${entry.hours} hours - ${entry.description}`
+    ).join('\n');
+  }
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6;
+          color: ${BRAND_COLORS.textPrimary};
+          margin: 0;
+          padding: 0;
+          background-color: #F9F9F9;
+        }
+        .email-wrapper {
+          width: 100%;
+          background-color: #F9F9F9;
+          padding: 40px 20px;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          background: ${BRAND_COLORS.accent};
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header {
+          background: linear-gradient(135deg, ${BRAND_COLORS.primary} 0%, ${BRAND_COLORS.secondary} 100%);
+          color: ${BRAND_COLORS.accent};
+          padding: 40px 30px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 28px;
+          font-weight: 600;
+          letter-spacing: -0.5px;
+        }
+        .content {
+          padding: 40px 30px;
+        }
+        .content p {
+          margin: 0 0 20px 0;
+          font-size: 16px;
+          line-height: 1.8;
+        }
+        .status-badge {
+          display: inline-block;
+          background: #FFC107;
+          color: ${BRAND_COLORS.secondary};
+          padding: 10px 24px;
+          border-radius: 25px;
+          font-weight: 600;
+          font-size: 14px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin: 20px 0;
+        }
+        .employee-card {
+          background: ${BRAND_COLORS.cardBg};
+          border: 1px solid ${BRAND_COLORS.cardBorder};
+          border-radius: 10px;
+          padding: 25px;
+          margin: 30px 0;
+        }
+        .employee-card h3 {
+          margin: 0 0 20px 0;
+          font-size: 18px;
+          font-weight: 600;
+          color: ${BRAND_COLORS.primary};
+          text-align: center;
+        }
+        .detail-row {
+          display: flex;
+          padding: 12px 0;
+          border-bottom: 1px solid ${BRAND_COLORS.cardBorder};
+        }
+        .detail-row:last-child {
+          border-bottom: none;
+        }
+        .detail-label {
+          font-weight: 600;
+          color: ${BRAND_COLORS.textPrimary};
+          min-width: 140px;
+          flex-shrink: 0;
+        }
+        .detail-value {
+          color: ${BRAND_COLORS.textSecondary};
+          flex: 1;
+        }
+        .action-buttons {
+          text-align: center;
+          margin: 30px 0;
+        }
+        .button {
+          display: inline-block;
+          padding: 14px 35px;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 15px;
+          margin: 5px;
+          transition: all 0.3s ease;
+        }
+        .button-review {
+          background: ${BRAND_COLORS.primary};
+          color: white;
+        }
+        .button-review:hover {
+          background: ${BRAND_COLORS.secondary};
+        }
+        .footer {
+          padding: 30px;
+          background: ${BRAND_COLORS.cardBg};
+          text-align: center;
+          color: ${BRAND_COLORS.textSecondary};
+          font-size: 14px;
+          border-top: 1px solid ${BRAND_COLORS.cardBorder};
+        }
+        .footer-signature {
+          font-weight: 600;
+          color: ${BRAND_COLORS.textPrimary};
+          margin-bottom: 10px;
+        }
+        
+        @media only screen and (max-width: 600px) {
+          .email-wrapper { padding: 20px 10px; }
+          .content { padding: 30px 20px; }
+          .employee-card { padding: 20px 15px; }
+          .detail-row { flex-direction: column; }
+          .detail-label { min-width: auto; margin-bottom: 5px; }
+          .button { display: block; margin: 10px 0; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="email-wrapper">
+        <div class="container">
+          <div class="header">
+            <h1>🔔 Overtime Approval Request</h1>
+            <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">
+              New overtime request awaiting your approval
+            </p>
+          </div>
+          
+          <div class="content">
+            <p>Dear <strong>${approver.name}</strong>,</p>
+            
+            <p>You have received a new overtime request that requires your approval:</p>
+            
+            <div style="text-align: center;">
+              <div class="status-badge">⏳ PENDING APPROVAL</div>
+            </div>
+            
+            <div class="employee-card">
+              <h3>📋 Employee Information</h3>
+              
+              <div class="detail-row">
+                <div class="detail-label">Employee:</div>
+                <div class="detail-value"><strong>${employee.name}</strong></div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Employee ID:</div>
+                <div class="detail-value">${employee.nip || employee.id}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Division:</div>
+                <div class="detail-value">${employee.division?.name || 'N/A'}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Role:</div>
+                <div class="detail-value">${employee.role?.name || 'N/A'}</div>
+              </div>
+            </div>
+            
+            <div class="employee-card">
+              <h3>⏰ Overtime Details</h3>
+              
+              ${overtimeDatesHtml}
+              
+              <div class="detail-row" style="border-top: 2px solid ${BRAND_COLORS.primary}; margin-top: 15px; padding-top: 15px;">
+                <div class="detail-label">Total Hours:</div>
+                <div class="detail-value"><strong style="color: ${BRAND_COLORS.primary}; font-size: 18px;">${overtimeHours} hours</strong></div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Submitted At:</div>
+                <div class="detail-value">${new Date(overtimeRequest.submittedAt || overtimeRequest.createdAt).toLocaleString('en-US', { 
+                  dateStyle: 'medium', 
+                  timeStyle: 'short' 
+                })}</div>
+              </div>
+            </div>
+            
+            <p style="text-align: center; margin-top: 30px;">
+              <strong>Please review and approve this request:</strong>
+            </p>
+            
+            <div class="action-buttons">
+              <a href="${systemUrl}/overtime/approval" class="button button-review">
+                Review Request
+              </a>
+            </div>
+            
+            <p style="margin-top: 30px; font-size: 14px; color: ${BRAND_COLORS.textSecondary}; text-align: center;">
+              Please process this request at your earliest convenience to ensure timely payroll processing.
+            </p>
+          </div>
+          
+          <div class="footer">
+            <div class="footer-signature">Human Resources Department</div>
+            <div>PT Rhayakan Film Indonesia</div>
+            <div style="margin-top: 15px; font-size: 12px; color: #999;">
+              This is an automated email from HR System. Please do not reply to this email.
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const text = `
+New Overtime Approval Request
+
+Dear ${approver.name},
+
+You have received a new overtime request that requires your approval.
+
+EMPLOYEE INFORMATION:
+• Employee: ${employee.name}
+• Employee ID: ${employee.nip || employee.id}
+• Division: ${employee.division?.name || 'N/A'}
+• Role: ${employee.role?.name || 'N/A'}
+
+OVERTIME DETAILS:
+${overtimeDatesText}
+
+Total Hours: ${overtimeHours} hours
+Submitted: ${new Date(overtimeRequest.submittedAt || overtimeRequest.createdAt).toLocaleString()}
+
+Review this request: ${systemUrl}/overtime/approval
+
+Please process this request at your earliest convenience.
+
+Best regards,
+Human Resources Department
+PT Rhayakan Film Indonesia
+  `;
+
+  return sendEmail({
+    to: approver.email,
+    cc: process.env.HR_EMAIL || 'hr@rhayaflicks.com', // CC to HR
+    subject: `[Action Required] Overtime Approval Request from ${employee.name}`,
+    html: html,
+    text: text
+  });
+}
+
+/**
+ * Send overtime revision requested notification to employee
+ */
+export async function sendOvertimeRevisionRequestedEmail(employee, overtimeRequest, revisionComment, approverName) {
+  const overtimeHours = getOvertimeHours(overtimeRequest);
+  const systemUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+  // Format all overtime dates from entries
+  let overtimeDatesHtml = '';
+  let overtimeDatesText = '';
+  
+  if (overtimeRequest.entries && overtimeRequest.entries.length > 0) {
+    const sortedEntries = overtimeRequest.entries.sort((a, b) => new Date(a.date) - new Date(b.date));
+    overtimeDatesHtml = sortedEntries.map(entry => `
+      <div class="detail-row">
+        <div class="detail-label">${new Date(entry.date).toLocaleDateString('en-US', { 
+          weekday: 'short', 
+          month: 'short', 
+          day: 'numeric',
+          year: 'numeric'
+        })}:</div>
+        <div class="detail-value">${entry.hours} hours - ${entry.description}</div>
+      </div>
+    `).join('');
+    
+    overtimeDatesText = sortedEntries.map(entry => 
+      `• ${new Date(entry.date).toLocaleDateString('en-US', { dateStyle: 'medium' })}: ${entry.hours} hours`
+    ).join('\n');
+  }
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6;
+          color: ${BRAND_COLORS.textPrimary};
+          margin: 0;
+          padding: 0;
+          background-color: #F9F9F9;
+        }
+        .email-wrapper {
+          width: 100%;
+          background-color: #F9F9F9;
+          padding: 40px 20px;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          background: ${BRAND_COLORS.accent};
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header {
+          background: linear-gradient(135deg, #FFC107 0%, #FF9800 100%);
+          color: ${BRAND_COLORS.secondary};
+          padding: 40px 30px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 28px;
+          font-weight: 600;
+          letter-spacing: -0.5px;
+        }
+        .content {
+          padding: 40px 30px;
+        }
+        .content p {
+          margin: 0 0 20px 0;
+          font-size: 16px;
+          line-height: 1.8;
+        }
+        .status-badge {
+          display: inline-block;
+          background: #FFC107;
+          color: ${BRAND_COLORS.secondary};
+          padding: 10px 24px;
+          border-radius: 25px;
+          font-weight: 600;
+          font-size: 14px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin: 20px 0;
+        }
+        .details-card {
+          background: ${BRAND_COLORS.cardBg};
+          border: 1px solid ${BRAND_COLORS.cardBorder};
+          border-radius: 10px;
+          padding: 25px;
+          margin: 30px 0;
+        }
+        .details-card h3 {
+          margin: 0 0 20px 0;
+          font-size: 18px;
+          font-weight: 600;
+          color: ${BRAND_COLORS.primary};
+          text-align: center;
+        }
+        .detail-row {
+          display: flex;
+          padding: 12px 0;
+          border-bottom: 1px solid ${BRAND_COLORS.cardBorder};
+        }
+        .detail-row:last-child {
+          border-bottom: none;
+        }
+        .detail-label {
+          font-weight: 600;
+          color: ${BRAND_COLORS.textPrimary};
+          min-width: 120px;
+          flex-shrink: 0;
+        }
+        .detail-value {
+          color: ${BRAND_COLORS.textSecondary};
+          flex: 1;
+        }
+        .comment-box {
+          background: #FFF3CD;
+          border-left: 4px solid #FFC107;
+          padding: 20px;
+          margin: 25px 0;
+          border-radius: 4px;
+        }
+        .comment-box h4 {
+          margin: 0 0 10px 0;
+          font-size: 16px;
+          font-weight: 600;
+          color: #856404;
+        }
+        .comment-text {
+          color: ${BRAND_COLORS.textPrimary};
+          font-style: italic;
+          line-height: 1.6;
+        }
+        .button {
+          display: inline-block;
+          background: #FFC107;
+          color: ${BRAND_COLORS.secondary};
+          padding: 14px 35px;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 15px;
+          margin-top: 25px;
+          transition: all 0.3s ease;
+        }
+        .button:hover {
+          background: #FF9800;
+        }
+        .footer {
+          padding: 30px;
+          background: ${BRAND_COLORS.cardBg};
+          text-align: center;
+          color: ${BRAND_COLORS.textSecondary};
+          font-size: 14px;
+          border-top: 1px solid ${BRAND_COLORS.cardBorder};
+        }
+        .footer-signature {
+          font-weight: 600;
+          color: ${BRAND_COLORS.textPrimary};
+          margin-bottom: 10px;
+        }
+        
+        @media only screen and (max-width: 600px) {
+          .email-wrapper { padding: 20px 10px; }
+          .content { padding: 30px 20px; }
+          .details-card { padding: 20px 15px; }
+          .detail-row { flex-direction: column; }
+          .detail-label { min-width: auto; margin-bottom: 5px; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="email-wrapper">
+        <div class="container">
+          <div class="header">
+            <h1>📝 Overtime Revision Requested</h1>
+            <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">
+              Your overtime request requires revision
+            </p>
+          </div>
+          
+          <div class="content">
+            <p>Dear <strong>${employee.name}</strong>,</p>
+            
+            <p>Your overtime request has been reviewed and requires revision before it can be approved.</p>
+            
+            <div style="text-align: center;">
+              <div class="status-badge">📋 REVISION REQUESTED</div>
+            </div>
+            
+            <div class="details-card">
+              <h3>📋 Request Details</h3>
+              
+              ${overtimeDatesHtml}
+              
+              <div class="detail-row" style="border-top: 2px solid ${BRAND_COLORS.primary}; margin-top: 15px; padding-top: 15px;">
+                <div class="detail-label">Total Hours:</div>
+                <div class="detail-value"><strong>${overtimeHours} hours</strong></div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Reviewed By:</div>
+                <div class="detail-value">${approverName}</div>
+              </div>
+            </div>
+            
+            <div class="comment-box">
+              <h4>💬 Reviewer's Comment:</h4>
+              <div class="comment-text">${revisionComment}</div>
+            </div>
+            
+            <p style="margin-top: 30px;">
+              <strong>What to do next:</strong>
+            </p>
+            
+            <ul style="color: ${BRAND_COLORS.textSecondary}; padding-left: 20px;">
+              <li>Review the comment from your approver</li>
+              <li>Edit your overtime request with the necessary changes</li>
+              <li>Resubmit for approval</li>
+            </ul>
+            
+            <p style="text-align: center;">
+              <a href="${systemUrl}/overtime/history" class="button">
+                Edit Request Now
+              </a>
+            </p>
+            
+            <p style="margin-top: 30px; font-size: 14px; color: ${BRAND_COLORS.textSecondary};">
+              If you have any questions about the requested revisions, please contact your supervisor or HR department.
+            </p>
+          </div>
+          
+          <div class="footer">
+            <div class="footer-signature">Human Resources Department</div>
+            <div>PT Rhayakan Film Indonesia</div>
+            <div style="margin-top: 15px; font-size: 12px; color: #999;">
+              This is an automated email from HR System. Please do not reply to this email.
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const text = `
+Overtime Revision Requested
+
+Dear ${employee.name},
+
+Your overtime request has been reviewed and requires revision before it can be approved.
+
+REQUEST DETAILS:
+${overtimeDatesText}
+Total Hours: ${overtimeHours} hours
+Reviewed By: ${approverName}
+
+REVIEWER'S COMMENT:
+${revisionComment}
+
+WHAT TO DO NEXT:
+1. Review the comment from your approver
+2. Edit your overtime request with the necessary changes
+3. Resubmit for approval
+
+Edit your request: ${systemUrl}/overtime/history
+
+If you have any questions, please contact your supervisor or HR.
+
+Best regards,
+Human Resources Department
+PT Rhayakan Film Indonesia
+  `;
+
+  return sendEmail({
+    to: employee.email,
+    cc: process.env.HR_EMAIL || 'hr@rhayaflicks.com', // CC to HR
+    subject: `[Action Required] Overtime Revision Requested`,
+    html: html,
+    text: text
+  });
+}
+
 export default {
   sendEmail,
   sendOvertimeApprovedEmail,
   sendOvertimeRejectedEmail,
+  sendOvertimeRequestNotification,
+  sendOvertimeRevisionRequestedEmail,
   sendLeaveApprovedEmail,
   sendPayslipNotificationEmail,
-  sendWelcomeEmail
+  sendWelcomeEmail,
+  sendOvertimeReminderEmail
 };

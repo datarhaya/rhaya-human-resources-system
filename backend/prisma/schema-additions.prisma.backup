@@ -1,0 +1,193 @@
+// Updated schema.prisma - Overtime Recap V2
+// Add these models and fields to your existing schema.prisma
+
+// ============================================
+// NEW MODEL: SystemSettings
+// ============================================
+
+model SystemSettings {
+  id                    String    @id @default(cuid())
+  
+  // Recap cutoff tracking
+  lastRecapDate         DateTime? // Last cutoff date (e.g., 19 Jan 2026)
+  lastRecapMonth        Int?      // Last payroll month
+  lastRecapYear         Int?      // Last payroll year
+  
+  // Locking mechanisms
+  isRecapInProgress     Boolean   @default(false)  // Lock during bulk processing
+  isApprovalLocked      Boolean   @default(false)  // Lock approvals during recap
+  
+  // Metadata
+  lastRecapCompletedAt  DateTime?
+  lastRecapBy           String?
+  lastRecapByUser       User?     @relation("SystemSettingsRecappedBy", fields: [lastRecapBy], references: [id])
+  
+  updatedAt             DateTime  @updatedAt
+  createdAt             DateTime  @default(now())
+  
+  @@map("SystemSettings")
+}
+
+// ============================================
+// NEW MODEL: RecapDateAdjustment
+// ============================================
+
+model RecapDateAdjustment {
+  id              String   @id @default(cuid())
+  
+  oldDate         DateTime
+  newDate         DateTime
+  reason          String
+  
+  adjustedBy      String
+  adjuster        User     @relation("RecapDateAdjustedBy", fields: [adjustedBy], references: [id])
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([createdAt])
+  @@map("RecapDateAdjustment")
+}
+
+// ============================================
+// UPDATED MODEL: OvertimeRecap
+// ============================================
+
+model OvertimeRecap {
+  id                String   @id @default(cuid())
+  
+  // Employee
+  employeeId        String
+  employee          User     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  // Period (for grouping/labeling - payroll month)
+  month             Int      // 1-12 (e.g., 1 = January payroll)
+  year              Int      // e.g., 2026
+  
+  // NEW: Actual date range included in recap
+  fromDate          DateTime // Start date (e.g., 21 Dec 2025)
+  toDate            DateTime // End/cutoff date (e.g., 19 Jan 2026)
+  
+  // Calculations
+  totalHours        Float    // Total approved overtime hours
+  paidHours         Float    // Hours paid (max 72)
+  excessHours       Float    // Hours beyond 72
+  carryoverHours    Float    @default(0) // From previous month
+  totalToilHours    Float    // excessHours + carryoverHours
+  toilDaysCreated   Int      @default(0) // Complete 8-hour blocks
+  remainingHours    Float    @default(0) // Carried to next month
+  
+  // NEW: Status tracking
+  recapStatus       String   // "success" or "failed"
+  failureReason     String?  // e.g., "Has 2 pending overtime requests"
+  
+  // Relations
+  overtimeRequests  OvertimeRequest[]
+  toilEntries       TimeOffInLieu[]
+  
+  // Metadata
+  recappedById      String
+  recappedBy        User     @relation("RecappedBy", fields: [recappedById], references: [id])
+  recappedAt        DateTime @default(now())
+  notes             String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@unique([employeeId, year, month])
+  @@index([employeeId])
+  @@index([year, month])
+  @@index([recapStatus])  // NEW: For querying failures
+  @@map("OvertimeRecap")
+}
+
+// ============================================
+// UPDATED MODEL: OvertimeRequest
+// ============================================
+
+model OvertimeRequest {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    User     @relation(fields: [employeeId], references: [id])
+  
+  submittedAt DateTime @default(now())
+  status      String   @default("PENDING")
+  
+  approvedAt            DateTime?
+  rejectedAt            DateTime?
+  
+  currentApproverId String?
+  currentApprover   User?   @relation("CurrentApprover", fields: [currentApproverId], references: [id])
+
+  finalApproverId       String?
+  finalApprover         User?     @relation("FinalApprover", fields: [finalApproverId], references: [id])
+  
+  supervisorId      String?
+  supervisor        User?   @relation("OvertimeSupervisor", fields: [supervisorId], references: [id])
+  supervisorStatus  String  @default("PENDING")
+  supervisorComment String?
+  supervisorDate    DateTime?
+  
+  divisionHeadId      String?
+  divisionHead        User?   @relation("OvertimeDivisionHead", fields: [divisionHeadId], references: [id])
+  divisionHeadStatus  String  @default("PENDING")
+  divisionHeadComment String?
+  divisionHeadDate    DateTime?
+  
+  entries     OvertimeEntry[]
+  revisions   OvertimeRevision[]
+  
+  totalHours  Float
+  totalAmount Float
+  
+  // NEW: Recap tracking
+  isRecapped      Boolean   @default(false)  // Included in a recap?
+  recappedDate    DateTime? // When was it recapped
+  
+  recapId           String?
+  recap             OvertimeRecap? @relation(fields: [recapId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([currentApproverId])
+  @@index([isRecapped])  // NEW: For recap queries
+}
+
+// ============================================
+// UPDATED MODEL: User (Add new relations)
+// ============================================
+
+model User {
+  // ... existing fields ...
+  
+  // Add these new relations to existing User model:
+  systemSettingsRecapped SystemSettings[]      @relation("SystemSettingsRecappedBy")
+  recapDateAdjustments   RecapDateAdjustment[] @relation("RecapDateAdjustedBy")
+  
+  // ... rest of existing relations ...
+}
+
+// ============================================
+// MIGRATION NOTES
+// ============================================
+
+/*
+To apply these changes:
+
+1. Backup your database:
+   pg_dump -U your_user -d your_database > backup.sql
+
+2. Run the migration SQL file:
+   psql -U your_user -d your_database -f migration-recap-v2.sql
+
+3. Update Prisma:
+   npx prisma db pull
+   npx prisma generate
+
+4. Verify changes:
+   npx prisma studio
+   
+5. Test in development first!
+*/

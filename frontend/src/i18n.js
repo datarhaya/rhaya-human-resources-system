@@ -354,7 +354,7 @@ const resources = {
         comments: 'Comments:',
         supervisor: 'Supervisor:',
         divisionHead: 'Division Head:',
-        approver: 'Approver:',
+        approver: 'Approver',
         
         // Messages
         deleteSuccess: 'Overtime request deleted successfully',
@@ -401,6 +401,10 @@ const resources = {
         maternityNote: 'End date will be automatically calculated (90 days)',
         maternityCalculationNote: 'Auto-calculated (90 days)',
         menstrualNote: 'Only today or previous dates allowed, 1 day only',
+        
+        // Day Calculation
+        dayCalculation: 'Working Days (excluding weekends)',
+        Days: 'Days',
         
         // Filter labels
         showFilters: 'Show Filters',
@@ -1044,6 +1048,10 @@ const resources = {
         annualRemaining: 'Cuti Tahunan Tersisa',
         sickLeaveUsed: 'Cuti Sakit Terpakai',
         menstrualLeaveUsed: 'Cuti Haid Terpakai',
+
+        // Day Calculation
+        dayCalculation: 'Hari Kerja (Tidak Termasuk Akhir Pekan)',
+        Days: 'Hari',
         
         // Label formulir
         myRequests: 'Permintaan Cuti Saya',

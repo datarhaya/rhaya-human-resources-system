@@ -2,7 +2,12 @@
 import * as overtimeService from '../services/overtime.service.js';
 import { isAfter, subDays, startOfDay } from 'date-fns';
 import { PrismaClient } from '@prisma/client';
-import { sendOvertimeApprovedEmail } from '../services/email.service.js';
+import { 
+  sendOvertimeApprovedEmail, 
+  sendOvertimeRejectedEmail,
+  sendOvertimeRequestNotification,
+  sendOvertimeRevisionRequestedEmail 
+} from '../services/email.service.js';
 const prisma = new PrismaClient();
 
 // ============================================
@@ -64,6 +69,21 @@ export const submitOvertimeRequest = async (req, res) => {
       }
     }
 
+    const settings = await prisma.systemSettings.findUnique({
+      where: { id: 'system-settings-singleton' }
+    });
+    
+    if (settings?.lastRecapDate) {
+      for (const entry of entries) {
+        const entryDate = new Date(entry.date);
+        if (entryDate <= settings.lastRecapDate) {
+          return res.status(400).json({
+            error: `Lembur untuk tanggal ${formatDate(entryDate)} sudah direkap.`
+          });
+        }
+      }
+    }
+
     // Check for duplicate dates in this submission
     const dates = entries.map(e => e.date);
     const uniqueDates = new Set(dates);
@@ -113,6 +133,22 @@ export const submitOvertimeRequest = async (req, res) => {
 
     // Update pending hours in balance
     await overtimeService.updatePendingHours(employeeId, totalHours, 'ADD');
+
+    // Send email notification to approver
+    try {
+      const approver = await prisma.user.findUnique({
+        where: { id: approverId },
+        select: { id: true, name: true, email: true }
+      });
+
+      if (approver && approver.email) {
+        await sendOvertimeRequestNotification(approver, overtimeRequest, employee);
+        console.log('✅ Overtime request notification sent to:', approver.email);
+      }
+    } catch (emailError) {
+      // Don't fail the request if email fails
+      console.error('⚠️ Email notification failed:', emailError.message);
+    }
 
     res.status(201).json({
       message: 'Overtime request submitted successfully',
@@ -706,6 +742,20 @@ export const rejectOvertimeRequest = async (req, res) => {
       });
     }
 
+    // Send rejection email notification to employee
+    try {
+      await sendOvertimeRejectedEmail(
+        updatedRequest.employee,
+        updatedRequest,
+        comment,
+        req.user.name
+      );
+      console.log('✅ Rejection email sent to:', updatedRequest.employee.email);
+    } catch (emailError) {
+      // Don't fail the request if email fails
+      console.error('⚠️ Rejection email failed:', emailError.message);
+    }
+
     return res.json({
       success: true,
       message: 'Overtime request rejected',
@@ -789,9 +839,24 @@ export const requestRevision = async (req, res) => {
       data: updateData,
       include: {
         employee: true,
-        currentApprover: true // Include to show who requested revision
+        currentApprover: true,
+        entries: true // Include entries for email
       }
     });
+
+    // Send revision request email notification to employee
+    try {
+      await sendOvertimeRevisionRequestedEmail(
+        updatedRequest.employee,
+        updatedRequest,
+        comment,
+        req.user.name
+      );
+      console.log('✅ Revision request email sent to:', updatedRequest.employee.email);
+    } catch (emailError) {
+      // Don't fail the request if email fails
+      console.error('⚠️ Revision request email failed:', emailError.message);
+    }
 
     // if (updatedRequest.status === 'REVISION_REQUESTED') {
     //   await prisma.overtimeBalance.upsert({
