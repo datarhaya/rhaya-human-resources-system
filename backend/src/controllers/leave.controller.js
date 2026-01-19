@@ -1,6 +1,11 @@
 // backend/src/controllers/leave.controller.js
 import prisma from '../config/database.js';
 import leaveService from '../services/leave.service.js';
+import { 
+  sendLeaveRequestNotification,
+  sendLeaveApprovedEmail,
+  sendLeaveRejectedEmail 
+} from '../services/email.service.js';
 
 /**
  * Submit leave request
@@ -62,6 +67,30 @@ export const submitLeaveRequest = async (req, res) => {
       approverId,
       supervisorId: employee.supervisorId
     });
+
+    // Send email notification to approver
+    try {
+      const approver = await prisma.user.findUnique({
+        where: { id: approverId },
+        select: { id: true, name: true, email: true }
+      });
+
+      if (approver && approver.email) {
+        const employeeWithRole = await prisma.user.findUnique({
+          where: { id: employeeId },
+          include: {
+            role: true,
+            division: true
+          }
+        });
+
+        await sendLeaveRequestNotification(approver, leaveRequest, employeeWithRole);
+        console.log('✅ Leave request notification sent to:', approver.email);
+      }
+    } catch (emailError) {
+      // Don't fail the request if email fails
+      console.error('⚠️ Leave request email notification failed:', emailError.message);
+    }
 
     return res.status(201).json({
       success: true,
@@ -338,6 +367,37 @@ export const approveLeaveRequest = async (req, res) => {
     // Update leave balance if approved
     if (updatedRequest.status === 'APPROVED') {
       await leaveService.updateLeaveBalance(updatedRequest);
+      
+      // Send approval email to employee
+      try {
+        const employee = await prisma.user.findUnique({
+          where: { id: updatedRequest.employeeId },
+          include: {
+            role: true,
+            division: true
+          }
+        });
+
+        const approver = await prisma.user.findUnique({
+          where: { id: approverId },
+          select: { name: true }
+        });
+
+        if (employee && employee.email) {
+          await sendLeaveApprovedEmail(employee, updatedRequest, approver.name);
+          console.log('✅ Leave approval email sent to:', employee.email);
+        }
+      } catch (emailError) {
+        // Don't fail the request if email fails
+        console.error('⚠️ Leave approval email failed:', emailError.message);
+      }
+      try {
+        const { sendImmediateLeaveReminder } = await import('../services/leaveReminder.service.js');
+        await sendImmediateLeaveReminder(updatedRequest.id);
+      } catch (reminderError) {
+        console.error('⚠️ Leave reminder failed:', reminderError.message);
+      }
+
     }
 
     return res.json({
@@ -422,6 +482,30 @@ export const rejectLeaveRequest = async (req, res) => {
         currentApprover: true
       }
     });
+
+    // Send rejection email to employee
+    try {
+      const employee = await prisma.user.findUnique({
+        where: { id: updatedRequest.employeeId },
+        include: {
+          role: true,
+          division: true
+        }
+      });
+
+      const approver = await prisma.user.findUnique({
+        where: { id: approverId },
+        select: { name: true }
+      });
+
+      if (employee && employee.email) {
+        await sendLeaveRejectedEmail(employee, updatedRequest, comment, approver.name);
+        console.log('✅ Leave rejection email sent to:', employee.email);
+      }
+    } catch (emailError) {
+      // Don't fail the request if email fails
+      console.error('⚠️ Leave rejection email failed:', emailError.message);
+    }
 
     return res.json({
       success: true,

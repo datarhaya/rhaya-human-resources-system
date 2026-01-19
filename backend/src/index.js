@@ -16,6 +16,9 @@ import payslipRoutes from './routes/payslip.routes.js';
 // Import middleware
 import { authenticateToken } from './middleware/auth.js';
 
+import schedulerService from './services/scheduler.service.js';
+
+
 // Load environment variables
 dotenv.config();
 
@@ -50,7 +53,7 @@ app.use(cors({
     if (isAllowed) {
       callback(null, true);
     } else {
-      console.log(`❌ CORS blocked origin: ${origin}`);
+      console.log(`CORS blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -142,18 +145,21 @@ app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log('='.repeat(50));
-  console.log('🚀 HR System API Server Started');
+  console.log('HR System API Server Started');
   console.log('='.repeat(50));
-  console.log(`📍 Port: ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 Health Check: http://localhost:${PORT}/api/health`);
-  console.log(`📝 API Docs: http://localhost:${PORT}/`);
+  console.log(`Port: ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Health Check: http://localhost:${PORT}/api/health`);
+  console.log(`API Docs: http://localhost:${PORT}/`);
   console.log('='.repeat(50));
+
+  schedulerService.initializeScheduler();
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('👋 SIGTERM signal received: closing HTTP server');
+  console.log('SIGTERM signal received: closing HTTP server');
+  schedulerService.stopScheduler();
   app.close(() => {
     console.log('✅ HTTP server closed');
   });

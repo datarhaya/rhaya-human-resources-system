@@ -18,9 +18,9 @@ const BRAND_COLORS = {
 };
 
 if (!API_KEY) {
-  console.error('❌ SMTP2GO_API_KEY not configured in .env');
+  console.error('SMTP2GO_API_KEY not configured in .env');
 } else {
-  console.log('✅ SMTP2go API configured');
+  console.log('SMTP2go API configured');
 }
 
 /**
@@ -92,7 +92,7 @@ export async function sendEmail({ to, subject, html, text, cc }) {
       const { succeeded, failed } = response.data.data;
       
       if (succeeded > 0) {
-        console.log('✅ Email sent successfully via SMTP2go API:', {
+        console.log('Email sent successfully via SMTP2go API:', {
           to: to,
           cc: cc || 'none',
           subject: subject,
@@ -107,7 +107,7 @@ export async function sendEmail({ to, subject, html, text, cc }) {
         const failedEmails = response.data.data.failures || [];
         const errorMsg = failedEmails[0]?.error || 'Unknown error';
         
-        console.error('❌ SMTP2go API reported failure:', {
+        console.error('SMTP2go API reported failure:', {
           to: to,
           cc: cc || 'none',
           error: errorMsg
@@ -120,14 +120,14 @@ export async function sendEmail({ to, subject, html, text, cc }) {
       }
     }
     
-    console.error('❌ Unexpected SMTP2go API response:', response.data);
+    console.error('Unexpected SMTP2go API response:', response.data);
     return {
       success: false,
       error: 'Unexpected API response'
     };
     
   } catch (error) {
-    console.error('❌ Email send error:', {
+    console.error('Email send error:', {
       to: to,
       cc: cc || 'none',
       subject: subject,
@@ -575,218 +575,6 @@ export async function sendOvertimeRejectedEmail(user, overtimeRequest) {
 }
 
 /**
- * Send leave approval email
- */
-export async function sendLeaveApprovedEmail(user, leaveRequest) {
-  const startDate = leaveRequest.startDate || leaveRequest.leaveStartDate || leaveRequest.fromDate || leaveRequest.createdAt;
-  const endDate = leaveRequest.endDate || leaveRequest.leaveEndDate || leaveRequest.toDate || startDate;
-  const totalDays = leaveRequest.totalDays || leaveRequest.days || leaveRequest.duration || 1;
-  const leaveType = leaveRequest.leaveType || leaveRequest.type || 'Leave';
-
-  const formattedStartDate = new Date(startDate).toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  });
-  
-  const formattedEndDate = new Date(endDate).toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  });
-
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <style>
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          line-height: 1.6;
-          color: ${BRAND_COLORS.textPrimary};
-          margin: 0;
-          padding: 0;
-          background-color: #F9F9F9;
-        }
-        .email-wrapper {
-          width: 100%;
-          background-color: #F9F9F9;
-          padding: 40px 20px;
-        }
-        .container {
-          max-width: 600px;
-          margin: 0 auto;
-          background: ${BRAND_COLORS.accent};
-          border-radius: 12px;
-          overflow: hidden;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        .header {
-          background: linear-gradient(135deg, ${BRAND_COLORS.primary} 0%, #2C5AA0 100%);
-          color: ${BRAND_COLORS.accent};
-          padding: 40px 30px;
-          text-align: center;
-        }
-        .header h1 {
-          margin: 0;
-          font-size: 28px;
-          font-weight: 600;
-        }
-        .content {
-          padding: 40px 30px;
-          text-align: center;
-        }
-        .content p {
-          margin: 0 0 20px 0;
-          font-size: 16px;
-        }
-        .status-badge {
-          display: inline-block;
-          background: ${BRAND_COLORS.primary};
-          color: white;
-          padding: 10px 24px;
-          border-radius: 25px;
-          font-weight: 600;
-          font-size: 14px;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          margin: 20px 0;
-        }
-        .details-card {
-          background: ${BRAND_COLORS.cardBg};
-          border: 1px solid ${BRAND_COLORS.cardBorder};
-          border-radius: 10px;
-          padding: 25px;
-          margin: 30px 0;
-          text-align: left;
-        }
-        .details-card h3 {
-          margin: 0 0 20px 0;
-          font-size: 18px;
-          font-weight: 600;
-          color: ${BRAND_COLORS.primary};
-          text-align: center;
-        }
-        .detail-row {
-          display: flex;
-          padding: 12px 0;
-          border-bottom: 1px solid ${BRAND_COLORS.cardBorder};
-        }
-        .detail-row:last-child {
-          border-bottom: none;
-        }
-        .detail-label {
-          font-weight: 600;
-          color: ${BRAND_COLORS.textPrimary};
-          min-width: 100px;
-        }
-        .detail-value {
-          color: ${BRAND_COLORS.textSecondary};
-          flex: 1;
-        }
-        .button {
-          display: inline-block;
-          background: ${BRAND_COLORS.primary};
-          color: white;
-          padding: 14px 35px;
-          text-decoration: none;
-          border-radius: 8px;
-          font-weight: 600;
-          font-size: 15px;
-          margin-top: 25px;
-        }
-        .footer {
-          padding: 30px;
-          background: ${BRAND_COLORS.cardBg};
-          text-align: center;
-          color: ${BRAND_COLORS.textSecondary};
-          font-size: 14px;
-          border-top: 1px solid ${BRAND_COLORS.cardBorder};
-        }
-        .footer-signature {
-          font-weight: 600;
-          color: ${BRAND_COLORS.textPrimary};
-          margin-bottom: 10px;
-        }
-        
-        @media only screen and (max-width: 600px) {
-          .detail-row {
-            flex-direction: column;
-          }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="email-wrapper">
-        <div class="container">
-          <div class="header">
-            <h1>Leave Request Approved</h1>
-          </div>
-          
-          <div class="content">
-            <p>Hi <strong>${user.name}</strong>,</p>
-            
-            <div class="status-badge">
-              APPROVED
-            </div>
-            
-            <p>Your leave request has been approved!</p>
-            
-            <div class="details-card">
-              <h3>Leave Details</h3>
-              
-              <div class="detail-row">
-                <div class="detail-label">Type:</div>
-                <div class="detail-value">${leaveType}</div>
-              </div>
-              
-              <div class="detail-row">
-                <div class="detail-label">Start Date:</div>
-                <div class="detail-value">${formattedStartDate}</div>
-              </div>
-              
-              <div class="detail-row">
-                <div class="detail-label">End Date:</div>
-                <div class="detail-value">${formattedEndDate}</div>
-              </div>
-              
-              <div class="detail-row">
-                <div class="detail-label">Total Days:</div>
-                <div class="detail-value">${totalDays} days</div>
-              </div>
-            </div>
-            
-            <p style="font-size: 18px; margin: 30px 0;">Enjoy your time off! 🌴</p>
-            
-            ${process.env.FRONTEND_URL ? `
-              <a href="${process.env.FRONTEND_URL}/leave/history" class="button">
-                View Leave History
-              </a>
-            ` : ''}
-          </div>
-          
-          <div class="footer">
-            <div class="footer-signature">HR Team</div>
-            <div class="footer-text">Human Resources Department</div>
-          </div>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-
-  return sendEmail({
-    to: user.email,
-    subject: 'Leave Request Approved',
-    html: html
-  });
-}
-
-/**
  * Send payslip notification
  */
 export async function sendPayslipNotificationEmail(user, payslip) {
@@ -1088,7 +876,7 @@ export async function sendWelcomeEmail(user, tempPassword) {
             </div>
             
             <div class="warning-box">
-              <strong>⚠️ Important:</strong> Please change your password after your first login for security purposes.
+              <strong>Important:</strong> Please change your password after your first login for security purposes.
             </div>
             
             ${process.env.FRONTEND_URL ? `
@@ -1321,7 +1109,7 @@ export async function sendOvertimeReminderEmail({
       <div class="email-wrapper">
         <div class="container">
           <div class="header">
-            <div class="urgent-badge">⚠️ PENTING</div>
+            <div class="urgent-badge">PENTING</div>
             <h1>Batas Akhir Submit Lembur</h1>
           </div>
           
@@ -1336,7 +1124,7 @@ export async function sendOvertimeReminderEmail({
             </p>
             
             <div class="info-card">
-              <h3>📅 PERIODE LEMBUR</h3>
+              <h3>PERIODE LEMBUR</h3>
               
               <div class="info-row">
                 <div class="info-label">Periode:</div>
@@ -1613,7 +1401,7 @@ export async function sendOvertimeRequestNotification(approver, overtimeRequest,
       <div class="email-wrapper">
         <div class="container">
           <div class="header">
-            <h1>🔔 Overtime Approval Request</h1>
+            <h1>Overtime Approval Request</h1>
             <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">
               New overtime request awaiting your approval
             </p>
@@ -1625,11 +1413,11 @@ export async function sendOvertimeRequestNotification(approver, overtimeRequest,
             <p>You have received a new overtime request that requires your approval:</p>
             
             <div style="text-align: center;">
-              <div class="status-badge">⏳ PENDING APPROVAL</div>
+              <div class="status-badge">PENDING APPROVAL</div>
             </div>
             
             <div class="employee-card">
-              <h3>📋 Employee Information</h3>
+              <h3>Employee Information</h3>
               
               <div class="detail-row">
                 <div class="detail-label">Employee:</div>
@@ -1918,7 +1706,7 @@ export async function sendOvertimeRevisionRequestedEmail(employee, overtimeReque
       <div class="email-wrapper">
         <div class="container">
           <div class="header">
-            <h1>📝 Overtime Revision Requested</h1>
+            <h1>Overtime Revision Requested</h1>
             <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">
               Your overtime request requires revision
             </p>
@@ -1930,11 +1718,11 @@ export async function sendOvertimeRevisionRequestedEmail(employee, overtimeReque
             <p>Your overtime request has been reviewed and requires revision before it can be approved.</p>
             
             <div style="text-align: center;">
-              <div class="status-badge">📋 REVISION REQUESTED</div>
+              <div class="status-badge">REVISION REQUESTED</div>
             </div>
             
             <div class="details-card">
-              <h3>📋 Request Details</h3>
+              <h3>Request Details</h3>
               
               ${overtimeDatesHtml}
               
@@ -1950,7 +1738,7 @@ export async function sendOvertimeRevisionRequestedEmail(employee, overtimeReque
             </div>
             
             <div class="comment-box">
-              <h4>💬 Reviewer's Comment:</h4>
+              <h4>Reviewer's Comment:</h4>
               <div class="comment-text">${revisionComment}</div>
             </div>
             
@@ -2026,12 +1814,1198 @@ PT Rhayakan Film Indonesia
   });
 }
 
+/**
+ * Send leave request notification to approver (SPV/Admin)
+ */
+export async function sendLeaveRequestNotification(approver, leaveRequest, employee) {
+  const systemUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  
+  const formattedStartDate = new Date(leaveRequest.startDate).toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  
+  const formattedEndDate = new Date(leaveRequest.endDate).toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6;
+          color: ${BRAND_COLORS.textPrimary};
+          margin: 0;
+          padding: 0;
+          background-color: #F9F9F9;
+        }
+        .email-wrapper {
+          width: 100%;
+          background-color: #F9F9F9;
+          padding: 40px 20px;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          background: ${BRAND_COLORS.accent};
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header {
+          background: linear-gradient(135deg, ${BRAND_COLORS.primary} 0%, ${BRAND_COLORS.secondary} 100%);
+          color: ${BRAND_COLORS.accent};
+          padding: 40px 30px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 28px;
+          font-weight: 600;
+          letter-spacing: -0.5px;
+        }
+        .content {
+          padding: 40px 30px;
+        }
+        .content p {
+          margin: 0 0 20px 0;
+          font-size: 16px;
+          line-height: 1.8;
+        }
+        .status-badge {
+          display: inline-block;
+          background: #FFC107;
+          color: ${BRAND_COLORS.secondary};
+          padding: 10px 24px;
+          border-radius: 25px;
+          font-weight: 600;
+          font-size: 14px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin: 20px 0;
+        }
+        .employee-card {
+          background: ${BRAND_COLORS.cardBg};
+          border: 1px solid ${BRAND_COLORS.cardBorder};
+          border-radius: 10px;
+          padding: 25px;
+          margin: 30px 0;
+        }
+        .employee-card h3 {
+          margin: 0 0 20px 0;
+          font-size: 18px;
+          font-weight: 600;
+          color: ${BRAND_COLORS.primary};
+          text-align: center;
+        }
+        .detail-row {
+          display: flex;
+          padding: 12px 0;
+          border-bottom: 1px solid ${BRAND_COLORS.cardBorder};
+        }
+        .detail-row:last-child {
+          border-bottom: none;
+        }
+        .detail-label {
+          font-weight: 600;
+          color: ${BRAND_COLORS.textPrimary};
+          min-width: 140px;
+          flex-shrink: 0;
+        }
+        .detail-value {
+          color: ${BRAND_COLORS.textSecondary};
+          flex: 1;
+        }
+        .reason-box {
+          background: #FFF9E6;
+          border-left: 4px solid #FFC107;
+          padding: 15px;
+          margin: 20px 0;
+          border-radius: 4px;
+        }
+        .reason-box strong {
+          color: ${BRAND_COLORS.primary};
+          display: block;
+          margin-bottom: 8px;
+        }
+        .action-buttons {
+          text-align: center;
+          margin: 30px 0;
+        }
+        .button {
+          display: inline-block;
+          padding: 14px 35px;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 15px;
+          margin: 5px;
+          transition: all 0.3s ease;
+        }
+        .button-review {
+          background: ${BRAND_COLORS.primary};
+          color: white;
+        }
+        .button-review:hover {
+          background: ${BRAND_COLORS.secondary};
+        }
+        .footer {
+          padding: 30px;
+          background: ${BRAND_COLORS.cardBg};
+          text-align: center;
+          color: ${BRAND_COLORS.textSecondary};
+          font-size: 14px;
+          border-top: 1px solid ${BRAND_COLORS.cardBorder};
+        }
+        .footer-signature {
+          font-weight: 600;
+          color: ${BRAND_COLORS.textPrimary};
+          margin-bottom: 10px;
+        }
+        
+        @media only screen and (max-width: 600px) {
+          .email-wrapper { padding: 20px 10px; }
+          .content { padding: 30px 20px; }
+          .employee-card { padding: 20px 15px; }
+          .detail-row { flex-direction: column; }
+          .detail-label { min-width: auto; margin-bottom: 5px; }
+          .button { display: block; margin: 10px 0; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="email-wrapper">
+        <div class="container">
+          <div class="header">
+            <h1>Leave Approval Request</h1>
+            <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">
+              New leave request awaiting your approval
+            </p>
+          </div>
+          
+          <div class="content">
+            <p>Dear <strong>${approver.name}</strong>,</p>
+            
+            <p>You have received a new leave request that requires your approval:</p>
+            
+            <div style="text-align: center;">
+              <div class="status-badge">PENDING APPROVAL</div>
+            </div>
+            
+            <div class="employee-card">
+              <h3>Employee Information</h3>
+              
+              <div class="detail-row">
+                <div class="detail-label">Employee:</div>
+                <div class="detail-value"><strong>${employee.name}</strong></div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Employee ID:</div>
+                <div class="detail-value">${employee.nip || employee.id}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Division:</div>
+                <div class="detail-value">${employee.division?.name || 'N/A'}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Role:</div>
+                <div class="detail-value">${employee.role?.name || 'N/A'}</div>
+              </div>
+            </div>
+            
+            <div class="employee-card">
+              <h3>Leave Details</h3>
+              
+              <div class="detail-row">
+                <div class="detail-label">Leave Type:</div>
+                <div class="detail-value"><strong>${leaveRequest.leaveType}</strong></div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Start Date:</div>
+                <div class="detail-value">${formattedStartDate}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">End Date:</div>
+                <div class="detail-value">${formattedEndDate}</div>
+              </div>
+              
+              <div class="detail-row" style="border-top: 2px solid ${BRAND_COLORS.primary}; margin-top: 15px; padding-top: 15px;">
+                <div class="detail-label">Duration:</div>
+                <div class="detail-value"><strong style="color: ${BRAND_COLORS.primary}; font-size: 18px;">${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? 's' : ''}</strong></div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Submitted:</div>
+                <div class="detail-value">${new Date(leaveRequest.createdAt).toLocaleString('en-US', { 
+                  dateStyle: 'medium', 
+                  timeStyle: 'short' 
+                })}</div>
+              </div>
+            </div>
+            
+            <div class="reason-box">
+              <strong>Reason:</strong>
+              ${leaveRequest.reason}
+            </div>
+            
+            <p style="text-align: center; margin-top: 30px;">
+              <strong>Please review and approve this request:</strong>
+            </p>
+            
+            <div class="action-buttons">
+              <a href="${systemUrl}/leave/approval" class="button button-review">
+                Review Request
+              </a>
+            </div>
+            
+            <p style="margin-top: 30px; font-size: 14px; color: ${BRAND_COLORS.textSecondary}; text-align: center;">
+              Please process this request at your earliest convenience.
+            </p>
+          </div>
+          
+          <div class="footer">
+            <div class="footer-signature">Human Resources Department</div>
+            <div>PT Rhayakan Film Indonesia</div>
+            <div style="margin-top: 15px; font-size: 12px; color: #999;">
+              This is an automated email from HR System. Please do not reply to this email.
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const text = `
+New Leave Approval Request
+
+Dear ${approver.name},
+
+You have received a new leave request that requires your approval.
+
+EMPLOYEE INFORMATION:
+• Employee: ${employee.name}
+• Employee ID: ${employee.nip || employee.id}
+• Division: ${employee.division?.name || 'N/A'}
+• Role: ${employee.role?.name || 'N/A'}
+
+LEAVE DETAILS:
+• Leave Type: ${leaveRequest.leaveType}
+• Start Date: ${formattedStartDate}
+• End Date: ${formattedEndDate}
+• Duration: ${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? 's' : ''}
+• Submitted: ${new Date(leaveRequest.createdAt).toLocaleString()}
+
+REASON:
+${leaveRequest.reason}
+
+Review this request: ${systemUrl}/leave/approval
+
+Please process this request at your earliest convenience.
+
+Best regards,
+Human Resources Department
+PT Rhayakan Film Indonesia
+  `;
+
+  return sendEmail({
+    to: approver.email,
+    cc: process.env.HR_EMAIL || 'hr@rhayaflicks.com',
+    subject: `[Action Required] Leave Approval Request from ${employee.name}`,
+    html: html,
+    text: text
+  });
+}
+
+/**
+ * Send leave approved notification to employee
+ */
+export async function sendLeaveApprovedEmail(employee, leaveRequest, approverName) {
+  const systemUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  
+  const formattedStartDate = new Date(leaveRequest.startDate).toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  
+  const formattedEndDate = new Date(leaveRequest.endDate).toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6;
+          color: ${BRAND_COLORS.textPrimary};
+          margin: 0;
+          padding: 0;
+          background-color: #F9F9F9;
+        }
+        .email-wrapper {
+          width: 100%;
+          background-color: #F9F9F9;
+          padding: 40px 20px;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          background: ${BRAND_COLORS.accent};
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header {
+          background: linear-gradient(135deg, #28A745 0%, #20C997 100%);
+          color: white;
+          padding: 40px 30px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 28px;
+          font-weight: 600;
+          letter-spacing: -0.5px;
+        }
+        .content {
+          padding: 40px 30px;
+        }
+        .content p {
+          margin: 0 0 20px 0;
+          font-size: 16px;
+          line-height: 1.8;
+        }
+        .status-badge {
+          display: inline-block;
+          background: #28A745;
+          color: white;
+          padding: 10px 24px;
+          border-radius: 25px;
+          font-weight: 600;
+          font-size: 14px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin: 20px 0;
+        }
+        .details-card {
+          background: ${BRAND_COLORS.cardBg};
+          border: 1px solid ${BRAND_COLORS.cardBorder};
+          border-radius: 10px;
+          padding: 25px;
+          margin: 30px 0;
+        }
+        .details-card h3 {
+          margin: 0 0 20px 0;
+          font-size: 18px;
+          font-weight: 600;
+          color: ${BRAND_COLORS.primary};
+          text-align: center;
+        }
+        .detail-row {
+          display: flex;
+          padding: 12px 0;
+          border-bottom: 1px solid ${BRAND_COLORS.cardBorder};
+        }
+        .detail-row:last-child {
+          border-bottom: none;
+        }
+        .detail-label {
+          font-weight: 600;
+          color: ${BRAND_COLORS.textPrimary};
+          min-width: 120px;
+          flex-shrink: 0;
+        }
+        .detail-value {
+          color: ${BRAND_COLORS.textSecondary};
+          flex: 1;
+        }
+        .celebration-box {
+          background: #E8F5E9;
+          border: 2px solid #28A745;
+          border-radius: 10px;
+          padding: 20px;
+          margin: 25px 0;
+          text-align: center;
+        }
+        .celebration-box h4 {
+          margin: 0 0 10px 0;
+          font-size: 18px;
+          font-weight: 600;
+          color: #28A745;
+        }
+        .celebration-box p {
+          margin: 5px 0;
+          color: ${BRAND_COLORS.textSecondary};
+        }
+        .button {
+          display: inline-block;
+          background: #28A745;
+          color: white;
+          padding: 14px 35px;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 15px;
+          margin-top: 25px;
+          transition: all 0.3s ease;
+        }
+        .button:hover {
+          background: #218838;
+        }
+        .footer {
+          padding: 30px;
+          background: ${BRAND_COLORS.cardBg};
+          text-align: center;
+          color: ${BRAND_COLORS.textSecondary};
+          font-size: 14px;
+          border-top: 1px solid ${BRAND_COLORS.cardBorder};
+        }
+        .footer-signature {
+          font-weight: 600;
+          color: ${BRAND_COLORS.textPrimary};
+          margin-bottom: 10px;
+        }
+        
+        @media only screen and (max-width: 600px) {
+          .email-wrapper { padding: 20px 10px; }
+          .content { padding: 30px 20px; }
+          .details-card { padding: 20px 15px; }
+          .detail-row { flex-direction: column; }
+          .detail-label { min-width: auto; margin-bottom: 5px; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="email-wrapper">
+        <div class="container">
+          <div class="header">
+            <h1>Leave Request Approved</h1>
+            <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">
+              Your leave has been approved!
+            </p>
+          </div>
+          
+          <div class="content">
+            <p>Dear <strong>${employee.name}</strong>,</p>
+            
+            <p>Great news! Your leave request has been approved.</p>
+            
+            <div style="text-align: center;">
+              <div class="status-badge">APPROVED</div>
+            </div>
+            
+            <div class="celebration-box">
+              <h4>Enjoy Your Time Off!</h4>
+              <p>Your leave has been confirmed and processed.</p>
+            </div>
+            
+            <div class="details-card">
+              <h3>Leave Details</h3>
+              
+              <div class="detail-row">
+                <div class="detail-label">Leave Type:</div>
+                <div class="detail-value"><strong>${leaveRequest.leaveType}</strong></div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Start Date:</div>
+                <div class="detail-value">${formattedStartDate}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">End Date:</div>
+                <div class="detail-value">${formattedEndDate}</div>
+              </div>
+              
+              <div class="detail-row" style="border-top: 2px solid #28A745; margin-top: 15px; padding-top: 15px;">
+                <div class="detail-label">Duration:</div>
+                <div class="detail-value"><strong style="color: #28A745; font-size: 18px;">${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? 's' : ''}</strong></div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Approved By:</div>
+                <div class="detail-value">${approverName}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Approved At:</div>
+                <div class="detail-value">${new Date(leaveRequest.approvedAt).toLocaleString('en-US', { 
+                  dateStyle: 'medium', 
+                  timeStyle: 'short' 
+                })}</div>
+              </div>
+            </div>
+            
+            <p style="text-align: center;">
+              <a href="${systemUrl}/leave/history" class="button">
+                View Leave History
+              </a>
+            </p>
+            
+            <p style="margin-top: 30px; font-size: 14px; color: ${BRAND_COLORS.textSecondary};">
+              Have a great time off! If you have any questions, please contact HR.
+            </p>
+          </div>
+          
+          <div class="footer">
+            <div class="footer-signature">Human Resources Department</div>
+            <div>PT Rhayakan Film Indonesia</div>
+            <div style="margin-top: 15px; font-size: 12px; color: #999;">
+              This is an automated email from HR System. Please do not reply to this email.
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const text = `
+Leave Request Approved
+
+Dear ${employee.name},
+
+Great news! Your leave request has been approved.
+
+LEAVE DETAILS:
+• Leave Type: ${leaveRequest.leaveType}
+• Start Date: ${formattedStartDate}
+• End Date: ${formattedEndDate}
+• Duration: ${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? 's' : ''}
+• Approved By: ${approverName}
+• Approved At: ${new Date(leaveRequest.approvedAt).toLocaleString()}
+
+View your leave history: ${systemUrl}/leave/history
+
+Have a great time off!
+
+Best regards,
+Human Resources Department
+PT Rhayakan Film Indonesia
+  `;
+
+  return sendEmail({
+    to: employee.email,
+    cc: process.env.HR_EMAIL || 'hr@rhayaflicks.com',
+    subject: `Leave Request Approved - ${leaveRequest.leaveType}`,
+    html: html,
+    text: text
+  });
+}
+
+/**
+ * Send leave rejected notification to employee
+ */
+export async function sendLeaveRejectedEmail(employee, leaveRequest, rejectionReason, approverName) {
+  const systemUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  
+  const formattedStartDate = new Date(leaveRequest.startDate).toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  
+  const formattedEndDate = new Date(leaveRequest.endDate).toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6;
+          color: ${BRAND_COLORS.textPrimary};
+          margin: 0;
+          padding: 0;
+          background-color: #F9F9F9;
+        }
+        .email-wrapper {
+          width: 100%;
+          background-color: #F9F9F9;
+          padding: 40px 20px;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          background: ${BRAND_COLORS.accent};
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header {
+          background: linear-gradient(135deg, #DC3545 0%, #C82333 100%);
+          color: white;
+          padding: 40px 30px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 28px;
+          font-weight: 600;
+          letter-spacing: -0.5px;
+        }
+        .content {
+          padding: 40px 30px;
+        }
+        .content p {
+          margin: 0 0 20px 0;
+          font-size: 16px;
+          line-height: 1.8;
+        }
+        .status-badge {
+          display: inline-block;
+          background: #DC3545;
+          color: white;
+          padding: 10px 24px;
+          border-radius: 25px;
+          font-weight: 600;
+          font-size: 14px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin: 20px 0;
+        }
+        .details-card {
+          background: ${BRAND_COLORS.cardBg};
+          border: 1px solid ${BRAND_COLORS.cardBorder};
+          border-radius: 10px;
+          padding: 25px;
+          margin: 30px 0;
+        }
+        .details-card h3 {
+          margin: 0 0 20px 0;
+          font-size: 18px;
+          font-weight: 600;
+          color: ${BRAND_COLORS.primary};
+          text-align: center;
+        }
+        .detail-row {
+          display: flex;
+          padding: 12px 0;
+          border-bottom: 1px solid ${BRAND_COLORS.cardBorder};
+        }
+        .detail-row:last-child {
+          border-bottom: none;
+        }
+        .detail-label {
+          font-weight: 600;
+          color: ${BRAND_COLORS.textPrimary};
+          min-width: 120px;
+          flex-shrink: 0;
+        }
+        .detail-value {
+          color: ${BRAND_COLORS.textSecondary};
+          flex: 1;
+        }
+        .rejection-box {
+          background: #FFF3CD;
+          border-left: 4px solid #DC3545;
+          padding: 20px;
+          margin: 25px 0;
+          border-radius: 4px;
+        }
+        .rejection-box h4 {
+          margin: 0 0 10px 0;
+          font-size: 16px;
+          font-weight: 600;
+          color: #856404;
+        }
+        .rejection-text {
+          color: ${BRAND_COLORS.textPrimary};
+          font-style: italic;
+          line-height: 1.6;
+        }
+        .button {
+          display: inline-block;
+          background: ${BRAND_COLORS.primary};
+          color: white;
+          padding: 14px 35px;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 15px;
+          margin-top: 25px;
+          transition: all 0.3s ease;
+        }
+        .button:hover {
+          background: ${BRAND_COLORS.secondary};
+        }
+        .footer {
+          padding: 30px;
+          background: ${BRAND_COLORS.cardBg};
+          text-align: center;
+          color: ${BRAND_COLORS.textSecondary};
+          font-size: 14px;
+          border-top: 1px solid ${BRAND_COLORS.cardBorder};
+        }
+        .footer-signature {
+          font-weight: 600;
+          color: ${BRAND_COLORS.textPrimary};
+          margin-bottom: 10px;
+        }
+        
+        @media only screen and (max-width: 600px) {
+          .email-wrapper { padding: 20px 10px; }
+          .content { padding: 30px 20px; }
+          .details-card { padding: 20px 15px; }
+          .detail-row { flex-direction: column; }
+          .detail-label { min-width: auto; margin-bottom: 5px; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="email-wrapper">
+        <div class="container">
+          <div class="header">
+            <h1>Leave Request Not Approved</h1>
+            <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">
+              Your leave request has been declined
+            </p>
+          </div>
+          
+          <div class="content">
+            <p>Dear <strong>${employee.name}</strong>,</p>
+            
+            <p>We regret to inform you that your leave request has not been approved.</p>
+            
+            <div style="text-align: center;">
+              <div class="status-badge">NOT APPROVED</div>
+            </div>
+            
+            <div class="details-card">
+              <h3>Request Details</h3>
+              
+              <div class="detail-row">
+                <div class="detail-label">Leave Type:</div>
+                <div class="detail-value"><strong>${leaveRequest.leaveType}</strong></div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Start Date:</div>
+                <div class="detail-value">${formattedStartDate}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">End Date:</div>
+                <div class="detail-value">${formattedEndDate}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Duration:</div>
+                <div class="detail-value">${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? 's' : ''}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Reviewed By:</div>
+                <div class="detail-value">${approverName}</div>
+              </div>
+            </div>
+            
+            <div class="rejection-box">
+              <h4>Reason for Rejection:</h4>
+              <div class="rejection-text">${rejectionReason}</div>
+            </div>
+            
+            <p style="margin-top: 30px;">
+              <strong>What to do next:</strong>
+            </p>
+            
+            <ul style="color: ${BRAND_COLORS.textSecondary}; padding-left: 20px;">
+              <li>Review the rejection reason above</li>
+              <li>You can submit a new leave request with adjusted dates if needed</li>
+              <li>Contact your supervisor or HR if you have questions</li>
+            </ul>
+            
+            <p style="text-align: center;">
+              <a href="${systemUrl}/leave/history" class="button">
+                View Leave History
+              </a>
+            </p>
+            
+            <p style="margin-top: 30px; font-size: 14px; color: ${BRAND_COLORS.textSecondary};">
+              If you have any questions or concerns, please contact your supervisor or HR department.
+            </p>
+          </div>
+          
+          <div class="footer">
+            <div class="footer-signature">Human Resources Department</div>
+            <div>PT Rhayakan Film Indonesia</div>
+            <div style="margin-top: 15px; font-size: 12px; color: #999;">
+              This is an automated email from HR System. Please do not reply to this email.
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const text = `
+Leave Request Not Approved
+
+Dear ${employee.name},
+
+We regret to inform you that your leave request has not been approved.
+
+REQUEST DETAILS:
+• Leave Type: ${leaveRequest.leaveType}
+• Start Date: ${formattedStartDate}
+• End Date: ${formattedEndDate}
+• Duration: ${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? 's' : ''}
+• Reviewed By: ${approverName}
+
+REASON FOR REJECTION:
+${rejectionReason}
+
+WHAT TO DO NEXT:
+1. Review the rejection reason above
+2. You can submit a new leave request with adjusted dates if needed
+3. Contact your supervisor or HR if you have questions
+
+View your leave history: ${systemUrl}/leave/history
+
+If you have any questions, please contact your supervisor or HR.
+
+Best regards,
+Human Resources Department
+PT Rhayakan Film Indonesia
+  `;
+
+  return sendEmail({
+    to: employee.email,
+    cc: process.env.HR_EMAIL || 'hr@rhayaflicks.com',
+    subject: `Leave Request Not Approved - ${leaveRequest.leaveType}`,
+    html: html,
+    text: text
+  });
+}
+
+/**
+ * Send leave reminder H-7 notification to division
+ * Sent 7 days before leave starts to:
+ * 1. Division head
+ * 2. All active employees in the same division
+ */
+export async function sendLeaveReminderH7Email(recipient, leaveRequest, employee) {
+  const systemUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  
+  const formattedStartDate = new Date(leaveRequest.startDate).toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  
+  const formattedEndDate = new Date(leaveRequest.endDate).toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6;
+          color: ${BRAND_COLORS.textPrimary};
+          margin: 0;
+          padding: 0;
+          background-color: #F9F9F9;
+        }
+        .email-wrapper {
+          width: 100%;
+          background-color: #F9F9F9;
+          padding: 40px 20px;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          background: ${BRAND_COLORS.accent};
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header {
+          background: linear-gradient(135deg, #17A2B8 0%, #138496 100%);
+          color: white;
+          padding: 40px 30px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 28px;
+          font-weight: 600;
+          letter-spacing: -0.5px;
+        }
+        .content {
+          padding: 40px 30px;
+        }
+        .content p {
+          margin: 0 0 20px 0;
+          font-size: 16px;
+          line-height: 1.8;
+        }
+        .info-badge {
+          display: inline-block;
+          background: #17A2B8;
+          color: white;
+          padding: 10px 24px;
+          border-radius: 25px;
+          font-weight: 600;
+          font-size: 14px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin: 20px 0;
+        }
+        .employee-card {
+          background: ${BRAND_COLORS.cardBg};
+          border: 1px solid ${BRAND_COLORS.cardBorder};
+          border-radius: 10px;
+          padding: 25px;
+          margin: 30px 0;
+        }
+        .employee-card h3 {
+          margin: 0 0 20px 0;
+          font-size: 18px;
+          font-weight: 600;
+          color: ${BRAND_COLORS.primary};
+          text-align: center;
+        }
+        .detail-row {
+          display: flex;
+          padding: 12px 0;
+          border-bottom: 1px solid ${BRAND_COLORS.cardBorder};
+        }
+        .detail-row:last-child {
+          border-bottom: none;
+        }
+        .detail-label {
+          font-weight: 600;
+          color: ${BRAND_COLORS.textPrimary};
+          min-width: 140px;
+          flex-shrink: 0;
+        }
+        .detail-value {
+          color: ${BRAND_COLORS.textSecondary};
+          flex: 1;
+        }
+        .highlight-box {
+          background: #E7F6F8;
+          border-left: 4px solid #17A2B8;
+          padding: 20px;
+          margin: 25px 0;
+          border-radius: 4px;
+        }
+        .highlight-box h4 {
+          margin: 0 0 10px 0;
+          font-size: 16px;
+          font-weight: 600;
+          color: #17A2B8;
+        }
+        .highlight-box p {
+          margin: 5px 0;
+          color: ${BRAND_COLORS.textPrimary};
+        }
+        .footer {
+          padding: 30px;
+          background: ${BRAND_COLORS.cardBg};
+          text-align: center;
+          color: ${BRAND_COLORS.textSecondary};
+          font-size: 14px;
+          border-top: 1px solid ${BRAND_COLORS.cardBorder};
+        }
+        .footer-signature {
+          font-weight: 600;
+          color: ${BRAND_COLORS.textPrimary};
+          margin-bottom: 10px;
+        }
+        
+        @media only screen and (max-width: 600px) {
+          .email-wrapper { padding: 20px 10px; }
+          .content { padding: 30px 20px; }
+          .employee-card { padding: 20px 15px; }
+          .detail-row { flex-direction: column; }
+          .detail-label { min-width: auto; margin-bottom: 5px; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="email-wrapper">
+        <div class="container">
+          <div class="header">
+            <h1>Leave Reminder Notice</h1>
+            <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">
+              Upcoming absence notification for your team
+            </p>
+          </div>
+          
+          <div class="content">
+            <p>Dear <strong>${recipient.name}</strong>,</p>
+            
+            <p>This is a reminder that <strong>${employee.name}</strong> from your division will be on leave starting in 7 days.</p>
+            
+            <div style="text-align: center;">
+              <div class="info-badge">UPCOMING LEAVE</div>
+            </div>
+            
+            <div class="employee-card">
+              <h3>Employee Information</h3>
+              
+              <div class="detail-row">
+                <div class="detail-label">Employee:</div>
+                <div class="detail-value"><strong>${employee.name}</strong></div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Employee ID:</div>
+                <div class="detail-value">${employee.nip || employee.id}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Division:</div>
+                <div class="detail-value">${employee.division?.name || 'N/A'}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Role:</div>
+                <div class="detail-value">${employee.role?.name || 'N/A'}</div>
+              </div>
+            </div>
+            
+            <div class="employee-card">
+              <h3>Leave Details</h3>
+              
+              <div class="detail-row">
+                <div class="detail-label">Leave Type:</div>
+                <div class="detail-value"><strong>${leaveRequest.leaveType}</strong></div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Start Date:</div>
+                <div class="detail-value">${formattedStartDate}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">End Date:</div>
+                <div class="detail-value">${formattedEndDate}</div>
+              </div>
+              
+              <div class="detail-row" style="border-top: 2px solid ${BRAND_COLORS.primary}; margin-top: 15px; padding-top: 15px;">
+                <div class="detail-label">Duration:</div>
+                <div class="detail-value"><strong style="color: ${BRAND_COLORS.primary}; font-size: 18px;">${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? 's' : ''}</strong></div>
+              </div>
+            </div>
+            
+            <div class="highlight-box">
+              <h4>Action Required</h4>
+              <p>Please plan accordingly for <strong>${employee.name}</strong>'s absence from <strong>${formattedStartDate}</strong> to <strong>${formattedEndDate}</strong>.</p>
+              <p style="margin-top: 10px;">If you need to reassign tasks or responsibilities, please coordinate with your team in advance.</p>
+            </div>
+            
+            <p style="margin-top: 30px; font-size: 14px; color: ${BRAND_COLORS.textSecondary};">
+              This is an automated reminder sent 7 days before the leave starts. If you have any questions, please contact HR.
+            </p>
+          </div>
+          
+          <div class="footer">
+            <div class="footer-signature">Human Resources Department</div>
+            <div>PT Rhayakan Film Indonesia</div>
+            <div style="margin-top: 15px; font-size: 12px; color: #999;">
+              This is an automated email from HR System. Please do not reply to this email.
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const text = `
+Leave Reminder Notice
+
+Dear ${recipient.name},
+
+This is a reminder that ${employee.name} from your division will be on leave starting in 7 days.
+
+EMPLOYEE INFORMATION:
+• Employee: ${employee.name}
+• Employee ID: ${employee.nip || employee.id}
+• Division: ${employee.division?.name || 'N/A'}
+• Role: ${employee.role?.name || 'N/A'}
+
+LEAVE DETAILS:
+• Leave Type: ${leaveRequest.leaveType}
+• Start Date: ${formattedStartDate}
+• End Date: ${formattedEndDate}
+• Duration: ${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? 's' : ''}
+
+ACTION REQUIRED:
+Please plan accordingly for ${employee.name}'s absence from ${formattedStartDate} to ${formattedEndDate}.
+
+If you need to reassign tasks or responsibilities, please coordinate with your team in advance.
+
+This is an automated reminder sent 7 days before the leave starts.
+
+Best regards,
+Human Resources Department
+PT Rhayakan Film Indonesia
+  `;
+
+  return sendEmail({
+    to: recipient.email,
+    subject: `[Reminder] Upcoming Team Leave - ${employee.name} (${formattedStartDate})`,
+    html: html,
+    text: text
+  });
+}
+
 export default {
   sendEmail,
   sendOvertimeApprovedEmail,
   sendOvertimeRejectedEmail,
   sendOvertimeRequestNotification,
   sendOvertimeRevisionRequestedEmail,
+  sendLeaveRequestNotification,
+  sendLeaveRejectedEmail,
   sendLeaveApprovedEmail,
   sendPayslipNotificationEmail,
   sendWelcomeEmail,
