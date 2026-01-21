@@ -30,4 +30,24 @@ router.post('/change-password',
   authController.changePassword
 );
 
+// POST /api/auth/forgot-password - Request password reset
+router.post('/forgot-password',
+  [
+    body('email').isEmail().withMessage('Valid email required')
+  ],
+  authController.requestPasswordReset
+);
+
+// GET /api/auth/verify-reset-token/:token - Verify token validity (optional)
+router.get('/verify-reset-token/:token', authController.verifyResetToken);
+
+// POST /api/auth/reset-password - Reset password with token
+router.post('/reset-password',
+  [
+    body('token').notEmpty().withMessage('Token required'),
+    body('newPassword').isLength({ min: 8 }).withMessage('Password min 8 characters')
+  ],
+  authController.resetPassword
+);
+
 export default router;

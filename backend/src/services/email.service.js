@@ -681,7 +681,7 @@ export async function sendPayslipNotificationEmail(user, payslip) {
       <div class="email-wrapper">
         <div class="container">
           <div class="header">
-            <h1>💰 Payslip Available</h1>
+            <h1>Payslip Available</h1>
           </div>
           
           <div class="content">
@@ -849,7 +849,7 @@ export async function sendWelcomeEmail(user, tempPassword) {
       <div class="email-wrapper">
         <div class="container">
           <div class="header">
-            <h1>Welcome to the Team! 🎉</h1>
+            <h1>Welcome to the Team!</h1>
           </div>
           
           <div class="content">
@@ -1441,7 +1441,7 @@ export async function sendOvertimeRequestNotification(approver, overtimeRequest,
             </div>
             
             <div class="employee-card">
-              <h3>⏰ Overtime Details</h3>
+              <h3>Overtime Details</h3>
               
               ${overtimeDatesHtml}
               
@@ -2714,12 +2714,21 @@ PT Rhayakan Film Indonesia
 }
 
 /**
- * Send leave reminder H-7 notification to division
- * Sent 7 days before leave starts to:
- * 1. Division head
- * 2. All active employees in the same division
+ * Send leave reminder H-7 notification - ONE consolidated email
+ * 
+ * TO (Priority Order):
+ * 1. Employee's Supervisor (if exists)
+ * 2. Division Head (if no supervisor)
+ * 3. HR (if no supervisor and no division head)
+ * 
+ * CC:
+ * 1. All division members (excluding employee taking leave)
+ * 2. All division heads in the company
+ * 3. HR (unless HR is already TO)
+ * 
+ * Smart deduplication ensures no one receives duplicate emails
  */
-export async function sendLeaveReminderH7Email(recipient, leaveRequest, employee) {
+export async function sendLeaveReminderH7Email(recipient, leaveRequest, employee, ccList = []) {
   const systemUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
   
   const formattedStartDate = new Date(leaveRequest.startDate).toLocaleDateString('en-US', { 
@@ -2992,7 +3001,442 @@ PT Rhayakan Film Indonesia
 
   return sendEmail({
     to: recipient.email,
+    cc: ccList.length > 0 ? ccList : undefined, // Only include CC if there are recipients
     subject: `[Reminder] Upcoming Team Leave - ${employee.name} (${formattedStartDate})`,
+    html: html,
+    text: text
+  });
+}
+
+/**
+ * Send password reset email with secure token link
+ * Add this to your email_service.js file
+ */
+export async function sendPasswordResetEmail(user, resetToken) {
+  const systemUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const resetUrl = `${systemUrl}/reset-password?token=${resetToken}`;
+  
+  // Token expires in 1 hour
+  const expirationTime = new Date();
+  expirationTime.setHours(expirationTime.getHours() + 1);
+  const formattedExpiration = expirationTime.toLocaleString('en-US', { 
+    dateStyle: 'medium', 
+    timeStyle: 'short' 
+  });
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6;
+          color: ${BRAND_COLORS.textPrimary};
+          margin: 0;
+          padding: 0;
+          background-color: #F9F9F9;
+        }
+        .email-wrapper {
+          width: 100%;
+          background-color: #F9F9F9;
+          padding: 40px 20px;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          background: ${BRAND_COLORS.accent};
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header {
+          background: linear-gradient(135deg, ${BRAND_COLORS.primary} 0%, ${BRAND_COLORS.secondary} 100%);
+          color: white;
+          padding: 40px 30px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 28px;
+          font-weight: 600;
+          letter-spacing: -0.5px;
+        }
+        .content {
+          padding: 40px 30px;
+        }
+        .content p {
+          margin: 0 0 20px 0;
+          font-size: 16px;
+          line-height: 1.8;
+        }
+        .info-box {
+          background: #E7F3FF;
+          border-left: 4px solid ${BRAND_COLORS.primary};
+          padding: 20px;
+          margin: 25px 0;
+          border-radius: 4px;
+        }
+        .info-box p {
+          margin: 5px 0;
+          color: ${BRAND_COLORS.textPrimary};
+        }
+        .button {
+          display: inline-block;
+          background: ${BRAND_COLORS.primary};
+          color: white;
+          padding: 16px 40px;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 16px;
+          margin: 20px 0;
+          transition: all 0.3s ease;
+        }
+        .button:hover {
+          background: ${BRAND_COLORS.secondary};
+        }
+        .security-warning {
+          background: #FFF3CD;
+          border-left: 4px solid #FFC107;
+          padding: 20px;
+          margin: 25px 0;
+          border-radius: 4px;
+        }
+        .security-warning h4 {
+          margin: 0 0 10px 0;
+          font-size: 16px;
+          font-weight: 600;
+          color: #856404;
+        }
+        .security-warning p {
+          margin: 5px 0;
+          color: ${BRAND_COLORS.textPrimary};
+        }
+        .footer {
+          padding: 30px;
+          background: ${BRAND_COLORS.cardBg};
+          text-align: center;
+          color: ${BRAND_COLORS.textSecondary};
+          font-size: 14px;
+          border-top: 1px solid ${BRAND_COLORS.cardBorder};
+        }
+        .footer-signature {
+          font-weight: 600;
+          color: ${BRAND_COLORS.textPrimary};
+          margin-bottom: 10px;
+        }
+        .link-text {
+          word-break: break-all;
+          color: ${BRAND_COLORS.textSecondary};
+          font-size: 12px;
+          margin-top: 15px;
+        }
+        
+        @media only screen and (max-width: 600px) {
+          .email-wrapper { padding: 20px 10px; }
+          .content { padding: 30px 20px; }
+          .button { display: block; width: 100%; text-align: center; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="email-wrapper">
+        <div class="container">
+          <div class="header">
+            <h1>Password Reset Request</h1>
+            <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">
+              Reset your HR System password
+            </p>
+          </div>
+          
+          <div class="content">
+            <p>Dear <strong>${user.name}</strong>,</p>
+            
+            <p>We received a request to reset your password for your HR System account. Click the button below to create a new password:</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetUrl}" class="button">
+                Reset Password
+              </a>
+            </div>
+            
+            <div class="info-box">
+              <p><strong>Request Details:</strong></p>
+              <p>Email: ${user.email}</p>
+              <p>Time: ${new Date().toLocaleString('en-US', { 
+                dateStyle: 'medium', 
+                timeStyle: 'short' 
+              })}</p>
+              <p>Expires: ${formattedExpiration}</p>
+            </div>
+            
+            <p>This link will expire in <strong>1 hour</strong> for security reasons. If you need a new link, you can request another password reset.</p>
+            
+            <div class="security-warning">
+              <h4>Security Notice</h4>
+              <p><strong>If you didn't request this password reset, please ignore this email.</strong> Your password will remain unchanged and secure.</p>
+              <p style="margin-top: 10px;">If you're concerned about your account security, please contact HR immediately.</p>
+            </div>
+            
+            <p style="margin-top: 30px; font-size: 14px; color: ${BRAND_COLORS.textSecondary};">
+              If the button doesn't work, copy and paste this link into your browser:
+            </p>
+            <div class="link-text">
+              ${resetUrl}
+            </div>
+          </div>
+          
+          <div class="footer">
+            <div class="footer-signature">Human Resources Department</div>
+            <div>PT Rhayakan Film Indonesia</div>
+            <div style="margin-top: 15px; font-size: 12px; color: #999;">
+              This is an automated email from HR System. Please do not reply to this email.
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const text = `
+Password Reset Request
+
+Dear ${user.name},
+
+We received a request to reset your password for your HR System account.
+
+To reset your password, click the link below or copy it into your browser:
+${resetUrl}
+
+Request Details:
+• Email: ${user.email}
+• Time: ${new Date().toLocaleString()}
+• Expires: ${formattedExpiration}
+
+This link will expire in 1 hour for security reasons.
+
+SECURITY NOTICE:
+If you didn't request this password reset, please ignore this email. 
+Your password will remain unchanged and secure.
+
+If you're concerned about your account security, please contact HR immediately.
+
+Best regards,
+Human Resources Department
+PT Rhayakan Film Indonesia
+  `;
+
+  return sendEmail({
+    to: user.email,
+    subject: 'Password Reset Request - HR System',
+    html: html,
+    text: text
+  });
+}
+
+/**
+ * Send password changed confirmation email
+ * Add this to your email_service.js file
+ */
+export async function sendPasswordChangedEmail(user) {
+  const systemUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6;
+          color: ${BRAND_COLORS.textPrimary};
+          margin: 0;
+          padding: 0;
+          background-color: #F9F9F9;
+        }
+        .email-wrapper {
+          width: 100%;
+          background-color: #F9F9F9;
+          padding: 40px 20px;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          background: ${BRAND_COLORS.accent};
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header {
+          background: linear-gradient(135deg, #28A745 0%, #20C997 100%);
+          color: white;
+          padding: 40px 30px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 28px;
+          font-weight: 600;
+          letter-spacing: -0.5px;
+        }
+        .content {
+          padding: 40px 30px;
+        }
+        .content p {
+          margin: 0 0 20px 0;
+          font-size: 16px;
+          line-height: 1.8;
+        }
+        .success-box {
+          background: #E8F5E9;
+          border-left: 4px solid #28A745;
+          padding: 20px;
+          margin: 25px 0;
+          border-radius: 4px;
+        }
+        .success-box p {
+          margin: 5px 0;
+          color: ${BRAND_COLORS.textPrimary};
+        }
+        .warning-box {
+          background: #FFF3CD;
+          border-left: 4px solid #FFC107;
+          padding: 20px;
+          margin: 25px 0;
+          border-radius: 4px;
+        }
+        .warning-box h4 {
+          margin: 0 0 10px 0;
+          font-size: 16px;
+          font-weight: 600;
+          color: #856404;
+        }
+        .warning-box p {
+          margin: 5px 0;
+          color: ${BRAND_COLORS.textPrimary};
+        }
+        .button {
+          display: inline-block;
+          background: #28A745;
+          color: white;
+          padding: 14px 35px;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 15px;
+          margin-top: 20px;
+          transition: all 0.3s ease;
+        }
+        .button:hover {
+          background: #218838;
+        }
+        .footer {
+          padding: 30px;
+          background: ${BRAND_COLORS.cardBg};
+          text-align: center;
+          color: ${BRAND_COLORS.textSecondary};
+          font-size: 14px;
+          border-top: 1px solid ${BRAND_COLORS.cardBorder};
+        }
+        .footer-signature {
+          font-weight: 600;
+          color: ${BRAND_COLORS.textPrimary};
+          margin-bottom: 10px;
+        }
+        
+        @media only screen and (max-width: 600px) {
+          .email-wrapper { padding: 20px 10px; }
+          .content { padding: 30px 20px; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="email-wrapper">
+        <div class="container">
+          <div class="header">
+            <h1>Password Successfully Changed</h1>
+            <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">
+              Your password has been updated
+            </p>
+          </div>
+          
+          <div class="content">
+            <p>Dear <strong>${user.name}</strong>,</p>
+            
+            <p>This email confirms that your HR System password was successfully changed.</p>
+            
+            <div class="success-box">
+              <p><strong>Change Details:</strong></p>
+              <p>Account: ${user.email}</p>
+              <p>Changed: ${new Date().toLocaleString('en-US', { 
+                dateStyle: 'medium', 
+                timeStyle: 'short' 
+              })}</p>
+            </div>
+            
+            <div class="warning-box">
+              <h4>Didn't make this change?</h4>
+              <p><strong>If you did not change your password, your account may be compromised.</strong></p>
+              <p style="margin-top: 10px;">Please contact HR immediately and change your password again to secure your account.</p>
+            </div>
+            
+            <p>You can now log in with your new password.</p>
+            
+            <div style="text-align: center;">
+              <a href="${systemUrl}/login" class="button">
+                Go to Login
+              </a>
+            </div>
+            
+            <p style="margin-top: 30px; font-size: 14px; color: ${BRAND_COLORS.textSecondary};">
+              If you have any questions, please contact the HR department.
+            </p>
+          </div>
+          
+          <div class="footer">
+            <div class="footer-signature">Human Resources Department</div>
+            <div>PT Rhayakan Film Indonesia</div>
+            <div style="margin-top: 15px; font-size: 12px; color: #999;">
+              This is an automated email from HR System. Please do not reply to this email.
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const text = `
+Password Successfully Changed
+
+Dear ${user.name},
+
+This email confirms that your HR System password was successfully changed.
+
+Change Details:
+• Account: ${user.email}
+• Changed: ${new Date().toLocaleString()}
+
+DIDN'T MAKE THIS CHANGE?
+If you did not change your password, your account may be compromised.
+Please contact HR immediately and change your password again to secure your account.
+
+You can now log in with your new password at: ${systemUrl}/login
+
+Best regards,
+Human Resources Department
+PT Rhayakan Film Indonesia
+  `;
+
+  return sendEmail({
+    to: user.email,
+    subject: 'Password Successfully Changed - HR System',
     html: html,
     text: text
   });
@@ -3009,5 +3453,7 @@ export default {
   sendLeaveApprovedEmail,
   sendPayslipNotificationEmail,
   sendWelcomeEmail,
-  sendOvertimeReminderEmail
+  sendOvertimeReminderEmail,
+  sendPasswordResetEmail,
+  sendPasswordChangedEmail
 };

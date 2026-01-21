@@ -51,6 +51,7 @@ model User {
   finalApprovals         OvertimeRequest[]      @relation("FinalApprover")
   supervisorOvertimes    OvertimeRequest[]      @relation("OvertimeSupervisor")
   overtimeRevisions      OvertimeRevision[]
+  PasswordReset          PasswordReset[]
   payslips               Payslip[]
   uploadedPayslips       Payslip[]              @relation("UploadedPayslips")
   recapDateAdjustments   RecapDateAdjustment[]  @relation("RecapDateAdjustedBy")
@@ -368,4 +369,20 @@ model RecapDateAdjustment {
 
   @@index([createdAt(sort: Desc)])
   @@map("RecapDateAdjustment")
+}
+
+model PasswordReset {
+  id        String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  used      Boolean   @default(false)
+  usedAt    DateTime?
+  ipAddress String?
+  createdAt DateTime  @default(now())
+  users     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([token])
+  @@index([userId])
 }

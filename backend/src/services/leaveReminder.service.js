@@ -125,94 +125,160 @@ export async function sendImmediateLeaveReminder(leaveRequestId) {
 
 /**
  * Send reminder emails for a specific leave to division
+ * Sends ONE consolidated email with all stakeholders
  * @param {Object} leave - Leave request with employee included
- * @returns {number} - Number of emails sent
+ * @returns {number} - Number of emails sent (should be 1)
  */
 async function sendReminderForLeave(leave) {
   const employee = leave.employee;
   const divisionId = employee.divisionId;
 
-  if (!divisionId) {
-    console.log(`[Leave Reminder] Employee ${employee.id} has no division, skipping`);
-    return 0;
+  console.log(`[Leave Reminder] Processing leave ${leave.id} for employee ${employee.name}`);
+
+  // Step 1: Determine TO recipient (priority order)
+  let toRecipient = null;
+  let toRecipientType = '';
+
+  // Priority 1: Employee's Supervisor
+  if (employee.supervisorId) {
+    const supervisor = await prisma.user.findUnique({
+      where: { id: employee.supervisorId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        employeeStatus: true
+      }
+    });
+
+    if (supervisor && supervisor.email && supervisor.employeeStatus !== 'Inactive') {
+      toRecipient = supervisor;
+      toRecipientType = 'Supervisor';
+      console.log(`[Leave Reminder] TO: Supervisor (${supervisor.email})`);
+    }
   }
 
-  // Get division with head
-  const division = await prisma.division.findUnique({
-    where: { id: divisionId },
+  // Priority 2: Division Head (if no supervisor)
+  if (!toRecipient && divisionId) {
+    const division = await prisma.division.findUnique({
+      where: { id: divisionId },
+      include: {
+        head: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            employeeStatus: true
+          }
+        }
+      }
+    });
+
+    if (division?.head && division.head.email && division.head.employeeStatus !== 'Inactive') {
+      toRecipient = division.head;
+      toRecipientType = 'Division Head';
+      console.log(`[Leave Reminder] TO: Division Head (${division.head.email})`);
+    }
+  }
+
+  // Priority 3: HR (if no supervisor and no division head)
+  if (!toRecipient) {
+    const hrEmail = process.env.HR_EMAIL || 'hr@rhayaflicks.com';
+    toRecipient = {
+      id: 'hr',
+      name: 'HR Department',
+      email: hrEmail
+    };
+    toRecipientType = 'HR (fallback)';
+    console.log(`[Leave Reminder] TO: HR (${hrEmail})`);
+  }
+
+  // Step 2: Build CC list
+  const ccEmails = new Set(); // Use Set to automatically handle duplicates
+
+  // CC 1: All division members (excluding the employee taking leave)
+  if (divisionId) {
+    const divisionMembers = await prisma.user.findMany({
+      where: {
+        divisionId: divisionId,
+        employeeStatus: { not: 'Inactive' },
+        id: { not: employee.id } // Exclude employee taking leave
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true
+      }
+    });
+
+    divisionMembers.forEach(member => {
+      if (member.email) {
+        ccEmails.add(member.email);
+      }
+    });
+
+    console.log(`[Leave Reminder] Added ${divisionMembers.length} division members to CC`);
+  }
+
+  // CC 2: All division heads (all divisions in company)
+  const allDivisions = await prisma.division.findMany({
+    where: {
+      headId: { not: null }
+    },
     include: {
-      users: {
-        where: {
-          employeeStatus: { not: 'Inactive' },
-          id: { not: employee.id } // Exclude the employee taking leave
-        },
+      head: {
         select: {
           id: true,
           name: true,
           email: true,
-          role: true,
-          division: true
+          employeeStatus: true
         }
       }
     }
   });
 
-  if (!division) {
-    console.log(`[Leave Reminder] Division ${divisionId} not found`);
+  allDivisions.forEach(division => {
+    if (division.head && division.head.email && division.head.employeeStatus !== 'Inactive') {
+      ccEmails.add(division.head.email);
+    }
+  });
+
+  console.log(`[Leave Reminder] Added ${allDivisions.length} division heads to CC`);
+
+  // CC 3: HR (unless HR is already the TO recipient)
+  const hrEmail = process.env.HR_EMAIL || 'hr@rhayaflicks.com';
+  if (toRecipient.email !== hrEmail) {
+    ccEmails.add(hrEmail);
+  }
+
+  // Step 3: Remove TO recipient from CC list (critical deduplication)
+  ccEmails.delete(toRecipient.email);
+
+  // Convert Set to Array
+  const ccList = Array.from(ccEmails).filter(email => email); // Remove any falsy values
+
+  console.log(`[Leave Reminder] Final CC count: ${ccList.length}`);
+  console.log(`[Leave Reminder] CC list: ${ccList.join(', ')}`);
+
+  // Step 4: Send ONE consolidated email
+  try {
+    if (!toRecipient.email) {
+      console.error(`[Leave Reminder] No valid TO recipient found for leave ${leave.id}`);
+      return 0;
+    }
+
+    await sendLeaveReminderH7Email(toRecipient, leave, employee, ccList);
+    
+    console.log(`✅ Leave reminder sent successfully`);
+    console.log(`   TO: ${toRecipient.email} (${toRecipientType})`);
+    console.log(`   CC: ${ccList.length} recipients`);
+
+    return 1; // One email sent
+
+  } catch (error) {
+    console.error(`❌ Failed to send leave reminder for leave ${leave.id}:`, error);
     return 0;
   }
-
-  const recipients = [];
-
-  // Add division head if exists and not the employee taking leave
-  if (division.headId && division.headId !== employee.id) {
-    const divisionHead = await prisma.user.findUnique({
-      where: { id: division.headId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        division: true,
-        employeeStatus: true
-      }
-    });
-
-    if (divisionHead && divisionHead.employeeStatus !== 'Inactive') {
-      recipients.push(divisionHead);
-    }
-  }
-
-  // Add all active division members (already filtered in query above)
-  recipients.push(...division.users);
-
-  // Remove duplicates by email
-  const uniqueRecipients = recipients.filter((recipient, index, self) =>
-    index === self.findIndex((r) => r.email === recipient.email)
-  );
-
-  console.log(`[Leave Reminder] Sending to ${uniqueRecipients.length} recipients for leave ${leave.id}`);
-
-  let sentCount = 0;
-
-  // Send email to each recipient
-  for (const recipient of uniqueRecipients) {
-    try {
-      if (!recipient.email) {
-        console.log(`[Leave Reminder] Recipient ${recipient.id} has no email, skipping`);
-        continue;
-      }
-
-      await sendLeaveReminderH7Email(recipient, leave, employee);
-      sentCount++;
-      console.log(`✅ Leave reminder sent to: ${recipient.email}`);
-
-    } catch (error) {
-      console.error(`❌ Failed to send reminder to ${recipient.email}:`, error);
-    }
-  }
-
-  return sentCount;
 }
 
 export default {
