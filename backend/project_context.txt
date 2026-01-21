@@ -1,0 +1,91 @@
+=== PROJECT STRUCTURE ===
+.
+├── README.md
+├── backup_before_migration.sql
+├── package-lock.json
+├── package.json
+├── prisma
+│   ├── migrations
+│   │   ├── 20251027084733_init
+│   │   │   └── migration.sql
+│   │   ├── 20251028090300_add_level_5_and_fix_fields
+│   │   │   └── migration.sql
+│   │   ├── 20251029043846_add_approval_fields
+│   │   │   └── migration.sql
+│   │   ├── 20251106093742_add_final_approver
+│   │   │   └── migration.sql
+│   │   ├── 20251106093943_remove_add_approver
+│   │   │   └── migration.sql
+│   │   ├── 20251107075434_fix_division_headid
+│   │   │   └── migration.sql
+│   │   ├── 20251111064443_add_leave_schema
+│   │   │   └── migration.sql
+│   │   ├── 20251112052417_add_balance_adjustment_log
+│   │   │   └── migration.sql
+│   │   ├── 20251113064218_remove_isactive_use_employee_status
+│   │   │   └── migration.sql
+│   │   ├── 20251118060949_add_payslips
+│   │   │   └── migration.sql
+│   │   ├── 20251118113332_add_overtime_recap_toil
+│   │   │   └── migration.sql
+│   │   ├── 20251119050523_remove_recap_payment_status
+│   │   │   └── migration.sql
+│   │   ├── 20251120070528_add_employee_fields
+│   │   │   └── migration.sql
+│   │   └── migration_lock.toml
+│   └── schema.prisma
+├── project_context.txt
+├── railway.json
+├── scripts
+│   ├── create-yearly-balances.js
+│   └── migrate-2026-balances.js
+├── src
+│   ├── config
+│   │   ├── database.js
+│   │   ├── storage.js
+│   │   └── upload.js
+│   ├── controllers
+│   │   ├── auth.controller.js
+│   │   ├── leave.controller.js
+│   │   ├── overtime.controller.js
+│   │   ├── overtimeRecap.controller.js
+│   │   ├── payslip.controller.js
+│   │   └── user.controller.js
+│   ├── index.js
+│   ├── middleware
+│   │   ├── auth.js
+│   │   ├── errorHandler.js
+│   │   └── recapLock.middleware.js
+│   ├── routes
+│   │   ├── auth.routes.js
+│   │   ├── division.routes.js
+│   │   ├── leave.routes.js
+│   │   ├── overtime.routes.js
+│   │   ├── overtimeRecap.routes.js
+│   │   ├── payslip.routes.js
+│   │   ├── role.routes.js
+│   │   └── user.routes.js
+│   ├── services
+│   │   ├── email.service.js
+│   │   ├── leave.service.js
+│   │   ├── leaveReminder.service.js
+│   │   ├── overtime.service.js
+│   │   ├── passwordResetToken.service.js
+│   │   └── scheduler.service.js
+│   └── utils
+├── test-email.js
+└── uploads
+    └── payslips
+        ├── 2025
+        │   ├── 10
+        │   ├── 11
+        │   └── 12
+        └── temp
+
+31 directories, 51 files
+
+=== PRISMA SCHEMA ===
+
+=== BACKEND PACKAGE.JSON ===
+
+=== FRONTEND PACKAGE.JSON ===

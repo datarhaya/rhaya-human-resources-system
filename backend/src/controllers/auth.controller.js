@@ -269,7 +269,7 @@ export const verifyResetToken = async (req, res, next) => {
         expiresAt: { gt: new Date() }
       },
       include: {
-        user: {
+        users: {  // ← Changed from 'user' to 'users'
           select: { id: true, email: true, employeeStatus: true }
         }
       }
@@ -289,7 +289,7 @@ export const verifyResetToken = async (req, res, next) => {
         
         if (isValid) {
           // Check if user is still active
-          if (record.user.employeeStatus === 'Inactive') {
+          if (record.users.employeeStatus === 'Inactive') {  // ← Changed from 'user' to 'users'
             return res.status(400).json({
               valid: false,
               message: 'User account is inactive'
@@ -298,17 +298,15 @@ export const verifyResetToken = async (req, res, next) => {
 
           return res.json({
             valid: true,
-            email: record.user.email
+            email: record.users.email  // ← Changed from 'user' to 'users'
           });
         }
       } catch (verifyError) {
         console.error('Token verification error:', verifyError);
-        // Continue to next token
         continue;
       }
     }
 
-    // Token not found or invalid
     return res.status(400).json({
       valid: false,
       message: 'Invalid or expired reset token'
@@ -343,7 +341,7 @@ export const resetPassword = async (req, res, next) => {
         expiresAt: { gt: new Date() }
       },
       include: {
-        user: true
+        users: true  // ← Changed from 'user' to 'users'
       }
     });
 
@@ -364,7 +362,7 @@ export const resetPassword = async (req, res, next) => {
     }
 
     // Check if user is still active
-    if (validRecord.user.employeeStatus === 'Inactive') {
+    if (validRecord.users.employeeStatus === 'Inactive') {  // ← Changed from 'user' to 'users'
       throw new AppError('User account is inactive', 400);
     }
 
@@ -393,11 +391,10 @@ export const resetPassword = async (req, res, next) => {
 
     // Send confirmation email
     try {
-      await sendPasswordChangedEmail(validRecord.user);
-      console.log(`✅ Password changed confirmation sent to: ${validRecord.user.email}`);
+      await sendPasswordChangedEmail(validRecord.users);  // ← Changed from 'user' to 'users'
+      console.log(`✅ Password changed confirmation sent to: ${validRecord.users.email}`);
     } catch (emailError) {
       console.error(`❌ Failed to send password changed email: ${emailError.message}`);
-      // Don't throw error, password was changed successfully
     }
 
     res.json({ 
