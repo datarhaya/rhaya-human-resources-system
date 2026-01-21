@@ -13,13 +13,17 @@ import {
   sendPasswordResetEmail,
   sendPasswordChangedEmail
 } from '../services/email.service.js';
+import { validatePassword } from '../utils/passwordValidator.js';
 
 // Login
 export const login = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        details: errors.array() 
+      });
     }
 
     const { username, password } = req.body;
@@ -50,14 +54,26 @@ export const login = async (req, res, next) => {
       }
     });
 
-    if (!user || user.employeeStatus === 'Inactive') {
-      throw new AppError('Invalid credentials', 401);
+    // User not found - use generic message for security
+    if (!user) {
+      return res.status(401).json({ 
+        error: 'Invalid username or password. Please check your credentials and try again.' 
+      });
+    }
+
+    // Check if user is inactive - specific message
+    if (user.employeeStatus === 'INACTIVE') {
+      return res.status(403).json({ 
+        error: 'Your account has been deactivated. Please contact HR for assistance.' 
+      });
     }
 
     // Check password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      throw new AppError('Invalid credentials', 401);
+      return res.status(401).json({ 
+        error: 'Invalid username or password. Please check your credentials and try again.' 
+      });
     }
 
     // Generate JWT token
@@ -70,8 +86,7 @@ export const login = async (req, res, next) => {
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
 
-    console.log('🔍 Sending user data:', userWithoutPassword);
-    console.log('🔍 Access level:', userWithoutPassword.accessLevel);
+    console.log('✅ Login successful:', userWithoutPassword.username);
 
     res.json({
       token,
@@ -81,7 +96,7 @@ export const login = async (req, res, next) => {
         username: user.username,
         email: user.email,
         name: user.name,
-        accessLevel: user.accessLevel,  // ✅ Make sure this is here
+        accessLevel: user.accessLevel,
         roleId: user.roleId,
         divisionId: user.divisionId,
         role: user.role,
@@ -91,7 +106,11 @@ export const login = async (req, res, next) => {
       }
     });
   } catch (error) {
-    next(error);
+    console.error('Login error:', error);
+    // Generic error message for security
+    res.status(500).json({ 
+      error: 'An error occurred during login. Please try again later.' 
+    });
   }
 };
 
@@ -130,13 +149,20 @@ export const getCurrentUser = async (req, res, next) => {
     });
 
     if (!user) {
-      throw new AppError('User not found', 404);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.employeeStatus === 'INACTIVE') {
+      return res.status(403).json({ 
+        error: 'Your account has been deactivated. Please contact HR for assistance.' 
+      });
     }
 
     const { password: _, ...userWithoutPassword } = user;
     res.json(userWithoutPassword);
   } catch (error) {
-    next(error);
+    console.error('Get current user error:', error);
+    res.status(500).json({ error: 'Failed to fetch user information' });
   }
 };
 
@@ -145,20 +171,46 @@ export const changePassword = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        details: errors.array() 
+      });
     }
 
     const { currentPassword, newPassword } = req.body;
+
+    // Validate new password strength
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.valid) {
+      return res.status(400).json({ 
+        error: 'Password does not meet security requirements',
+        details: passwordValidation.errors
+      });
+    }
 
     // Get user with password
     const user = await prisma.user.findUnique({
       where: { id: req.user.id }
     });
 
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
     // Verify current password
     const isValid = await bcrypt.compare(currentPassword, user.password);
     if (!isValid) {
-      throw new AppError('Current password is incorrect', 400);
+      return res.status(400).json({ 
+        error: 'Current password is incorrect' 
+      });
+    }
+
+    // Check if new password is same as current
+    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+    if (isSamePassword) {
+      return res.status(400).json({ 
+        error: 'New password must be different from current password' 
+      });
     }
 
     // Hash new password
@@ -173,9 +225,21 @@ export const changePassword = async (req, res, next) => {
       }
     });
 
+    // Send confirmation email
+    try {
+      await sendPasswordChangedEmail(user);
+      console.log(`✅ Password change confirmation sent to: ${user.email}`);
+    } catch (emailError) {
+      console.error(`⚠️ Failed to send password change email: ${emailError.message}`);
+      // Don't fail the request if email fails
+    }
+
     res.json({ message: 'Password changed successfully' });
   } catch (error) {
-    next(error);
+    console.error('Change password error:', error);
+    res.status(500).json({ 
+      error: 'Failed to change password. Please try again later.' 
+    });
   }
 };
 
@@ -184,7 +248,10 @@ export const requestPasswordReset = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        details: errors.array() 
+      });
     }
 
     const { email } = req.body;
@@ -204,7 +271,7 @@ export const requestPasswordReset = async (req, res, next) => {
     }
 
     // Check if user is active
-    if (user.employeeStatus === 'Inactive') {
+    if (user.employeeStatus === 'INACTIVE') {
       console.log(`[Password Reset] Inactive user attempted reset: ${email}`);
       return res.json({ message: successMessage });
     }
@@ -246,7 +313,9 @@ export const requestPasswordReset = async (req, res, next) => {
     res.json({ message: successMessage });
   } catch (error) {
     console.error('Password reset request error:', error);
-    next(error);
+    res.status(500).json({ 
+      error: 'Failed to process password reset request. Please try again later.' 
+    });
   }
 };
 
@@ -269,7 +338,7 @@ export const verifyResetToken = async (req, res, next) => {
         expiresAt: { gt: new Date() }
       },
       include: {
-        users: {  // ← Changed from 'user' to 'users'
+        users: {
           select: { id: true, email: true, employeeStatus: true }
         }
       }
@@ -289,7 +358,7 @@ export const verifyResetToken = async (req, res, next) => {
         
         if (isValid) {
           // Check if user is still active
-          if (record.users.employeeStatus === 'Inactive') {  // ← Changed from 'user' to 'users'
+          if (record.users.employeeStatus === 'INACTIVE') {
             return res.status(400).json({
               valid: false,
               message: 'User account is inactive'
@@ -298,7 +367,7 @@ export const verifyResetToken = async (req, res, next) => {
 
           return res.json({
             valid: true,
-            email: record.users.email  // ← Changed from 'user' to 'users'
+            email: record.users.email
           });
         }
       } catch (verifyError) {
@@ -307,6 +376,7 @@ export const verifyResetToken = async (req, res, next) => {
       }
     }
 
+    // Token not found or invalid
     return res.status(400).json({
       valid: false,
       message: 'Invalid or expired reset token'
@@ -325,13 +395,27 @@ export const resetPassword = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        details: errors.array() 
+      });
     }
 
     const { token, newPassword } = req.body;
 
     if (!token || !newPassword) {
-      throw new AppError('Token and new password are required', 400);
+      return res.status(400).json({ 
+        error: 'Token and new password are required' 
+      });
+    }
+
+    // Validate new password strength
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.valid) {
+      return res.status(400).json({ 
+        error: 'Password does not meet security requirements',
+        details: passwordValidation.errors
+      });
     }
 
     // Find all unused, non-expired tokens
@@ -341,7 +425,7 @@ export const resetPassword = async (req, res, next) => {
         expiresAt: { gt: new Date() }
       },
       include: {
-        users: true  // ← Changed from 'user' to 'users'
+        users: true
       }
     });
 
@@ -358,12 +442,16 @@ export const resetPassword = async (req, res, next) => {
     }
 
     if (!validRecord) {
-      throw new AppError('Invalid or expired reset token', 400);
+      return res.status(400).json({ 
+        error: 'Invalid or expired reset token. Please request a new password reset.' 
+      });
     }
 
     // Check if user is still active
-    if (validRecord.users.employeeStatus === 'Inactive') {  // ← Changed from 'user' to 'users'
-      throw new AppError('User account is inactive', 400);
+    if (validRecord.users.employeeStatus === 'INACTIVE') {
+      return res.status(403).json({ 
+        error: 'User account is inactive. Please contact HR for assistance.' 
+      });
     }
 
     // Hash new password
@@ -391,10 +479,11 @@ export const resetPassword = async (req, res, next) => {
 
     // Send confirmation email
     try {
-      await sendPasswordChangedEmail(validRecord.users);  // ← Changed from 'user' to 'users'
+      await sendPasswordChangedEmail(validRecord.users);
       console.log(`✅ Password changed confirmation sent to: ${validRecord.users.email}`);
     } catch (emailError) {
       console.error(`❌ Failed to send password changed email: ${emailError.message}`);
+      // Don't throw error, password was changed successfully
     }
 
     res.json({ 
@@ -402,6 +491,8 @@ export const resetPassword = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Reset password error:', error);
-    next(error);
+    res.status(500).json({ 
+      error: 'Failed to reset password. Please try again later.' 
+    });
   }
 };

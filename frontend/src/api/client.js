@@ -31,19 +31,50 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Handle 401 - redirect to login
-    if (error.response?.status === 401) {
+    const { response, config } = error;
+
+    // ========================================
+    // CRITICAL: Do NOT redirect on auth endpoints
+    // ========================================
+    const authEndpoints = [
+      '/auth/login',
+      '/auth/forgot-password',
+      '/auth/reset-password',
+      '/auth/verify-reset-token'
+    ];
+
+    const isAuthEndpoint = authEndpoints.some(endpoint => 
+      config?.url?.includes(endpoint)
+    );
+
+    // If it's an auth endpoint, let the component handle the error
+    if (isAuthEndpoint) {
+      return Promise.reject({
+        message: response?.data?.error || response?.data?.message || error.message || 'An error occurred',
+        status: response?.status,
+        data: response?.data
+      });
+    }
+
+    // ========================================
+    // Handle 401 on protected routes (token expired/invalid)
+    // ========================================
+    if (response?.status === 401) {
+      // Clear stored auth data
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      
+      // Redirect to login
       window.location.href = '/login';
     }
     
-    // Return formatted error
-    const message = error.response?.data?.error || 'An error occurred';
+    // ========================================
+    // Return formatted error for other cases
+    // ========================================
     return Promise.reject({
-      message: error.response?.data?.message || error.response?.data?.error || 'An error occurred',
-      status: error.response?.status,
-      data: error.response?.data  
+      message: response?.data?.message || response?.data?.error || error.message || 'An error occurred',
+      status: response?.status,
+      data: response?.data  
     });
   }
 );

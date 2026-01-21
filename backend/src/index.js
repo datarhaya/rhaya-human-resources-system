@@ -1,7 +1,9 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { errorHandler } from './middleware/errorHandler.js';
+import { generalLimiter } from './middleware/rateLimiter.js';
 
 // Import routes
 import authRoutes from './routes/auth.routes.js';
@@ -38,6 +40,8 @@ const allowedOrigins = [
   /\.pages\.dev$/, // All Cloudflare Pages subdomains
 ];
 
+app.set('trust proxy', 1);
+
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or Postman)
@@ -59,6 +63,22 @@ app.use(cors({
   },
   credentials: true
 }));
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // Needed if embedding external content
+  crossOriginResourcePolicy: { policy: "cross-origin" } // For CORS support
+}));
+
+app.use(generalLimiter);  // 100 requests per 15 minutes
+
 
 // Parse JSON and URL-encoded bodies
 app.use(express.json({ limit: '10mb' }));
