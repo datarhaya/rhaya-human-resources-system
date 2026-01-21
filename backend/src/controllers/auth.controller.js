@@ -275,23 +275,36 @@ export const verifyResetToken = async (req, res, next) => {
       }
     });
 
+    if (!resetRecords || resetRecords.length === 0) {
+      return res.status(400).json({
+        valid: false,
+        message: 'Invalid or expired reset token'
+      });
+    }
+
     // Check each token hash
     for (const record of resetRecords) {
-      const isValid = await verifyToken(token, record.token);
-      
-      if (isValid) {
-        // Check if user is still active
-        if (record.user.employeeStatus === 'Inactive') {
-          return res.status(400).json({
-            valid: false,
-            message: 'User account is inactive'
+      try {
+        const isValid = await verifyToken(token, record.token);
+        
+        if (isValid) {
+          // Check if user is still active
+          if (record.user.employeeStatus === 'Inactive') {
+            return res.status(400).json({
+              valid: false,
+              message: 'User account is inactive'
+            });
+          }
+
+          return res.json({
+            valid: true,
+            email: record.user.email
           });
         }
-
-        return res.json({
-          valid: true,
-          email: record.user.email
-        });
+      } catch (verifyError) {
+        console.error('Token verification error:', verifyError);
+        // Continue to next token
+        continue;
       }
     }
 
@@ -302,7 +315,10 @@ export const verifyResetToken = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Verify reset token error:', error);
-    next(error);
+    return res.status(500).json({
+      valid: false,
+      message: 'Server error verifying token'
+    });
   }
 };
 
