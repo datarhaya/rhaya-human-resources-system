@@ -1,6 +1,6 @@
 // frontend/src/pages/Login.jsx
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import apiClient from '../api/client';
@@ -26,10 +26,6 @@ export default function Login() {
 
     try {
       const response = await apiClient.post('/auth/login', formData);
-      
-      // console.log('Login response:', response.data);
-      // console.log('User data:', response.data.user);
-      // console.log('Access level:', response.data.user.accessLevel);
       
       login(response.data.token, response.data.user);
       navigate('/');
@@ -97,6 +93,16 @@ export default function Login() {
             </div>
           </div>
 
+          {/* Forgot Password Link */}
+          <div className="text-right">
+            <Link
+              to="/forgot-password"
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Forgot password?
+            </Link>
+          </div>
+
           {/* Submit Button */}
           <button
             type="submit"
@@ -106,14 +112,6 @@ export default function Login() {
             {loading ? t('login.signingIn') : t('login.signIn')}
           </button>
         </form>
-
-        {/* Footer */}
-        <div className="mt-6 text-center text-sm text-gray-600">
-          {/* <p>{t('login.defaultCredentials')}</p> */}
-          {/* <p className="font-mono bg-gray-50 p-2 rounded mt-1">
-            admin / admin123 
-          </p> */}
-        </div>
       </div>
     </div>
   );

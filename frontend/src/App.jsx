@@ -24,6 +24,9 @@ import UserManagement from './pages/UserManagement';
 import LeaveHistory from './pages/LeaveHistory';
 import LeaveApproval from './pages/LeaveApproval';
 import OvertimeRecapManagement from './pages/OvertimeRecapManagement';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+
 
 // Layout
 import Layout from './components/Layout';
@@ -96,6 +99,16 @@ function App() {
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
+
+          <Route path="/forgot-password" element={
+              <ForgotPassword />
+            } 
+          />
+
+          <Route path="/reset-password" element={
+              <ResetPassword />
+            } 
+          />
           
           {/* Protected routes */}
           <Route path="/" element={
