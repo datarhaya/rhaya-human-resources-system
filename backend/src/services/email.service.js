@@ -3013,7 +3013,7 @@ PT Rhayakan Film Indonesia
  * Add this to your email_service.js file
  */
 export async function sendPasswordResetEmail(user, resetToken) {
-  const systemUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const systemUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
   const resetUrl = `${systemUrl}/reset-password?token=${resetToken}`;
   
   // Token expires in 1 hour
