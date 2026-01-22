@@ -24,8 +24,18 @@ export default function PayslipManagement() {
     employeeId: '',
     year: new Date().getFullYear(),
     month: new Date().getMonth() + 1,
-    file: null
+    file: null,
+    sendNotification: true
   });
+
+  const [batchUploadData, setBatchUploadData] = useState({
+    year: new Date().getFullYear(),
+    month: new Date().getMonth() + 1,
+    files: [],
+    sendNotifications: true
+  });
+
+  const [showBatchModal, setShowBatchModal] = useState(false);  
 
   // Selected employee for searchable dropdown
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -96,19 +106,25 @@ export default function PayslipManagement() {
       formData.append('employeeId', uploadData.employeeId);
       formData.append('year', uploadData.year);
       formData.append('month', uploadData.month);
+      formData.append('sendNotification', uploadData.sendNotification); 
 
       await apiClient.post('/payslips/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-
-      alert('Payslip uploaded successfully');
+      
+      const notificationMsg = uploadData.sendNotification 
+        ? ' and email notification sent' 
+        : '';
+      alert(`Payslip uploaded successfully${notificationMsg}`);
+      
       setShowUploadModal(false);
       setShowWarningModal(false);
       setUploadData({
         employeeId: '',
         year: new Date().getFullYear(),
         month: new Date().getMonth() + 1,
-        file: null
+        file: null,
+        sendNotification: true  
       });
       setSelectedEmployee(null);
       setExistingPayslip(null);
@@ -116,6 +132,115 @@ export default function PayslipManagement() {
     } catch (error) {
       console.error('Upload error:', error);
       alert(error.response?.data?.error || 'Upload failed');
+    }
+  };
+
+  // Batch upload handler
+  const handleBatchUpload = async (e) => {
+    e.preventDefault();
+    
+    if (batchUploadData.files.length === 0) {
+      alert('Please select at least one PDF file');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const formData = new FormData();
+      
+      // Append all files
+      batchUploadData.files.forEach(file => {
+        formData.append('files', file);
+      });
+      
+      formData.append('year', batchUploadData.year);
+      formData.append('month', batchUploadData.month);
+      formData.append('sendNotifications', batchUploadData.sendNotifications);
+
+      const res = await apiClient.post('/payslips/batch-upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      const { success, failed, emailNotifications } = res.data.data;
+      
+      let message = `Batch upload complete:\n`;
+      message += `✅ ${success.length} payslips uploaded\n`;
+      if (failed.length > 0) {
+        message += `❌ ${failed.length} failed\n`;
+      }
+      if (emailNotifications) {
+        message += `📧 ${emailNotifications.sent} notifications sent`;
+      }
+
+      alert(message);
+      
+      setShowBatchModal(false);
+      setBatchUploadData({
+        year: new Date().getFullYear(),
+        month: new Date().getMonth() + 1,
+        files: [],
+        sendNotifications: true
+      });
+      fetchData();
+    } catch (error) {
+      console.error('Batch upload error:', error);
+      alert(error.response?.data?.error || 'Batch upload failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend notification for single payslip
+  const handleResendNotification = async (payslipId, employeeName) => {
+    if (!confirm(`Send payslip notification to ${employeeName}?`)) {
+      return;
+    }
+
+    try {
+      await apiClient.post(`/payslips/${payslipId}/notify`);
+      alert('Notification sent successfully');
+    } catch (error) {
+      console.error('Notification error:', error);
+      alert(error.response?.data?.error || 'Failed to send notification');
+    }
+  };
+
+  // Blast notification to all employees for the month
+  const handleBlastNotification = async () => {
+    if (!filterYear || !filterMonth) {
+      alert('Please select both Year and Month to send notifications');
+      return;
+    }
+
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
+    const periodText = `${monthNames[filterMonth - 1]} ${filterYear}`;
+
+    if (!confirm(`Send payslip notifications to ALL employees for ${periodText}?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await apiClient.post('/payslips/notify-all', {
+        year: filterYear,
+        month: filterMonth
+      });
+
+      const { notificationsSent, notificationsFailed } = res.data.data;
+      
+      let message = `Notifications sent!\n`;
+      message += `✅ ${notificationsSent} emails sent`;
+      if (notificationsFailed > 0) {
+        message += `\n❌ ${notificationsFailed} failed`;
+      }
+
+      alert(message);
+    } catch (error) {
+      console.error('Blast notification error:', error);
+      alert(error.response?.data?.error || 'Failed to send notifications');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -232,7 +357,21 @@ export default function PayslipManagement() {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Payslip Management</h1>
+      <h1 className="text-2xl font-bold text-gray-900">Payslip Management</h1>
+      
+      <div className="flex space-x-3">
+        {/* ADD: Batch Upload Button */}
+        <button
+          onClick={() => setShowBatchModal(true)}
+          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center space-x-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+          <span>Batch Upload</span>
+        </button>
+
+        {/* Existing Single Upload Button */}
         <button
           onClick={() => setShowUploadModal(true)}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
@@ -243,6 +382,7 @@ export default function PayslipManagement() {
           <span>Upload Payslip</span>
         </button>
       </div>
+    </div>
 
       {/* Filters */}
       <div className="mb-6 bg-white rounded-lg shadow p-4">
@@ -321,6 +461,23 @@ export default function PayslipManagement() {
             </select>
           </div>
         </div>
+
+        {filterYear && filterMonth && filteredPayslips.length > 0 && (
+          <div className="border-t mt-4 pt-4">
+            <button
+              onClick={handleBlastNotification}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              <span>Send Notifications to All ({filteredPayslips.length} employees)</span>
+            </button>
+            <p className="text-sm text-gray-500 mt-2">
+              Send email notifications to all employees with payslips for {filterMonth}/{filterYear}
+            </p>
+          </div>
+        )}
 
         <div className="mt-4">
           <button
@@ -428,6 +585,14 @@ export default function PayslipManagement() {
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
+                        </button>
+
+                        <button
+                          onClick={() => handleResendNotification(p.id, p.employee?.name)}
+                          className="text-green-600 hover:text-green-900"
+                          title="Resend notification email"
+                        >
+                          Resend Email
                         </button>
 
                         {/* Delete Button */}
@@ -561,6 +726,22 @@ export default function PayslipManagement() {
                 </p>
               </div>
 
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="sendNotification"
+                  checked={uploadData.sendNotification}
+                  onChange={(e) => setUploadData({
+                    ...uploadData,
+                    sendNotification: e.target.checked
+                  })}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="sendNotification" className="ml-2 block text-sm text-gray-900">
+                  Send email notification to employee
+                </label>
+              </div>
+
               {/* Buttons */}
               <div className="flex space-x-3 pt-4">
                 <button
@@ -584,6 +765,128 @@ export default function PayslipManagement() {
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
                 >
                   Check & Upload
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Batch Upload Modal */}
+      {showBatchModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Batch Upload Payslips</h2>
+            
+            <form onSubmit={handleBatchUpload}>
+              {/* Year */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Year
+                </label>
+                <select
+                  value={batchUploadData.year}
+                  onChange={(e) => setBatchUploadData({
+                    ...batchUploadData,
+                    year: parseInt(e.target.value)
+                  })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  required
+                >
+                  {yearOptions.map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Month */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Month
+                </label>
+                <select
+                  value={batchUploadData.month}
+                  onChange={(e) => setBatchUploadData({
+                    ...batchUploadData,
+                    month: parseInt(e.target.value)
+                  })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  required
+                >
+                  {['January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December']
+                    .map((month, idx) => (
+                      <option key={idx + 1} value={idx + 1}>{month}</option>
+                    ))
+                  }
+                </select>
+              </div>
+
+              {/* Files */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  PDF Files (multiple)
+                </label>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  multiple
+                  onChange={(e) => setBatchUploadData({
+                    ...batchUploadData,
+                    files: Array.from(e.target.files)
+                  })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  required
+                />
+                {batchUploadData.files.length > 0 && (
+                  <p className="text-sm text-gray-500 mt-2">
+                    {batchUploadData.files.length} file(s) selected
+                  </p>
+                )}
+                <p className="text-xs text-gray-500 mt-2">
+                  File naming: employeeId.pdf or employeeId_payslip_YYYY_MM.pdf
+                </p>
+              </div>
+
+              {/* Send Notifications Checkbox */}
+              <div className="mb-4 flex items-center">
+                <input
+                  type="checkbox"
+                  id="batchSendNotifications"
+                  checked={batchUploadData.sendNotifications}
+                  onChange={(e) => setBatchUploadData({
+                    ...batchUploadData,
+                    sendNotifications: e.target.checked
+                  })}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="batchSendNotifications" className="ml-2 block text-sm text-gray-900">
+                  Send email notifications to all employees
+                </label>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBatchModal(false);
+                    setBatchUploadData({
+                      year: new Date().getFullYear(),
+                      month: new Date().getMonth() + 1,
+                      files: [],
+                      sendNotifications: true
+                    });
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                >
+                  Upload {batchUploadData.files.length} File(s)
                 </button>
               </div>
             </form>

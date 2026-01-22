@@ -575,152 +575,6 @@ export async function sendOvertimeRejectedEmail(user, overtimeRequest) {
 }
 
 /**
- * Send payslip notification
- */
-export async function sendPayslipNotificationEmail(user, payslip) {
-  const month = payslip.month || payslip.paymentMonth || 'Current';
-  const year = payslip.year || payslip.paymentYear || new Date().getFullYear();
-
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <style>
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          line-height: 1.6;
-          color: ${BRAND_COLORS.textPrimary};
-          margin: 0;
-          padding: 0;
-          background-color: #F9F9F9;
-        }
-        .email-wrapper {
-          width: 100%;
-          background-color: #F9F9F9;
-          padding: 40px 20px;
-        }
-        .container {
-          max-width: 600px;
-          margin: 0 auto;
-          background: ${BRAND_COLORS.accent};
-          border-radius: 12px;
-          overflow: hidden;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        .header {
-          background: linear-gradient(135deg, ${BRAND_COLORS.primary} 0%, ${BRAND_COLORS.secondary} 100%);
-          color: ${BRAND_COLORS.accent};
-          padding: 40px 30px;
-          text-align: center;
-        }
-        .header h1 {
-          margin: 0;
-          font-size: 28px;
-          font-weight: 600;
-        }
-        .content {
-          padding: 40px 30px;
-          text-align: center;
-        }
-        .content p {
-          margin: 0 0 20px 0;
-          font-size: 16px;
-        }
-        .payslip-card {
-          background: ${BRAND_COLORS.cardBg};
-          border: 1px solid ${BRAND_COLORS.cardBorder};
-          border-radius: 10px;
-          padding: 35px 25px;
-          margin: 30px 0;
-        }
-        .payslip-card h2 {
-          margin: 0 0 10px 0;
-          font-size: 32px;
-          font-weight: 700;
-          color: ${BRAND_COLORS.primary};
-        }
-        .payslip-card p {
-          margin: 0;
-          color: ${BRAND_COLORS.textSecondary};
-          font-size: 15px;
-        }
-        .button {
-          display: inline-block;
-          background: ${BRAND_COLORS.primary};
-          color: white;
-          padding: 14px 35px;
-          text-decoration: none;
-          border-radius: 8px;
-          font-weight: 600;
-          font-size: 15px;
-          margin-top: 25px;
-        }
-        .footer {
-          padding: 30px;
-          background: ${BRAND_COLORS.cardBg};
-          text-align: center;
-          color: ${BRAND_COLORS.textSecondary};
-          font-size: 14px;
-          border-top: 1px solid ${BRAND_COLORS.cardBorder};
-        }
-        .footer-signature {
-          font-weight: 600;
-          color: ${BRAND_COLORS.textPrimary};
-          margin-bottom: 10px;
-        }
-        .footer-note {
-          font-size: 12px;
-          color: #999999;
-          margin-top: 15px;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="email-wrapper">
-        <div class="container">
-          <div class="header">
-            <h1>Payslip Available</h1>
-          </div>
-          
-          <div class="content">
-            <p>Hi <strong>${user.name}</strong>,</p>
-            <p>Your monthly payslip is now available for viewing and download.</p>
-            
-            <div class="payslip-card">
-              <h2>${month} ${year}</h2>
-              <p>Monthly Payslip</p>
-            </div>
-            
-            <p>Please review your payslip details and contact HR if you have any questions.</p>
-            
-            ${process.env.FRONTEND_URL ? `
-              <a href="${process.env.FRONTEND_URL}/payslips/my-payslips" class="button">
-                View Payslip
-              </a>
-            ` : ''}
-          </div>
-          
-          <div class="footer">
-            <div class="footer-signature">HR Team</div>
-            <div class="footer-text">Human Resources Department</div>
-            <div class="footer-note">This is an automated notification from the HR system.</div>
-          </div>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-
-  return sendEmail({
-    to: user.email,
-    subject: `Payslip Available - ${month} ${year}`,
-    html: html
-  });
-}
-
-/**
  * Send welcome email
  */
 export async function sendWelcomeEmail(user, tempPassword) {
@@ -3442,6 +3296,315 @@ PT Rhayakan Film Indonesia
   });
 }
 
+/**
+ * Send payslip available notification to employee
+ * Add this to your email_service.js file
+ */
+export async function sendPayslipNotificationEmail(employee, payslipDetails) {
+  const { year, month } = payslipDetails;
+  const systemUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const payslipUrl = `${systemUrl}/my-payslips`;
+  
+  // Format month name
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+  const monthName = monthNames[month - 1];
+  const periodText = `${monthName} ${year}`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6;
+          color: ${BRAND_COLORS.textPrimary};
+          margin: 0;
+          padding: 0;
+          background-color: #F9F9F9;
+        }
+        .email-wrapper {
+          width: 100%;
+          background-color: #F9F9F9;
+          padding: 40px 20px;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          background: ${BRAND_COLORS.accent};
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header {
+          background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+          color: white;
+          padding: 40px 30px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 28px;
+          font-weight: 600;
+          letter-spacing: -0.5px;
+        }
+        .header p {
+          margin: 10px 0 0 0;
+          font-size: 16px;
+          opacity: 0.9;
+        }
+        .content {
+          padding: 40px 30px;
+        }
+        .content p {
+          margin: 0 0 20px 0;
+          font-size: 16px;
+          line-height: 1.8;
+        }
+        .highlight-box {
+          background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
+          border-left: 4px solid #10B981;
+          padding: 20px;
+          margin: 25px 0;
+          border-radius: 8px;
+        }
+        .highlight-box h2 {
+          margin: 0 0 10px 0;
+          font-size: 20px;
+          font-weight: 600;
+          color: #065F46;
+        }
+        .highlight-box p {
+          margin: 5px 0;
+          font-size: 16px;
+          color: ${BRAND_COLORS.textPrimary};
+        }
+        .info-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 15px;
+          margin: 25px 0;
+        }
+        .info-item {
+          background: ${BRAND_COLORS.cardBg};
+          padding: 15px;
+          border-radius: 8px;
+          border: 1px solid ${BRAND_COLORS.cardBorder};
+        }
+        .info-label {
+          font-size: 13px;
+          color: ${BRAND_COLORS.textSecondary};
+          margin-bottom: 5px;
+        }
+        .info-value {
+          font-size: 16px;
+          font-weight: 600;
+          color: ${BRAND_COLORS.textPrimary};
+        }
+        .button {
+          display: inline-block;
+          background: #10B981;
+          color: white;
+          padding: 16px 40px;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 16px;
+          margin: 20px 0;
+          transition: all 0.3s ease;
+        }
+        .button:hover {
+          background: #059669;
+        }
+        .instructions {
+          background: #EFF6FF;
+          border-left: 4px solid #3B82F6;
+          padding: 20px;
+          margin: 25px 0;
+          border-radius: 4px;
+        }
+        .instructions h4 {
+          margin: 0 0 10px 0;
+          font-size: 16px;
+          font-weight: 600;
+          color: #1E40AF;
+        }
+        .instructions ol {
+          margin: 10px 0;
+          padding-left: 20px;
+        }
+        .instructions li {
+          margin: 8px 0;
+          color: ${BRAND_COLORS.textPrimary};
+        }
+        .footer {
+          padding: 30px;
+          background: ${BRAND_COLORS.cardBg};
+          text-align: center;
+          color: ${BRAND_COLORS.textSecondary};
+          font-size: 14px;
+          border-top: 1px solid ${BRAND_COLORS.cardBorder};
+        }
+        .footer-signature {
+          font-weight: 600;
+          color: ${BRAND_COLORS.textPrimary};
+          margin-bottom: 10px;
+        }
+        .security-note {
+          background: #FEF3C7;
+          border-left: 4px solid #F59E0B;
+          padding: 15px;
+          margin: 25px 0;
+          border-radius: 4px;
+          font-size: 14px;
+        }
+        
+        @media only screen and (max-width: 600px) {
+          .email-wrapper { padding: 20px 10px; }
+          .content { padding: 30px 20px; }
+          .info-grid { grid-template-columns: 1fr; }
+          .button { display: block; width: 100%; text-align: center; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="email-wrapper">
+        <div class="container">
+          <div class="header">
+            <h1>Your Payslip is Ready</h1>
+            <p>Your salary slip for ${periodText} is now available</p>
+          </div>
+          
+          <div class="content">
+            <p>Dear <strong>${employee.name}</strong>,</p>
+            
+            <p>Good news! Your payslip for <strong>${periodText}</strong> has been uploaded to the HR system and is now ready for download.</p>
+            
+            <div class="highlight-box">
+              <h2>Payslip Details</h2>
+              <p><strong>Period:</strong> ${periodText}</p>
+              <p><strong>Employee:</strong> ${employee.name}</p>
+              <p><strong>Status:</strong> Available for Download</p>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${payslipUrl}" class="button">
+                View My Payslips
+              </a>
+            </div>
+            
+            <div class="instructions">
+              <h4>How to Access Your Payslip:</h4>
+              <ol>
+                <li>Click the "View My Payslips" button above or log in to the HR system</li>
+                <li>Navigate to "My Payslips" section</li>
+                <li>Find the payslip for ${periodText}</li>
+                <li>Click "Download PDF" to save your payslip</li>
+              </ol>
+            </div>
+            
+            <div class="security-note">
+              <strong>Important:</strong> Your payslip contains confidential salary information. Please keep it secure and do not share it with unauthorized persons.
+            </div>
+            
+            <p>If you have any questions about your payslip or notice any discrepancies, please contact the HR department immediately.</p>
+            
+            <p style="margin-top: 30px; font-size: 14px; color: ${BRAND_COLORS.textSecondary};">
+              Direct link to payslips page:<br>
+              <a href="${payslipUrl}" style="color: #10B981;">${payslipUrl}</a>
+            </p>
+          </div>
+          
+          <div class="footer">
+            <div class="footer-signature">Human Resources Department</div>
+            <div>PT Rhayakan Film Indonesia</div>
+            <div style="margin-top: 15px; font-size: 12px; color: #999;">
+              This is an automated email from HR System. Please do not reply to this email.
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const text = `
+Your Payslip is Ready
+
+Dear ${employee.name},
+
+Your payslip for ${periodText} has been uploaded to the HR system and is now available for download.
+
+Payslip Details:
+- Period: ${periodText}
+- Employee: ${employee.name}
+- Status: Available for Download
+
+How to Access Your Payslip:
+1. Log in to the HR system at: ${systemUrl}
+2. Navigate to "My Payslips" section
+3. Find the payslip for ${periodText}
+4. Click "Download PDF" to save your payslip
+
+Direct link: ${payslipUrl}
+
+IMPORTANT: Your payslip contains confidential salary information. Please keep it secure.
+
+If you have any questions about your payslip or notice any discrepancies, please contact the HR department immediately.
+
+Best regards,
+Human Resources Department
+PT Rhayakan Film Indonesia
+  `;
+
+  return sendEmail({
+    to: employee.email,
+    subject: `Payslip Available - ${periodText}`,
+    html: html,
+    text: text
+  });
+}
+
+/**
+ * Send batch payslip upload notification (for bulk uploads)
+ * Use this when uploading multiple payslips at once
+ */
+export async function sendBatchPayslipNotification(employees, payslipDetails) {
+  const { year, month } = payslipDetails;
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+  const periodText = `${monthNames[month - 1]} ${year}`;
+
+  console.log(`[Payslip Notification] Sending batch notification for ${periodText} to ${employees.length} employees`);
+
+  let successCount = 0;
+  let failedCount = 0;
+  const failedEmails = [];
+
+  for (const employee of employees) {
+    try {
+      await sendPayslipNotificationEmail(employee, payslipDetails);
+      successCount++;
+      console.log(`✅ Payslip notification sent to: ${employee.email}`);
+    } catch (error) {
+      failedCount++;
+      failedEmails.push(employee.email);
+      console.error(`❌ Failed to send payslip notification to ${employee.email}:`, error.message);
+    }
+  }
+
+  console.log(`[Payslip Notification] Batch complete: ${successCount} sent, ${failedCount} failed`);
+
+  return {
+    success: successCount,
+    failed: failedCount,
+    failedEmails
+  };
+}
+
 export default {
   sendEmail,
   sendOvertimeApprovedEmail,
@@ -3451,9 +3614,10 @@ export default {
   sendLeaveRequestNotification,
   sendLeaveRejectedEmail,
   sendLeaveApprovedEmail,
-  sendPayslipNotificationEmail,
   sendWelcomeEmail,
   sendOvertimeReminderEmail,
   sendPasswordResetEmail,
-  sendPasswordChangedEmail
+  sendPasswordChangedEmail,
+  sendPayslipNotificationEmail,
+  sendBatchPayslipNotification
 };
