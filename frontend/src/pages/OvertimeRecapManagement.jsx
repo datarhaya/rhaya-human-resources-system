@@ -1,6 +1,6 @@
 // frontend/src/pages/OvertimeRecapManagement.jsx
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import apiClient from '../api/client';
 import * as XLSX from 'xlsx';
 import { format, parseISO, set } from 'date-fns';
