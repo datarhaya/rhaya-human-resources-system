@@ -16,8 +16,8 @@ const router = express.Router();
 router.post('/login', 
   loginLimiter,  // 5 attempts per 15 minutes
   [
-    body('username')
-      .notEmpty().withMessage('Username is required')
+    body('identifier')
+      .notEmpty().withMessage('NIP or Email is required')
       .trim(),
     body('password')
       .notEmpty().withMessage('Password is required')

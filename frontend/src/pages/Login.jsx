@@ -1,4 +1,6 @@
 // frontend/src/pages/Login.jsx
+// UPDATED: Login with NIP or Email
+
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -12,7 +14,7 @@ export default function Login() {
   const { t } = useTranslation();
   
   const [formData, setFormData] = useState({
-    username: '',
+    identifier: '',  // Changed from 'username' to 'identifier'
     password: ''
   });
   const [error, setError] = useState('');
@@ -20,8 +22,8 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); // Prevent default form submission
-    e.stopPropagation(); // Stop event propagation
+    e.preventDefault();
+    e.stopPropagation();
     
     setError('');
     setLoading(true);
@@ -36,7 +38,7 @@ export default function Login() {
       // Handle different error cases
       if (err.response?.status === 401) {
         // Invalid credentials
-        setError(err.response.data.error || 'Invalid username or password. Please check your credentials and try again.');
+        setError(err.response.data.error || 'Invalid NIP/Email or password. Please check your credentials and try again.');
       } else if (err.response?.status === 403) {
         // Account deactivated
         setError(err.response.data.error || 'Your account has been deactivated. Please contact HR for assistance.');
@@ -80,23 +82,27 @@ export default function Login() {
 
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Username */}
+          {/* NIP or Email */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              {t('login.username') || 'Username'}
+              {t('login.identifier') || 'NIP or Email'}
             </label>
             <input
               type="text"
-              value={formData.username}
-              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+              value={formData.identifier}
+              onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
               className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
                 error ? 'border-red-300 bg-red-50' : 'border-gray-300'
               }`}
-              placeholder={t('login.enterUsername') || 'Enter your username'}
+              placeholder={t('login.enterIdentifier') || 'Enter your NIP or Email'}
               required
               disabled={loading}
               autoComplete="username"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              {t('login.identifierHelp') || 
+               'You can use your NIP (employee ID) or email address'}
+            </p>
           </div>
 
           {/* Password */}

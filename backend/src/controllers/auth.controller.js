@@ -1,3 +1,6 @@
+// backend/src/controllers/auth.controller.js
+// UPDATED: Login with NIP or Email
+
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { validationResult } from 'express-validator';
@@ -15,7 +18,7 @@ import {
 } from '../services/email.service.js';
 import { validatePassword } from '../utils/passwordValidator.js';
 
-// Login
+// Login with NIP or Email
 export const login = async (req, res, next) => {
   try {
     const errors = validationResult(req);
@@ -26,43 +29,76 @@ export const login = async (req, res, next) => {
       });
     }
 
-    const { username, password } = req.body;
+    const { identifier, password } = req.body;
 
-    // Find user with subordinates
-    const user = await prisma.user.findUnique({
-      where: { username },
-      include: {
-        role: true,
-        division: true,
-        supervisor: {
-          select: { id: true, name: true, email: true }
-        },
-        subordinates: {
-          where: {
-            employeeStatus: { not: 'INACTIVE' }
+    // Determine if identifier is email or NIP
+    const isEmail = identifier.includes('@');
+
+    // Find user by NIP or Email
+    let user = null;
+    if (isEmail) {
+      user = await prisma.user.findUnique({
+        where: { email: identifier.toLowerCase() },
+        include: {
+          role: true,
+          division: true,
+          supervisor: {
+            select: { id: true, name: true, email: true }
           },
-          select: { 
-            id: true, 
-            name: true, 
-            email: true,
-            accessLevel: true,
-            role: {
-              select: { name: true }
+          subordinates: {
+            where: {
+              employeeStatus: { not: 'INACTIVE' }
+            },
+            select: { 
+              id: true, 
+              name: true, 
+              email: true,
+              accessLevel: true,
+              role: {
+                select: { name: true }
+              }
             }
           }
         }
-      }
-    });
+      });
+    } else {
+      user = await prisma.user.findUnique({
+        where: { nip: identifier },
+        include: {
+          role: true,
+          division: true,
+          supervisor: {
+            select: { id: true, name: true, email: true }
+          },
+          subordinates: {
+            where: {
+              employeeStatus: { not: 'INACTIVE' }
+            },
+            select: { 
+              id: true, 
+              name: true, 
+              email: true,
+              accessLevel: true,
+              role: {
+                select: { name: true }
+              }
+            }
+          }
+        }
+      });
+    }
 
     // User not found - use generic message for security
     if (!user) {
+      console.log(`❌ Login failed: User not found (${isEmail ? 'Email' : 'NIP'}: ${identifier})`);
       return res.status(401).json({ 
-        error: 'Invalid username or password. Please check your credentials and try again.' 
+        error: 'Invalid NIP/Email or password. Please check your credentials and try again.' 
       });
     }
 
     // Check if user is inactive - specific message
-    if (user.employeeStatus === 'INACTIVE') {
+    if (user.employeeStatus === 'Inactive') {
+      console.log(`⚠️ Login attempt by inactive user: ${user.name} (${identifier})`);
       return res.status(403).json({ 
         error: 'Your account has been deactivated. Please contact HR for assistance.' 
       });
@@ -71,8 +107,9 @@ export const login = async (req, res, next) => {
     // Check password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
+      console.log(`❌ Login failed: Invalid password for user ${user.name} (${identifier})`);
       return res.status(401).json({ 
-        error: 'Invalid username or password. Please check your credentials and try again.' 
+        error: 'Invalid NIP/Email or password. Please check your credentials and try again.' 
       });
     }
 
@@ -86,14 +123,15 @@ export const login = async (req, res, next) => {
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
 
-    console.log('✅ Login successful:', userWithoutPassword.username);
+    console.log(`✅ Login successful: ${user.name} (${isEmail ? 'Email' : 'NIP'}: ${identifier})`);
 
     res.json({
       token,
       user: {
         ...userWithoutPassword,
         id: user.id,
-        username: user.username,
+        username: user.username, // Keep for backwards compatibility
+        nip: user.nip,
         email: user.email,
         name: user.name,
         accessLevel: user.accessLevel,
@@ -117,6 +155,7 @@ export const login = async (req, res, next) => {
 
 // Logout (client-side handles token removal, this is just for logging)
 export const logout = async (req, res) => {
+  console.log(`📤 User logged out: ${req.user?.name || 'Unknown'}`);
   res.json({ message: 'Logged out successfully' });
 };
 
@@ -152,7 +191,7 @@ export const getCurrentUser = async (req, res, next) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    if (user.employeeStatus === 'INACTIVE') {
+    if (user.employeeStatus === 'Inactive') {
       return res.status(403).json({ 
         error: 'Your account has been deactivated. Please contact HR for assistance.' 
       });
@@ -234,6 +273,8 @@ export const changePassword = async (req, res, next) => {
       // Don't fail the request if email fails
     }
 
+    console.log(`✅ Password changed successfully for user: ${user.name}`);
+
     res.json({ message: 'Password changed successfully' });
   } catch (error) {
     console.error('Change password error:', error);
@@ -271,7 +312,7 @@ export const requestPasswordReset = async (req, res, next) => {
     }
 
     // Check if user is active
-    if (user.employeeStatus === 'INACTIVE') {
+    if (user.employeeStatus === 'Inactive') {
       console.log(`[Password Reset] Inactive user attempted reset: ${email}`);
       return res.json({ message: successMessage });
     }
@@ -358,7 +399,7 @@ export const verifyResetToken = async (req, res, next) => {
         
         if (isValid) {
           // Check if user is still active
-          if (record.users.employeeStatus === 'INACTIVE') {
+          if (record.users.employeeStatus === 'Inactive') {
             return res.status(400).json({
               valid: false,
               message: 'User account is inactive'
@@ -448,7 +489,7 @@ export const resetPassword = async (req, res, next) => {
     }
 
     // Check if user is still active
-    if (validRecord.users.employeeStatus === 'INACTIVE') {
+    if (validRecord.users.employeeStatus === 'Inactive') {
       return res.status(403).json({ 
         error: 'User account is inactive. Please contact HR for assistance.' 
       });
@@ -486,6 +527,8 @@ export const resetPassword = async (req, res, next) => {
       // Don't throw error, password was changed successfully
     }
 
+    console.log(`✅ Password reset successfully for user: ${validRecord.users.name}`);
+
     res.json({ 
       message: 'Password reset successfully. You can now log in with your new password.' 
     });
@@ -495,4 +538,14 @@ export const resetPassword = async (req, res, next) => {
       error: 'Failed to reset password. Please try again later.' 
     });
   }
+};
+
+export default {
+  login,
+  logout,
+  getCurrentUser,
+  changePassword,
+  requestPasswordReset,
+  verifyResetToken,
+  resetPassword
 };
