@@ -649,7 +649,7 @@ export const deactivateUser = async (req, res) => {
     }
 
     // Check if already inactive
-    if (user.employeeStatus === 'Inactive') {
+    if (user.employeeStatus === 'INACTIVE') {
       console.log('⚠️ User already inactive:', user.name);
       return res.status(400).json({
         error: 'User is already inactive'
@@ -660,7 +660,7 @@ export const deactivateUser = async (req, res) => {
     const deactivatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
-        employeeStatus: 'Inactive',
+        employeeStatus: 'INACTIVE',
         updatedAt: new Date()
       },
       select: {
