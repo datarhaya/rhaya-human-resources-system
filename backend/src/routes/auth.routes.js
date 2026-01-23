@@ -51,7 +51,7 @@ router.post('/forgot-password',
   [
     body('email')
       .isEmail().withMessage('Valid email is required')
-      .normalizeEmail()
+      .normalizeEmail({ gmail_remove_dots: false })
   ],
   authController.requestPasswordReset
 );
