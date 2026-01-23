@@ -183,6 +183,18 @@ export default function Layout({ children }) {
       });
     }
 
+    // ADMIN/HR MENUS (Level 1, 2)
+    if (user?.accessLevel >= 1 && user?.accessLevel <= 2) {
+      navItems.push(
+        {
+          path: '/users/manage',
+          label: t('nav.userManagement'),
+          icon: UsersIcon,
+          type: 'link'
+        },
+    );
+    }
+
     // Only add Approval dropdown if there are children
     if (approvalChildren.length > 0) {
       navItems.push({
@@ -199,12 +211,6 @@ export default function Layout({ children }) {
   // ADMIN/HR MENUS (Level 1, 2)
   if (user?.accessLevel >= 1 && user?.accessLevel <= 2) {
     navItems.push(
-      {
-        path: '/users/manage',
-        label: t('nav.userManagement'),
-        icon: UsersIcon,
-        type: 'link'
-      },
       {
         path: '/payslips/manage',
         label: t('nav.payslipManagement'),
