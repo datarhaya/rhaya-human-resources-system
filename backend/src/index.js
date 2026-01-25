@@ -14,6 +14,7 @@ import leaveRoutes from './routes/leave.routes.js';
 import overtimeRoutes from './routes/overtime.routes.js';
 import overtimeRecapRoutes from './routes/overtimeRecap.routes.js'; 
 import payslipRoutes from './routes/payslip.routes.js';
+import welcomeEmailRoutes from './routes/welcomeEmail.routes.js';
 
 // Import middleware
 import { authenticateToken } from './middleware/auth.js';
@@ -129,6 +130,8 @@ app.get('/', (req, res) => {
 
 // Authentication routes (public)
 app.use('/api/auth', authRoutes);
+app.use('/api/auth', welcomeEmailRoutes);
+
 
 // Protected routes (require authentication)
 app.use('/api/users', userRoutes);
