@@ -1,4 +1,6 @@
 // frontend/src/components/Layout.jsx
+// MOBILE-RESPONSIVE VERSION - Hamburger menu + sliding drawer on mobile
+
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -68,12 +70,30 @@ const UserIcon = () => (
   </svg>
 );
 
+// Hamburger Menu Icon
+const MenuIcon = () => (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+  </svg>
+);
+
+// Close Icon
+const CloseIcon = () => (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
+
 export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { t } = useTranslation();
+  
+  // Desktop: sidebar can be collapsed
+  // Mobile: sidebar is drawer (always starts closed)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isApprovalOpen, setIsApprovalOpen] = useState(false);
   const [hasSubordinates, setHasSubordinates] = useState(false);
 
@@ -81,6 +101,23 @@ export default function Layout({ children }) {
     logout();
     navigate('/login');
   };
+
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isMobileMenuOpen]);
 
   // Check if user has subordinates
   useEffect(() => {
@@ -208,27 +245,24 @@ export default function Layout({ children }) {
     }
   }
 
-  // ADMIN/HR MENUS (Level 1, 2)
+  // PAYSLIPS MANAGEMENT (Level 1, 2)
   if (user?.accessLevel >= 1 && user?.accessLevel <= 2) {
-    navItems.push(
-      {
-        path: '/payslips/manage',
-        label: t('nav.payslipManagement'),
-        icon: MoneyIcon,
-        type: 'link'
-      }
-    );
+    navItems.push({
+      path: '/payslips/manage',
+      label: t('nav.payslipManagement'),
+      icon: MoneyIcon,
+      type: 'link'
+    });
   }
 
+  // OVERTIME RECAP (Level 1, 2)
   if (user?.accessLevel >= 1 && user?.accessLevel <= 2) {
-    navItems.push(
-      {
-        path: '/overtime/recap-management',
-        label: t('nav.overtimeRecap'),
-        icon: ClockIcon,
-        type: 'link'
-      }
-    );
+    navItems.push({
+      path: '/overtime/recap-management',
+      label: t('nav.overtimeRecap'),
+      icon: ClockIcon,
+      type: 'link'
+    });
   }
 
   // INTERNAL POLICY (All users)
@@ -239,198 +273,273 @@ export default function Layout({ children }) {
     href: 'https://rhayaflicks.com/internalpolicy/'
   });
 
-
-  return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
-      <aside className={`${isSidebarOpen ? 'w-64' : 'w-20'} bg-white shadow-lg transition-all duration-300 flex flex-col relative`}>
-        {/* Logo */}
-        <div className="p-4 border-b">
-          {isSidebarOpen ? (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <span className="text-white font-bold text-xl">HR</span>
-                </div>
-                <div>
-                  <h1 className="font-bold text-lg">{t('login.title')}</h1>
-                  <p className="text-xs text-gray-500">Rhaya Flicks</p>
-                </div>
+  // Sidebar Content Component (reused for mobile and desktop)
+  const SidebarContent = ({ isMobile = false }) => (
+    <>
+      {/* Logo/Header */}
+      <div className="p-4 border-b">
+        {(isMobile || isSidebarOpen) ? (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                <span className="text-white font-bold text-xl">HR</span>
               </div>
-              {/* Collapse Button */}
+              <div>
+                <h1 className="font-bold text-lg">{t('login.title')}</h1>
+                <p className="text-xs text-gray-500">Rhaya Flicks</p>
+              </div>
+            </div>
+            {/* Close button for mobile, collapse for desktop */}
+            {isMobile ? (
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors lg:hidden"
+                aria-label="Close menu"
+              >
+                <CloseIcon />
+              </button>
+            ) : (
               <button
                 onClick={() => setIsSidebarOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors hidden lg:flex"
                 title="Collapse sidebar"
               >
                 <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
                 </svg>
               </button>
-            </div>
-          ) : (
-            /* Collapsed - Logo becomes expand button */
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center hover:bg-blue-700 transition-colors mx-auto"
-              title="Expand sidebar"
-            >
-              <span className="text-white font-bold text-xl">HR</span>
-            </button>
-          )}
-        </div>
+            )}
+          </div>
+        ) : (
+          /* Collapsed desktop - Logo becomes expand button */
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center hover:bg-blue-700 transition-colors mx-auto"
+            title="Expand sidebar"
+          >
+            <span className="text-white font-bold text-xl">HR</span>
+          </button>
+        )}
+      </div>
 
-        {/* Navigation - flex-1 to take available space */}
-        <nav className="p-4 space-y-2 flex-1 overflow-y-auto">
-          {navItems.map((item, index) => {
-            if (item.type === 'dropdown') {
-              const Icon = item.icon;
-              const hasActiveChild = item.children?.some(child => location.pathname === child.path);
-              
-              return (
-                <div key={index}>
-                  <button
-                    onClick={item.toggle}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
-                      hasActiveChild || isOnApprovalRoute
-                        ? 'bg-blue-50 text-blue-600'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <Icon />
-                      {isSidebarOpen && <span className="font-medium">{item.label}</span>}
-                    </div>
-                    {isSidebarOpen && (
-                      item.isOpen ? <ChevronDownIcon /> : <ChevronRightIcon />
-                    )}
-                  </button>
-                  
-                  {/* Dropdown Items */}
-                  {isSidebarOpen && item.isOpen && item.children && (
-                    <div className="ml-4 mt-1 space-y-1">
-                      {item.children.map((child) => {
-                        const isActive = location.pathname === child.path;
-                        return (
-                          <Link
-                            key={child.path}
-                            to={child.path}
-                            className={`flex items-center px-4 py-2 rounded-lg text-sm transition-colors ${
-                              isActive
-                                ? 'bg-blue-100 text-blue-700 font-medium'
-                                : 'text-gray-600 hover:bg-gray-50'
-                            }`}
-                          >
-                            <span className="w-2 h-2 rounded-full bg-gray-400 mr-3"></span>
-                            {child.label}
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            }
-            
-            // Check if external link
-            if (item.type === 'external') {
-              const Icon = item.icon;
-              return (
-                <a  
-                  key={item.label}
-                  href={item.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  <Icon />
-                  {isSidebarOpen && (
-                    <>
-                      <span className="font-medium">{item.label}</span>
-                      <svg className="w-4 h-4 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                    </>
-                  )}
-                </a>
-              );
-            }
-
-            // Regular link
+      {/* Navigation */}
+      <nav className="p-4 space-y-2 flex-1 overflow-y-auto">
+        {navItems.map((item, index) => {
+          if (item.type === 'dropdown') {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
-
+            const hasActiveChild = item.children?.some(child => location.pathname === child.path);
+            
             return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActive
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
+              <div key={index}>
+                <button
+                  onClick={item.toggle}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
+                    hasActiveChild || isOnApprovalRoute
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <Icon />
+                    {(isMobile || isSidebarOpen) && <span className="font-medium">{item.label}</span>}
+                  </div>
+                  {(isMobile || isSidebarOpen) && (
+                    item.isOpen ? <ChevronDownIcon /> : <ChevronRightIcon />
+                  )}
+                </button>
+                
+                {/* Dropdown Items */}
+                {(isMobile || isSidebarOpen) && item.isOpen && item.children && (
+                  <div className="ml-4 mt-1 space-y-1">
+                    {item.children.map((child) => {
+                      const isActive = location.pathname === child.path;
+                      return (
+                        <Link
+                          key={child.path}
+                          to={child.path}
+                          className={`flex items-center px-4 py-2 rounded-lg text-sm transition-colors ${
+                            isActive
+                              ? 'bg-blue-100 text-blue-700 font-medium'
+                              : 'text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          <span className="w-2 h-2 rounded-full bg-gray-400 mr-3"></span>
+                          {child.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+          
+          // Check if external link
+          if (item.type === 'external') {
+            const Icon = item.icon;
+            return (
+              <a  
+                key={item.label}
+                href={item.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 <Icon />
-                {isSidebarOpen && <span className="font-medium">{item.label}</span>}
-              </Link>
+                {(isMobile || isSidebarOpen) && (
+                  <>
+                    <span className="font-medium">{item.label}</span>
+                    <svg className="w-4 h-4 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </>
+                )}
+              </a>
             );
-          })}
-        </nav>
+          }
 
-        {/* User Info at Bottom */}
-        <div className="border-t bg-white p-4 space-y-3">
-          {/* Language Toggle */}
-          <LanguageToggle isSidebarOpen={isSidebarOpen} />
-          
-          {isSidebarOpen ? (
-            <div>
-              <div className="flex items-center space-x-3 mb-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-white font-semibold text-sm">
-                    {user?.name?.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{user?.name}</p>
-                  <p className="text-xs text-gray-500 truncate">{user?.role?.name}</p>
-                </div>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="w-full px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm hover:bg-red-100 flex items-center justify-center space-x-2 transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                <span>{t('nav.logout')}</span>
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center space-y-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+          // Regular link
+          const Icon = item.icon;
+          const isActive = location.pathname === item.path;
+
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                isActive
+                  ? 'bg-blue-50 text-blue-600'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <Icon />
+              {(isMobile || isSidebarOpen) && <span className="font-medium">{item.label}</span>}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* User Info at Bottom */}
+      <div className="border-t bg-white p-4 space-y-3">
+        {/* Language Toggle */}
+        <LanguageToggle isSidebarOpen={isMobile || isSidebarOpen} />
+        
+        {(isMobile || isSidebarOpen) ? (
+          <div>
+            <div className="flex items-center space-x-3 mb-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-white font-semibold text-sm">
                   {user?.name?.charAt(0).toUpperCase()}
                 </span>
               </div>
-              <button
-                onClick={handleLogout}
-                className="w-10 h-10 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 flex items-center justify-center transition-colors"
-                title={t('nav.logout')}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-              </button>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{user?.name}</p>
+                <p className="text-xs text-gray-500 truncate">{user?.role?.name}</p>
+              </div>
             </div>
-          )}
+            <button
+              onClick={handleLogout}
+              className="w-full px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm hover:bg-red-100 flex items-center justify-center space-x-2 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span>{t('nav.logout')}</span>
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center space-y-2">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+              <span className="text-white font-semibold text-sm">
+                {user?.name?.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="w-10 h-10 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 flex items-center justify-center transition-colors"
+              title={t('nav.logout')}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+
+  return (
+    <div className="flex h-screen bg-gray-100 overflow-hidden">
+      {/* MOBILE: Backdrop Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* MOBILE: Sliding Drawer Sidebar */}
+      <aside 
+        className={`
+          fixed top-0 left-0 h-full w-72 bg-white shadow-2xl z-50 
+          transform transition-transform duration-300 ease-in-out
+          lg:hidden
+          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
+        <div className="h-full flex flex-col">
+          <SidebarContent isMobile={true} />
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto">
-        <div className="p-8">
-          {children}
-        </div>
-      </main>
+      {/* DESKTOP: Regular Sidebar */}
+      <aside 
+        className={`
+          hidden lg:flex flex-col relative bg-white shadow-lg 
+          transition-all duration-300
+          ${isSidebarOpen ? 'w-64' : 'w-20'}
+        `}
+      >
+        <SidebarContent isMobile={false} />
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* MOBILE: Top Header Bar with Hamburger */}
+        <header className="lg:hidden bg-white border-b shadow-sm px-4 py-3 flex items-center justify-between sticky top-0 z-30">
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label="Open menu"
+          >
+            <MenuIcon />
+          </button>
+          
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">HR</span>
+            </div>
+            <div>
+              <h1 className="font-bold text-sm">{t('login.title')}</h1>
+            </div>
+          </div>
+
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+            <span className="text-white font-semibold text-xs">
+              {user?.name?.charAt(0).toUpperCase()}
+            </span>
+          </div>
+        </header>
+
+        {/* Main scrollable content */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-4 sm:p-6 lg:p-8">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

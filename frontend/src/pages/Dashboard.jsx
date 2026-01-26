@@ -1,4 +1,6 @@
 // frontend/src/pages/Dashboard.jsx
+// MOBILE-RESPONSIVE VERSION - Optimized for all screen sizes
+
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -50,24 +52,35 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Header */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+    <div className="space-y-4 sm:space-y-6">
+      {/* Welcome Header - Mobile Optimized */}
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start">
+          <div className="flex-1">
+            {/* Responsive heading - smaller on mobile */}
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 break-words">
               {t('dashboard.welcomeBack', { name: user?.name })}
             </h1>
-            <p className="text-gray-600 mt-2">
-              {user?.role?.name} • {user?.division?.name}
+            
+            {/* Role & Division - Wrappable on mobile */}
+            <div className="flex flex-wrap items-center gap-2 mt-2 text-sm sm:text-base">
+              <p className="text-gray-600">
+                {user?.role?.name}
+              </p>
+              <span className="text-gray-400">•</span>
+              <p className="text-gray-600 break-words">
+                {user?.division?.name}
+              </p>
               {user?.accessLevel === 5 && (
-                <span className="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">
+                <span className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full whitespace-nowrap">
                   {t('dashboard.intern')}
                 </span>
               )}
-            </p>
+            </div>
+            
+            {/* Supervisor info */}
             {user?.supervisor && (
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-xs sm:text-sm text-gray-500 mt-1 break-words">
                 {t('dashboard.reportsTo')} {user.supervisor.name}
               </p>
             )}
@@ -75,126 +88,190 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* Stats Cards - Mobile Optimized Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+        {/* Leave Balance Card */}
         <div 
-          className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-md transition-shadow"
+          className="bg-white rounded-lg shadow p-4 sm:p-6 cursor-pointer hover:shadow-md transition-shadow active:scale-98"
           onClick={() => navigate('/leave/history')}
         >
           <div className="flex items-center justify-between mb-2">
-            <div className="text-sm text-gray-600">{t('dashboard.leaveBalance')}</div>
-            <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="text-xs sm:text-sm text-gray-600 font-medium">
+              {t('dashboard.leaveBalance')}
+            </div>
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
-          <div className="text-3xl font-bold text-blue-600">
+          <div className="text-2xl sm:text-3xl font-bold text-blue-600">
             {loading ? (
-              <span className="text-2xl">...</span>
+              <span className="text-xl sm:text-2xl">...</span>
             ) : leaveBalance ? (
-              `${((leaveBalance?.annualRemaining || 0) + (leaveBalance?.toilBalance || 0))} ${t('dashboard.days')}`
+              <>
+                {((leaveBalance?.annualRemaining || 0) + (leaveBalance?.toilBalance || 0))}{' '}
+                <span className="text-base sm:text-lg text-gray-600">{t('dashboard.days')}</span>
+              </>
             ) : (
-              `0 ${t('dashboard.days')}`
+              <>
+                0 <span className="text-base sm:text-lg text-gray-600">{t('dashboard.days')}</span>
+              </>
             )}
           </div>
-          <div className="text-xs text-gray-500 mt-1">
-            {/* {t('dashboard.annualLeaveRemaining')} • {t('dashboard.clickToView')} */}
-            {t('leave.annual')}: {leaveBalance?.annualRemaining || 0} | {t('leave.toilBalance')}: {leaveBalance?.toilBalance || 0} • {t('dashboard.clickToView')}
+          <div className="text-xs text-gray-500 mt-1 break-words">
+            {t('leave.annual')}: {leaveBalance?.annualRemaining || 0} | {t('leave.toilBalance')}: {leaveBalance?.toilBalance || 0}
+          </div>
+          <div className="text-xs text-blue-600 mt-1 font-medium">
+            {t('dashboard.clickToView')} →
           </div>
         </div>
         
+        {/* Overtime Balance Card */}
         <div 
-          className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-md transition-shadow"
+          className="bg-white rounded-lg shadow p-4 sm:p-6 cursor-pointer hover:shadow-md transition-shadow active:scale-98"
           onClick={() => navigate('/overtime/history')}
         >
           <div className="flex items-center justify-between mb-2">
-            <div className="text-sm text-gray-600">{t('dashboard.overtimeBalance')}</div>
-            <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="text-xs sm:text-sm text-gray-600 font-medium">
+              {t('dashboard.overtimeBalance')}
+            </div>
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <div className="text-3xl font-bold text-green-600">
+          <div className="text-2xl sm:text-3xl font-bold text-green-600">
             {loading ? (
-              <span className="text-2xl">...</span>
+              <span className="text-xl sm:text-2xl">...</span>
             ) : overtimeBalance ? (
-              overtimeBalance.currentBalance.toFixed(1)
+              <>
+                {overtimeBalance.currentBalance.toFixed(1)}{' '}
+                <span className="text-base sm:text-lg text-gray-600">hrs</span>
+              </>
             ) : (
-              '0.0'
+              <>
+                0.0 <span className="text-base sm:text-lg text-gray-600">hrs</span>
+              </>
             )}
           </div>
           <div className="text-xs text-gray-500 mt-1">
-            {t('dashboard.hoursApproved')} • {t('dashboard.clickToView')}
+            {t('dashboard.hoursApproved')}
+          </div>
+          <div className="text-xs text-green-600 mt-1 font-medium">
+            {t('dashboard.clickToView')} →
           </div>
         </div>
         
+        {/* Pending Requests Card */}
         <div 
-          className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-md transition-shadow"
+          className="bg-white rounded-lg shadow p-4 sm:p-6 cursor-pointer hover:shadow-md transition-shadow active:scale-98"
           onClick={() => navigate('/overtime/history')}
         >
           <div className="flex items-center justify-between mb-2">
-            <div className="text-sm text-gray-600">{t('dashboard.pendingRequests')}</div>
-            <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="text-xs sm:text-sm text-gray-600 font-medium">
+              {t('dashboard.pendingRequests')}
+            </div>
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <div className="text-3xl font-bold text-orange-600">
+          <div className="text-2xl sm:text-3xl font-bold text-orange-600">
             {loading ? (
-              <span className="text-2xl">...</span>
+              <span className="text-xl sm:text-2xl">...</span>
             ) : (
               pendingRequests || 0
             )}
           </div>
           <div className="text-xs text-gray-500 mt-1">
-            {t('dashboard.awaitingApproval')} • {t('dashboard.clickToView')}
+            {t('dashboard.awaitingApproval')}
+          </div>
+          <div className="text-xs text-orange-600 mt-1 font-medium">
+            {t('dashboard.clickToView')} →
           </div>
         </div>
         
+        {/* Payslips Card */}
         <div 
-          className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-md transition-shadow"
+          className="bg-white rounded-lg shadow p-4 sm:p-6 cursor-pointer hover:shadow-md transition-shadow active:scale-98"
           onClick={() => navigate('/payslips/my-payslips')}
         >
           <div className="flex items-center justify-between mb-2">
-            <div className="text-sm text-gray-600">{t('dashboard.payslips')}</div>
-            <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="text-xs sm:text-sm text-gray-600 font-medium">
+              {t('dashboard.payslips')}
+            </div>
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
           </div>
-          <div className="text-3xl font-bold text-purple-600">0</div>
-          <div className="text-xs text-gray-500 mt-1">{t('dashboard.availableToDownload')}</div>
+          <div className="text-2xl sm:text-3xl font-bold text-purple-600">0</div>
+          <div className="text-xs text-gray-500 mt-1">
+            {t('dashboard.availableToDownload')}
+          </div>
+          <div className="text-xs text-purple-600 mt-1 font-medium">
+            {t('dashboard.clickToView')} →
+          </div>
         </div>
       </div>
 
-      {/* User Info Card */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-bold mb-4">{t('dashboard.profileInformation')}</h2>
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <span className="text-gray-600">{t('dashboard.username')}:</span>
-            <span className="ml-2 font-medium">{user?.username}</span>
+      {/* User Info Card - Mobile Optimized */}
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">
+          {t('dashboard.profileInformation')}
+        </h2>
+        
+        {/* Mobile: Single column, Tablet+: Two columns */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
+          <div className="flex flex-col sm:flex-row sm:items-start">
+            <span className="text-gray-600 text-xs sm:text-sm font-medium mb-1 sm:mb-0">
+              {t('dashboard.username')}:
+            </span>
+            <span className="font-medium text-gray-900 sm:ml-2 break-all">
+              {user?.username}
+            </span>
           </div>
-          <div>
-            <span className="text-gray-600">{t('dashboard.email')}:</span>
-            <span className="ml-2 font-medium">{user?.email}</span>
+          
+          <div className="flex flex-col sm:flex-row sm:items-start">
+            <span className="text-gray-600 text-xs sm:text-sm font-medium mb-1 sm:mb-0">
+              {t('dashboard.email')}:
+            </span>
+            <span className="font-medium text-gray-900 sm:ml-2 break-all">
+              {user?.email}
+            </span>
           </div>
-          <div>
-            <span className="text-gray-600">{t('dashboard.accessLevel')}:</span>
-            <span className="ml-2 font-medium">
+          
+          <div className="flex flex-col sm:flex-row sm:items-start">
+            <span className="text-gray-600 text-xs sm:text-sm font-medium mb-1 sm:mb-0">
+              {t('dashboard.accessLevel')}:
+            </span>
+            <span className="font-medium text-gray-900 sm:ml-2">
               {getAccessLevelLabel(user?.accessLevel)}
             </span>
           </div>
-          <div>
-            <span className="text-gray-600">{t('dashboard.status')}:</span>
-            <span className="ml-2 font-medium">{user?.employeeStatus}</span>
+          
+          <div className="flex flex-col sm:flex-row sm:items-start">
+            <span className="text-gray-600 text-xs sm:text-sm font-medium mb-1 sm:mb-0">
+              {t('dashboard.status')}:
+            </span>
+            <span className="font-medium text-gray-900 sm:ml-2">
+              {user?.employeeStatus}
+            </span>
           </div>
+          
           {user?.supervisor && (
-            <div className="col-span-2">
-              <span className="text-gray-600">{t('dashboard.supervisor')}:</span>
-              <span className="ml-2 font-medium">{user.supervisor.name}</span>
+            <div className="flex flex-col sm:col-span-2">
+              <span className="text-gray-600 text-xs sm:text-sm font-medium mb-1">
+                {t('dashboard.supervisor')}:
+              </span>
+              <span className="font-medium text-gray-900 break-words">
+                {user.supervisor.name}
+              </span>
             </div>
           )}
+          
           {user?.subordinates && user.subordinates.length > 0 && (
-            <div className="col-span-2">
-              <span className="text-gray-600">{t('dashboard.subordinates')}:</span>
-              <span className="ml-2 font-medium">
+            <div className="flex flex-col sm:col-span-2">
+              <span className="text-gray-600 text-xs sm:text-sm font-medium mb-1">
+                {t('dashboard.subordinates')}:
+              </span>
+              <span className="font-medium text-gray-900">
                 {user.subordinates.length} {user.subordinates.length > 1 ? t('dashboard.employees') : t('dashboard.employee')}
               </span>
             </div>
