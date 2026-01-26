@@ -18,6 +18,7 @@ export default function LeaveApproval() {
   const [actionType, setActionType] = useState(''); // 'approve' or 'reject'
   const [comment, setComment] = useState('');
   const [divisions, setDivisions] = useState([]);
+  const [pendingCount, setPendingCount] = useState(0);
 
   // Filter state
   const [filters, setFilters] = useState({
@@ -70,13 +71,19 @@ export default function LeaveApproval() {
       let response;
       if (activeTab === 'pending') {
         response = await apiClient.get('/leave/pending-approval/list');
+        // If we are on the pending tab, we know exactly how many there are
+        setPendingCount(response.data.data?.length || 0);
       } else if (isAdmin) {
         const status = activeTab === 'all' ? '' : activeTab.toUpperCase();
         response = await apiClient.get(`/leave/admin/all-requests${status ? `?status=${status}` : ''}`);
-      } else {
-        // Non-admin can only see pending
-        response = { data: { data: [] } };
+        
+        // If we are on the 'ALL' tab, update the pending count specifically
+        if (activeTab === 'all') {
+          const count = response.data.data?.filter(r => r.status === 'PENDING').length || 0;
+          setPendingCount(count);
+        }
       }
+      
       setAllRequests(response.data.data || []);
       setRequests(response.data.data || []);
     } catch (error) {
@@ -240,9 +247,9 @@ export default function LeaveApproval() {
               }`}
             >
               {t('leave.pending')}
-              {requests.filter(r => r.status === 'PENDING').length > 0 && activeTab !== 'pending' && (
+              {pendingCount > 0 && (
                 <span className="ml-2 px-1.5 py-0.5 bg-red-500 text-white text-xs rounded-full">
-                  {requests.filter(r => r.status === 'PENDING').length}
+                  {pendingCount}
                 </span>
               )}
             </button>
@@ -293,11 +300,11 @@ export default function LeaveApproval() {
               }`}
             >
               {t('leave.pending')}
-              {requests.filter(r => r.status === 'PENDING').length > 0 && activeTab !== 'pending' && (
-                <span className="ml-2 px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
-                  {requests.filter(r => r.status === 'PENDING').length}
-                </span>
-              )}
+              {pendingCount > 0 && (
+              <span className="ml-2 px-1.5 py-0.5 bg-red-500 text-white text-xs rounded-full">
+                {pendingCount}
+              </span>
+            )}
             </button>
             {isAdmin && (
               <>
@@ -438,6 +445,31 @@ export default function LeaveApproval() {
 
                 {/* Date Ranges - Mobile: Stack, Desktop: Grid */}
                 <div className="space-y-4 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-4">
+                  {/* Request Date Range */}
+                  <div className="border-l-4 border-blue-500 pl-3 sm:pl-4">
+                    <p className="text-sm font-semibold text-gray-700 mb-2">{t('leave.requestDateRange')}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">{t('leave.from')}</label>
+                        <input
+                          type="date"
+                          value={filters.requestDateFrom}
+                          onChange={(e) => setFilters({...filters, requestDateFrom: e.target.value})}
+                          className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">{t('leave.to')}</label>
+                        <input
+                          type="date"
+                          value={filters.requestDateTo}
+                          onChange={(e) => setFilters({...filters, requestDateTo: e.target.value})}
+                          className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Leave Date Range */}
                   <div className="border-l-4 border-green-500 pl-3 sm:pl-4">
                     <p className="text-sm font-semibold text-gray-700 mb-2">{t('leave.leaveDateRange')}</p>
