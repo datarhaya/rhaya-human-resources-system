@@ -178,41 +178,90 @@ export default function LeaveHistory() {
     setLoading(true);
 
     try {
-      const submitData = new FormData();
-      submitData.append('leaveType', formData.leaveType);
-      submitData.append('startDate', formData.startDate.toISOString());
-      submitData.append('endDate', formData.endDate.toISOString());
-      submitData.append('reason', formData.reason);
-      if (formData.attachment) {
-        submitData.append('attachment', formData.attachment);
+      if (!formData.startDate || !formData.endDate) {
+        setErrorDialog({
+          show: true,
+          title: t('leave.errorTitle') || 'Error',
+          messages: [t('leave.selectDates') || 'Please select start and end dates'],
+          isSuccess: false
+        });
+        setLoading(false);
+        return;
       }
 
-      await apiClient.post('/leave/submit', submitData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const totalDays = calculateWorkingDays(formData.startDate, formData.endDate);
+
+      if (totalDays <= 0) {
+        setErrorDialog({
+          show: true,
+          title: t('leave.errorTitle') || 'Error',
+          messages: [t('leave.invalidDates') || 'Invalid date range'],
+          isSuccess: false
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Additional client-side validation
+      if (formData.leaveType !== 'MATERNITY_LEAVE' && totalDays > 5) {
+        setErrorDialog({
+          show: true,
+          title: t('leave.errorTitle') || 'Error',
+          messages: ['Maximum 5 working days per leave request (weekends excluded)'],
+          isSuccess: false
+        });
+        setLoading(false);
+        return;
+      }
+
+      if (formData.leaveType === 'MENSTRUAL_LEAVE' && totalDays !== 1) {
+        setErrorDialog({
+          show: true,
+          title: t('leave.errorTitle') || 'Error',
+          messages: ['Menstrual leave can only be 1 day'],
+          isSuccess: false
+        });
+        setLoading(false);
+        return;
+      }
+
+      const submitData = {
+        leaveType: formData.leaveType,
+        startDate: format(formData.startDate, 'yyyy-MM-dd'),
+        endDate: format(formData.endDate, 'yyyy-MM-dd'),
+        totalDays,
+        reason: formData.reason,
+        attachment: formData.attachment || null
+      };
+
+      await apiClient.post('/leave/submit', submitData);
 
       setErrorDialog({
         show: true,
-        title: t('leave.successTitle'),
-        messages: [t('leave.submitSuccess')],
+        title: t('leave.successTitle') || 'Success',
+        messages: [t('leave.submitSuccess') || 'Leave request submitted successfully!'],
         isSuccess: true
       });
 
-      // Reset form
-      setFormData({
-        leaveType: 'ANNUAL_LEAVE',
-        startDate: null,
-        endDate: null,
-        reason: '',
-        attachment: null
-      });
+      // Reset form after delay
+      setTimeout(() => {
+        setFormData({
+          leaveType: 'ANNUAL_LEAVE',
+          startDate: null,
+          endDate: null,
+          reason: '',
+          attachment: null
+        });
 
-      // Refresh data
-      await fetchLeaveData();
-      await fetchLeaveBalance();
+        // Refresh data
+        fetchLeaveData();
+        fetchLeaveBalance();
+        setActiveTab('history');
+        setErrorDialog({ show: false, title: '', messages: [], isSuccess: false });
+      }, 1500);
 
     } catch (error) {
-      console.error('Submit error:', error);
+      console.error('Submit error:', error.message || error);
       const errorMessage = error.response?.data?.error || t('leave.submitError');
       setErrorDialog({
         show: true,
@@ -511,7 +560,7 @@ export default function LeaveHistory() {
                     locale={i18n.language}
                     dateFormat="dd MMM yyyy"
                     className="w-full px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
-                    placeholderText={t('leave.selectStartDate')}
+                    placeholderText={t('leave.selectDate')}
                     required
                     disabled={formData.leaveType === 'MENSTRUAL_LEAVE'}
                   />
@@ -527,7 +576,7 @@ export default function LeaveHistory() {
                     locale={i18n.language}
                     dateFormat="dd MMM yyyy"
                     className="w-full px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
-                    placeholderText={t('leave.selectEndDate')}
+                    placeholderText={t('leave.selectDate')}
                     required
                     disabled={formData.leaveType === 'MATERNITY_LEAVE' || formData.leaveType === 'MENSTRUAL_LEAVE'}
                   />
