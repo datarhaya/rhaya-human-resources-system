@@ -1,103 +1,75 @@
-// backend/src/utils/passwordValidator.js
+import express from 'express';
+import { body } from 'express-validator';
+import * as authController from '../controllers/auth.controller.js';
+import { authenticate } from '../middleware/auth.js';
+import {
+  loginLimiter,
+  forgotPasswordLimiter,
+  resetPasswordLimiter,
+  changePasswordLimiter
+} from '../middleware/rateLimiter.js';
+import { passwordValidatorMiddleware } from '../utils/passwordValidator.js';
 
-/**
- * Strong password policy validator
- * Requirements:
- * - Minimum 12 characters
- * - At least 1 uppercase letter
- * - At least 1 lowercase letter
- * - At least 1 number
- * - At least 1 special character
- */
+const router = express.Router();
 
-const MIN_LENGTH = 12;
+// POST /api/auth/login - With rate limiting
+router.post('/login', 
+  loginLimiter,  // 5 attempts per 15 minutes
+  [
+    body('identifier')
+      .notEmpty().withMessage('NIP or Email is required')
+      .trim(),
+    body('password')
+      .notEmpty().withMessage('Password is required')
+  ],
+  authController.login
+);
 
-// ✅ EXPANDED: Now includes common symbols like - . _ +
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&\-_.+=])[A-Za-z\d@$!%*?&\-_.+=]/;
+// POST /api/auth/logout
+router.post('/logout', authenticate, authController.logout);
 
-/**
- * Validate password strength
- * @param {string} password - Password to validate
- * @returns {object} - { valid: boolean, errors: string[] }
- */
-export function validatePassword(password) {
-  const errors = [];
+// GET /api/auth/me - Get current user
+router.get('/me', authenticate, authController.getCurrentUser);
 
-  if (!password) {
-    return {
-      valid: false,
-      errors: ['Password is required']
-    };
-  }
+// POST /api/auth/change-password - With rate limiting and strong password validation
+router.post('/change-password',
+  authenticate,
+  changePasswordLimiter,  // 10 attempts per hour
+  [
+    body('currentPassword')
+      .notEmpty().withMessage('Current password is required'),
+    body('newPassword')
+      .notEmpty().withMessage('New password is required')
+      .custom(passwordValidatorMiddleware)  // Strong password validation
+  ],
+  authController.changePassword
+);
 
-  // Check minimum length
-  if (password.length < MIN_LENGTH) {
-    errors.push(`Password must be at least ${MIN_LENGTH} characters long`);
-  }
+// POST /api/auth/forgot-password - With rate limiting
+router.post('/forgot-password',
+  forgotPasswordLimiter,  // 3 attempts per hour
+  [
+    body('email')
+      .isEmail().withMessage('Valid email is required')
+      .normalizeEmail({ gmail_remove_dots: false })
+  ],
+  authController.requestPasswordReset
+);
 
-  // Check for lowercase letter
-  if (!/[a-z]/.test(password)) {
-    errors.push('Password must contain at least one lowercase letter');
-  }
+// GET /api/auth/verify-reset-token/:token - Verify token validity
+router.get('/verify-reset-token/:token', authController.verifyResetToken);
 
-  // Check for uppercase letter
-  if (!/[A-Z]/.test(password)) {
-    errors.push('Password must contain at least one uppercase letter');
-  }
+// POST /api/auth/reset-password - With rate limiting and strong password validation
+router.post('/reset-password',
+  resetPasswordLimiter,  // 5 attempts per hour
+  [
+    body('token')
+      .notEmpty().withMessage('Token is required'),
+    body('newPassword')
+      .notEmpty().withMessage('New password is required')
+      .custom(passwordValidatorMiddleware)  // Strong password validation
+  ],
+  authController.resetPassword
+);
 
-  // Check for number
-  if (!/\d/.test(password)) {
-    errors.push('Password must contain at least one number');
-  }
-
-  // ✅ EXPANDED: Check for special character (more symbols allowed)
-  if (!/[@$!%*?&\-_.+=]/.test(password)) {
-    errors.push('Password must contain at least one special character (@$!%*?&-_.+=)');
-  }
-
-  // Check for common weak passwords
-  const commonPasswords = [
-    'password123', 'admin123456', '123456789012', 
-    'qwerty123456', 'password1234', "1234567890ab"
-  ];
-  
-  if (commonPasswords.includes(password.toLowerCase())) {
-    errors.push('This password is too common, please choose a stronger password');
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors
-  };
-}
-
-/**
- * Get password requirements as array of strings
- * @returns {string[]} - Array of requirement descriptions
- */
-export function getPasswordRequirements() {
-  return [
-    `At least ${MIN_LENGTH} characters long`,
-    'Contains at least one uppercase letter (A-Z)',
-    'Contains at least one lowercase letter (a-z)',
-    'Contains at least one number (0-9)',
-    'Contains at least one special character (@$!%*?&-_.+=)'  // ✅ Updated list
-  ];
-}
-
-/**
- * Express validator custom validator
- */
-export const passwordValidatorMiddleware = (value) => {
-  const result = validatePassword(value);
-  if (!result.valid) {
-    throw new Error(result.errors.join('. '));
-  }
-  return true;
-};
-
-export default {
-  validatePassword,
-  getPasswordRequirements,
-  passwordValidatorMiddleware
-};
+export default router;
