@@ -21,6 +21,8 @@ export default function OvertimeApproval() {
   const [showModal, setShowModal] = useState(false);
   const [actionType, setActionType] = useState('');
   const [comment, setComment] = useState('');
+  const [pendingCount, setPendingCount] = useState(0);
+  const [revisionCount, setRevisionCount] = useState(0);
 
   // Filter state
   const [filters, setFilters] = useState({
@@ -64,11 +66,21 @@ export default function OvertimeApproval() {
       let response;
       if (activeTab === 'pending') {
         response = await apiClient.get('/overtime/pending-approval/list');
+        // Update pending count when on pending tab
+        setPendingCount(response.data.data?.length || 0);
       } else if (activeTab === 'revision') {
+        // response = await apiClient.get('/overtime/admin/all-requests?status=REVISION_REQUESTED');
         response = await apiClient.get('/overtime/admin/all-requests?status=REVISION_REQUESTED');
+        setRevisionCount(response.data.data?.length || 0);
       } else if (isAdmin) {
         const status = activeTab === 'all' ? '' : activeTab.toUpperCase();
         response = await apiClient.get(`/overtime/admin/all-requests${status ? `?status=${status}` : ''}`);
+        
+        // If on 'all' tab, update pending count from all requests
+        if (activeTab === 'all') {
+          const count = response.data.data?.filter(r => r.status === 'PENDING').length || 0;
+          setPendingCount(count);
+        }
       } else {
         response = { data: { data: [] } };
       }
@@ -226,6 +238,11 @@ export default function OvertimeApproval() {
               }`}
             >
               {t('overtime.pending')}
+              {pendingCount > 0 && (
+                <span className="ml-2 px-1.5 py-0.5 bg-red-500 text-white text-xs rounded-full">
+                  {pendingCount}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setActiveTab('revision')}
@@ -236,6 +253,11 @@ export default function OvertimeApproval() {
               }`}
             >
               {t('overtime.revision')}
+              {revisionCount > 0 && (
+                <span className="ml-2 px-1.5 py-0.5 bg-orange-500 text-white text-xs rounded-full">
+                  {revisionCount}
+                </span>
+              )}
             </button>
             {isAdmin && (
               <>
@@ -284,6 +306,11 @@ export default function OvertimeApproval() {
               }`}
             >
               {t('overtime.pending')}
+              {pendingCount > 0 && (
+                <span className="ml-2 px-1.5 py-0.5 bg-red-500 text-white text-xs rounded-full">
+                  {pendingCount}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setActiveTab('revision')}

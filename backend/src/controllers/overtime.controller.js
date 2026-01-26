@@ -441,19 +441,34 @@ export const getOvertimeRequestById = async (req, res) => {
 // ============================================
 
 /**
- * Get pending approvals for current user
- * Only shows requests where user is the CURRENT approver
- * Admin (Level 1) still sees only their assigned requests here
+ * Get pending approvals
+ * For regular users: Only requests assigned to them
+ * For Admin/HR (accessLevel 1-2): ALL pending requests
+ * GET /api/overtime/pending-approval/list
  */
 export const getPendingApprovals = async (req, res) => {
   try {
     const userId = req.user.id;
+    const accessLevel = req.user.accessLevel;
+
+    // Build where clause based on access level
+    let whereClause = {
+      status: 'PENDING'
+    };
+
+    // Admin/HR (accessLevel 1-2) see ALL pending requests
+    if (accessLevel === 1 || accessLevel === 2) {
+      // No additional filter - show all pending
+      console.log(`Admin/HR viewing all pending requests`);
+    } 
+    // Regular users only see requests assigned to them
+    else {
+      whereClause.currentApproverId = userId;
+      console.log(`Regular user viewing assigned requests only`);
+    }
 
     const requests = await prisma.overtimeRequest.findMany({
-      where: {
-        status: 'PENDING',
-        currentApproverId: userId  // Only requests assigned to this user
-      },
+      where: whereClause,
       include: {
         employee: {
           include: {
@@ -472,6 +487,8 @@ export const getPendingApprovals = async (req, res) => {
         submittedAt: 'desc'
       }
     });
+
+    console.log(`Found ${requests.length} pending requests for user ${userId} (accessLevel ${accessLevel})`);
 
     return res.json({
       success: true,
