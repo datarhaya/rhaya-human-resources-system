@@ -1,4 +1,6 @@
 // frontend/src/pages/UserProfile.jsx
+// MOBILE-RESPONSIVE VERSION - Responsive grid, cards, and forms
+
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import apiClient from '../api/client';
@@ -112,7 +114,7 @@ export default function UserProfile() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-gray-600">{t('profile.loadingProfile')}</div>
+        <div className="text-base sm:text-lg text-gray-600">{t('profile.loadingProfile')}</div>
       </div>
     );
   }
@@ -120,44 +122,44 @@ export default function UserProfile() {
   if (!user) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-red-600">{t('profile.failedToLoad')}</div>
+        <div className="text-base sm:text-lg text-red-600">{t('profile.failedToLoad')}</div>
       </div>
     );
   }
 
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{t('profile.myProfile')}</h1>
-        <p className="text-gray-600 mt-1">{t('profile.viewManage')}</p>
+      {/* Header - Mobile Optimized */}
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('profile.myProfile')}</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-1">{t('profile.viewManage')}</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Profile Card */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        {/* Profile Card - Mobile Optimized */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg shadow-md p-6 text-center">
-            <div className="w-32 h-32 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-4xl font-bold">
+          <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 text-center">
+            <div className="w-24 h-24 sm:w-32 sm:h-32 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-3xl sm:text-4xl font-bold">
               {user.name.charAt(0).toUpperCase()}
             </div>
-            <h2 className="text-xl font-bold text-gray-900">{user.name}</h2>
-            <p className="text-gray-600">{user.nip || t('profile.noNip')}</p>
-            <span className={`inline-block mt-3 px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(user.employeeStatus)}`}>
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 break-words px-2">{user.name}</h2>
+            <p className="text-sm sm:text-base text-gray-600 break-all">{user.nip || t('profile.noNip')}</p>
+            <span className={`inline-block mt-3 px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${getStatusBadge(user.employeeStatus)}`}>
               {user.employeeStatus}
             </span>
             
             {/* Quick Stats */}
-            <div className="mt-6 pt-6 border-t border-gray-200">
+            <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-200">
               <div className="space-y-3">
                 <div>
-                  <p className="text-sm text-gray-600">{t('profile.leaveBalance')}</p>
-                  <p className="text-2xl font-bold text-blue-600">
+                  <p className="text-xs sm:text-sm text-gray-600">{t('profile.leaveBalance')}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-blue-600">
                     {user.leaveBalance?.annualRemaining || 0} {t('profile.days')}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">{t('profile.overtimeBalance')}</p>
-                  <p className="text-2xl font-bold text-green-600">
+                  <p className="text-xs sm:text-sm text-gray-600">{t('profile.overtimeBalance')}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-green-600">
                     {user.overtimeBalance?.currentBalance?.toFixed(1) || 0} {t('profile.hours')}
                   </p>
                 </div>
@@ -166,74 +168,74 @@ export default function UserProfile() {
           </div>
         </div>
 
-        {/* Details */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* Details - Mobile Optimized */}
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           {/* Personal Information */}
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
-              <h3 className="text-lg font-semibold text-white">{t('profile.personalInformation')}</h3>
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 sm:px-6 py-3 sm:py-4">
+              <h3 className="text-base sm:text-lg font-semibold text-white">{t('profile.personalInformation')}</h3>
             </div>
-            <div className="p-6">
-              <div className="grid grid-cols-2 gap-6">
+            <div className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.fullName')}</label>
-                  <p className="text-gray-900">{user.name}</p>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">{t('profile.fullName')}</label>
+                  <p className="text-sm sm:text-base text-gray-900 break-words">{user.name}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.email')}</label>
-                  <p className="text-gray-900">{user.email}</p>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">{t('profile.email')}</label>
+                  <p className="text-sm sm:text-base text-gray-900 break-all">{user.email}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.gender')}</label>
-                  <p className="text-gray-900">{user.gender || t('profile.notSpecified')}</p>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">{t('profile.gender')}</label>
+                  <p className="text-sm sm:text-base text-gray-900">{user.gender || t('profile.notSpecified')}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.dateOfBirth')}</label>
-                  <p className="text-gray-900">{formatDate(user.dateOfBirth)}</p>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">{t('profile.dateOfBirth')}</label>
+                  <p className="text-sm sm:text-base text-gray-900">{formatDate(user.dateOfBirth)}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.placeOfBirth')}</label>
-                  <p className="text-gray-900">{user.placeOfBirth || '-'}</p>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">{t('profile.placeOfBirth')}</label>
+                  <p className="text-sm sm:text-base text-gray-900 break-words">{user.placeOfBirth || '-'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.phone')}</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">{t('profile.phone')}</label>
                   {editing ? (
                     <input
                       type="tel"
                       value={editData.phone}
                       onChange={(e) => setEditData({...editData, phone: e.target.value})}
-                      className="w-full px-3 py-2 border rounded-lg"
+                      className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   ) : (
-                    <p className="text-gray-900">{user.phone || '-'}</p>
+                    <p className="text-sm sm:text-base text-gray-900 break-all">{user.phone || '-'}</p>
                   )}
                 </div>
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.address')}</label>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">{t('profile.address')}</label>
                   {editing ? (
                     <textarea
                       value={editData.address}
                       onChange={(e) => setEditData({...editData, address: e.target.value})}
                       rows={3}
-                      className="w-full px-3 py-2 border rounded-lg"
+                      className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   ) : (
-                    <p className="text-gray-900">{user.address || '-'}</p>
+                    <p className="text-sm sm:text-base text-gray-900 break-words">{user.address || '-'}</p>
                   )}
                 </div>
               </div>
 
               {editing ? (
-                <div className="mt-6 flex space-x-3">
+                <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={handleUpdateProfile}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
                   >
                     {t('profile.saveChanges')}
                   </button>
                   <button
                     onClick={() => setEditing(false)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium"
                   >
                     Cancel
                   </button>
@@ -241,7 +243,7 @@ export default function UserProfile() {
               ) : (
                 <button
                   onClick={() => setEditing(true)}
-                  className="mt-6 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="mt-4 sm:mt-6 w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
                 >
                   {t('profile.editProfile')}
                 </button>
@@ -251,47 +253,47 @@ export default function UserProfile() {
 
           {/* Employment Information */}
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="bg-gradient-to-r from-green-500 to-green-600 px-6 py-4">
-              <h3 className="text-lg font-semibold text-white">{t('profile.employmentInformation')}</h3>
+            <div className="bg-gradient-to-r from-green-500 to-green-600 px-4 sm:px-6 py-3 sm:py-4">
+              <h3 className="text-base sm:text-lg font-semibold text-white">{t('profile.employmentInformation')}</h3>
             </div>
-            <div className="p-6">
-              <div className="grid grid-cols-2 gap-6">
+            <div className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.employeeId')}</label>
-                  <p className="text-gray-900">{user.nip || '-'}</p>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">{t('profile.employeeId')}</label>
+                  <p className="text-sm sm:text-base text-gray-900 break-all">{user.nip || '-'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.status')}</label>
-                  <p className="text-gray-900">{user.employeeStatus}</p>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">{t('profile.status')}</label>
+                  <p className="text-sm sm:text-base text-gray-900">{user.employeeStatus}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.division')}</label>
-                  <p className="text-gray-900">{user.division?.name}</p>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">{t('profile.division')}</label>
+                  <p className="text-sm sm:text-base text-gray-900 break-words">{user.division?.name}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.role')}</label>
-                  <p className="text-gray-900">{user.role?.name}</p>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">{t('profile.role')}</label>
+                  <p className="text-sm sm:text-base text-gray-900 break-words">{user.role?.name}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.plottingCompany')}</label>
-                  <p className="text-gray-900">{user.plottingCompany || '-'}</p>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">{t('profile.plottingCompany')}</label>
+                  <p className="text-sm sm:text-base text-gray-900 break-words">{user.plottingCompany || '-'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.joinDate')}</label>
-                  <p className="text-gray-900">{formatDate(user.joinDate)}</p>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">{t('profile.joinDate')}</label>
+                  <p className="text-sm sm:text-base text-gray-900">{formatDate(user.joinDate)}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.contractStart')}</label>
-                  <p className="text-gray-900">{formatDate(user.contractStartDate)}</p>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">{t('profile.contractStart')}</label>
+                  <p className="text-sm sm:text-base text-gray-900">{formatDate(user.contractStartDate)}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.contractEnd')}</label>
-                  <p className="text-gray-900">{formatDate(user.contractEndDate)}</p>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">{t('profile.contractEnd')}</label>
+                  <p className="text-sm sm:text-base text-gray-900">{formatDate(user.contractEndDate)}</p>
                 </div>
                 {user.supervisor && (
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.supervisor')}</label>
-                    <p className="text-gray-900">{user.supervisor.name} ({user.supervisor.email})</p>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">{t('profile.supervisor')}</label>
+                    <p className="text-sm sm:text-base text-gray-900 break-words">{user.supervisor.name} ({user.supervisor.email})</p>
                   </div>
                 )}
               </div>
@@ -300,22 +302,22 @@ export default function UserProfile() {
 
           {/* Benefits Information */}
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4">
-              <h3 className="text-lg font-semibold text-white">{t('profile.benefitsInformation')}</h3>
+            <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-4 sm:px-6 py-3 sm:py-4">
+              <h3 className="text-base sm:text-lg font-semibold text-white">{t('profile.benefitsInformation')}</h3>
             </div>
-            <div className="p-6">
-              <div className="grid grid-cols-2 gap-6">
+            <div className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.bpjsHealth')}</label>
-                  <p className="text-gray-900">{user.bpjsHealth || '-'}</p>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">{t('profile.bpjsHealth')}</label>
+                  <p className="text-sm sm:text-base text-gray-900 break-all">{user.bpjsHealth || '-'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.bpjsEmployment')}</label>
-                  <p className="text-gray-900">{user.bpjsEmployment || '-'}</p>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">{t('profile.bpjsEmployment')}</label>
+                  <p className="text-sm sm:text-base text-gray-900 break-all">{user.bpjsEmployment || '-'}</p>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('profile.overtimeRate')}</label>
-                  <p className="text-gray-900">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">{t('profile.overtimeRate')}</label>
+                  <p className="text-sm sm:text-base text-gray-900">
                     {new Intl.NumberFormat('id-ID', {
                       style: 'currency',
                       currency: 'IDR',
@@ -327,14 +329,14 @@ export default function UserProfile() {
             </div>
           </div>
 
-          {/* Security */}
+          {/* Security - Mobile Optimized */}
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-white">{t('profile.security')}</h3>
+            <div className="bg-gradient-to-r from-red-500 to-red-600 px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+              <h3 className="text-base sm:text-lg font-semibold text-white">{t('profile.security')}</h3>
               {!changingPassword && (
                 <button
                   onClick={() => setChangingPassword(true)}
-                  className="px-4 py-1 bg-white text-red-600 rounded text-sm font-medium hover:bg-red-50"
+                  className="w-full sm:w-auto px-4 py-1.5 sm:py-1 bg-white text-red-600 rounded text-sm font-medium hover:bg-red-50"
                 >
                   {t('profile.changePassword')}
                 </button>
@@ -342,9 +344,9 @@ export default function UserProfile() {
             </div>
             
             {changingPassword ? (
-              <form onSubmit={handleChangePassword} className="p-6 space-y-4">
+              <form onSubmit={handleChangePassword} className="p-4 sm:p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                     {t('profile.currentPassword')}
                   </label>
                   <div className="relative">
@@ -353,7 +355,7 @@ export default function UserProfile() {
                       required
                       value={passwordData.currentPassword}
                       onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
-                      className="w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
                     />
                     <button
                       type="button"
@@ -366,7 +368,7 @@ export default function UserProfile() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                     {t('profile.newPassword')}
                   </label>
                   <div className="relative">
@@ -376,7 +378,7 @@ export default function UserProfile() {
                       minLength={6}
                       value={passwordData.password}
                       onChange={(e) => setPasswordData({...passwordData, password: e.target.value})}
-                      className="w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
                     />
                     <button
                       type="button"
@@ -389,7 +391,7 @@ export default function UserProfile() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                     {t('profile.confirmNewPassword')}
                   </label>
                   <div className="relative">
@@ -399,7 +401,7 @@ export default function UserProfile() {
                       minLength={6}
                       value={passwordData.confirmPassword}
                       onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                      className="w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
                     />
                     <button
                       type="button"
@@ -410,10 +412,10 @@ export default function UserProfile() {
                     </button>
                   </div>
                 </div>
-                <div className="flex space-x-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                    className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium"
                   >
                     {t('profile.updatePassword')}
                   </button>
@@ -423,28 +425,26 @@ export default function UserProfile() {
                       setChangingPassword(false);
                       setPasswordData({currentPassword: '', password: '', confirmPassword: ''});
                     }}
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium"
                   >
                     Cancel
                   </button>
                 </div>
               </form>
-            ) 
-             : (
-                <div className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">{t('profile.lastPasswordChange')}</p>
-                      <p className="text-lg font-medium text-gray-900">
-                        {user.lastPasswordChange 
-                          ? formatDate(user.lastPasswordChange)
-                          : t('profile.never')}
-                      </p>
-                    </div>
+            ) : (
+              <div className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">{t('profile.lastPasswordChange')}</p>
+                    <p className="text-base sm:text-lg font-medium text-gray-900">
+                      {user.lastPasswordChange 
+                        ? formatDate(user.lastPasswordChange)
+                        : t('profile.never')}
+                    </p>
                   </div>
                 </div>
-              )
-            }
+              </div>
+            )}
           </div>
         </div>
       </div>
