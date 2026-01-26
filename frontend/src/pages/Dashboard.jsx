@@ -39,245 +39,160 @@ export default function Dashboard() {
 
   const loading = balanceLoading || pendingLoading || leaveBalanceLoading;
 
-  // Get access level label
-  const getAccessLevelLabel = (level) => {
-    switch(level) {
-      case 1: return t('accessLevel.admin');
-      case 2: return t('accessLevel.subsidiary');
-      case 3: return t('accessLevel.manager');
-      case 4: return t('accessLevel.staff');
-      case 5: return t('accessLevel.intern');
-      default: return t('accessLevel.unknown');
-    }
+  // Sub-components with "Bold/Character" styling
+  const StatCard = ({ label, value, unit, color, icon, footer, onClick }) => {
+    const textColor = {
+      blue: 'text-blue-600',
+      green: 'text-green-600',
+      orange: 'text-orange-600',
+      purple: 'text-purple-600',
+    }[color];
+
+    return (
+      <div 
+        onClick={onClick}
+        className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col h-full cursor-pointer hover:shadow-md transition-all active:scale-[0.97]"
+      >
+        {/* Top Section: Title and Icon remain at the top */}
+        <div className="flex justify-between items-start gap-2 mb-4">
+          <span className="text-sm sm:text-base font-bold text-gray-700 leading-tight">
+            {label}
+          </span>
+          <div className={`flex-shrink-0 ${textColor}`}>
+            {icon}
+          </div>
+        </div>
+
+        {/* Lower Section: Pushed to the bottom of the card */}
+        <div className="mt-auto">
+          <div className="flex items-baseline gap-1">
+            <span className={`text-2xl sm:text-3xl font-black ${textColor} font-bold tracking-tight`}>
+              {value}
+            </span>
+            <span className="text-sm sm:text-base font-bold text-gray-400 lowercase">
+              {unit}
+            </span>
+          </div>
+          
+          {/* Footer Text (e.g., Annual/TOIL) */}
+          <p className="text-[10px] sm:text-xs text-gray-400 mt-1 font-medium leading-tight min-h-[1.25rem]">
+            {footer}
+          </p>
+
+          {/* Action Link - Integrated into the bottom block */}
+          <div className={`mt-2 pt-3 border-t border-gray-50 text-[11px] sm:text-xs font-bold flex items-center ${textColor}`}>
+            Klik untuk melihat <span className="ml-1">→</span>
+          </div>
+        </div>
+      </div>
+    );
   };
 
+  // Simple Icon Components (SVG wrappers)
+  const CalendarIcon = () => (
+    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  );
+
+  const ClockIcon = () => (
+    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+
+  const BellIcon = () => (
+    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  );
+
+  const CreditCardIcon = () => (
+    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M3 14h18M5 6h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z" />
+    </svg>
+  );
+
+  const InfoRow = ({ label, value, isHighlight }) => (
+    <div className="group">
+      <dt className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 group-hover:text-blue-500 transition-colors">{label}</dt>
+      <dd className={`text-base font-semibold ${isHighlight ? 'text-blue-600' : 'text-gray-900'} break-all`}>
+        {value || '—'}
+      </dd>
+    </div>
+  );
+
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Welcome Header - Mobile Optimized */}
-      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start">
-          <div className="flex-1">
-            {/* Responsive heading - smaller on mobile */}
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 break-words">
-              {t('dashboard.welcomeBack', { name: user?.name })}
-            </h1>
-            
-            {/* Role & Division - Wrappable on mobile */}
-            <div className="flex flex-wrap items-center gap-2 mt-2 text-sm sm:text-base">
-              <p className="text-gray-600">
-                {user?.role?.name}
-              </p>
-              <span className="text-gray-400">•</span>
-              <p className="text-gray-600 break-words">
-                {user?.division?.name}
-              </p>
-              {user?.accessLevel === 5 && (
-                <span className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full whitespace-nowrap">
-                  {t('dashboard.intern')}
-                </span>
-              )}
-            </div>
-            
-            {/* Supervisor info */}
-            {user?.supervisor && (
-              <p className="text-xs sm:text-sm text-gray-500 mt-1 break-words">
-                {t('dashboard.reportsTo')} {user.supervisor.name}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
+    <div className="space-y-8 max-w-7xl mx-auto px-1">
+      {/* Welcome Header */}
+      <header className="py-2">
+        {/* <p className="text-[11px] font-bold text-blue-600 uppercase tracking-widest mb-1">
+          {t('dashboard.overview')}
+        </p> */}
+        <h1 className="text-2xl sm:text-4xl font-black text-gray-900 tracking-tight">
+          {t('dashboard.welcomeBack', { name: user?.name?.split(' ')[0] })} 👋
+        </h1>
+      </header>
 
-      {/* Stats Cards - Mobile Optimized Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-        {/* Leave Balance Card */}
-        <div 
-          className="bg-white rounded-lg shadow p-4 sm:p-6 cursor-pointer hover:shadow-md transition-shadow active:scale-98"
+      {/* 2x2 Grid on Mobile, 4 columns on Desktop */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <StatCard 
+          label={t('dashboard.leaveBalance')}
+          value={loading ? '...' : `${(leaveBalance?.annualRemaining || 0) + (leaveBalance?.toilBalance || 0)}`}
+          unit={t('dashboard.days')}
+          color="blue"
+          icon={<CalendarIcon />}
+          footer={`Annual: ${leaveBalance?.annualRemaining || 0} | TOIL: ${leaveBalance?.toilBalance || 0}`}
           onClick={() => navigate('/leave/history')}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-xs sm:text-sm text-gray-600 font-medium">
-              {t('dashboard.leaveBalance')}
-            </div>
-            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <div className="text-2xl sm:text-3xl font-bold text-blue-600">
-            {loading ? (
-              <span className="text-xl sm:text-2xl">...</span>
-            ) : leaveBalance ? (
-              <>
-                {((leaveBalance?.annualRemaining || 0) + (leaveBalance?.toilBalance || 0))}{' '}
-                <span className="text-base sm:text-lg text-gray-600">{t('dashboard.days')}</span>
-              </>
-            ) : (
-              <>
-                0 <span className="text-base sm:text-lg text-gray-600">{t('dashboard.days')}</span>
-              </>
-            )}
-          </div>
-          <div className="text-xs text-gray-500 mt-1 break-words">
-            {t('leave.annual')}: {leaveBalance?.annualRemaining || 0} | {t('leave.toilBalance')}: {leaveBalance?.toilBalance || 0}
-          </div>
-          <div className="text-xs text-blue-600 mt-1 font-medium">
-            {t('dashboard.clickToView')} →
-          </div>
-        </div>
-        
-        {/* Overtime Balance Card */}
-        <div 
-          className="bg-white rounded-lg shadow p-4 sm:p-6 cursor-pointer hover:shadow-md transition-shadow active:scale-98"
+        />
+        <StatCard 
+          label={t('dashboard.overtimeBalance')}
+          value={loading ? '...' : overtimeBalance?.currentBalance.toFixed(1)}
+          unit={t('dashboard.hrs')}
+          color="green"
+          icon={<ClockIcon />}
+          footer={t('dashboard.hoursApproved')}
           onClick={() => navigate('/overtime/history')}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-xs sm:text-sm text-gray-600 font-medium">
-              {t('dashboard.overtimeBalance')}
-            </div>
-            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div className="text-2xl sm:text-3xl font-bold text-green-600">
-            {loading ? (
-              <span className="text-xl sm:text-2xl">...</span>
-            ) : overtimeBalance ? (
-              <>
-                {overtimeBalance.currentBalance.toFixed(1)}{' '}
-                <span className="text-base sm:text-lg text-gray-600">hrs</span>
-              </>
-            ) : (
-              <>
-                0.0 <span className="text-base sm:text-lg text-gray-600">hrs</span>
-              </>
-            )}
-          </div>
-          <div className="text-xs text-gray-500 mt-1">
-            {t('dashboard.hoursApproved')}
-          </div>
-          <div className="text-xs text-green-600 mt-1 font-medium">
-            {t('dashboard.clickToView')} →
-          </div>
-        </div>
-        
-        {/* Pending Requests Card */}
-        <div 
-          className="bg-white rounded-lg shadow p-4 sm:p-6 cursor-pointer hover:shadow-md transition-shadow active:scale-98"
+        />
+        <StatCard 
+          label={t('dashboard.pendingRequests')}
+          value={loading ? '...' : pendingRequests || 0}
+          // unit={t('dashboard.items')}
+          color="orange"
+          icon={<BellIcon />}
+          footer={t('dashboard.awaitingApproval')}
           onClick={() => navigate('/overtime/history')}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-xs sm:text-sm text-gray-600 font-medium">
-              {t('dashboard.pendingRequests')}
-            </div>
-            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div className="text-2xl sm:text-3xl font-bold text-orange-600">
-            {loading ? (
-              <span className="text-xl sm:text-2xl">...</span>
-            ) : (
-              pendingRequests || 0
-            )}
-          </div>
-          <div className="text-xs text-gray-500 mt-1">
-            {t('dashboard.awaitingApproval')}
-          </div>
-          <div className="text-xs text-orange-600 mt-1 font-medium">
-            {t('dashboard.clickToView')} →
-          </div>
-        </div>
-        
-        {/* Payslips Card */}
-        <div 
-          className="bg-white rounded-lg shadow p-4 sm:p-6 cursor-pointer hover:shadow-md transition-shadow active:scale-98"
+        />
+        <StatCard 
+          label={t('dashboard.payslips')}
+          value="0"
+          // unit={t('dashboard.docs')}
+          color="purple"
+          icon={<CreditCardIcon />}
+          footer={t('dashboard.availableToDownload')}
           onClick={() => navigate('/payslips/my-payslips')}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-xs sm:text-sm text-gray-600 font-medium">
-              {t('dashboard.payslips')}
-            </div>
-            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          </div>
-          <div className="text-2xl sm:text-3xl font-bold text-purple-600">0</div>
-          <div className="text-xs text-gray-500 mt-1">
-            {t('dashboard.availableToDownload')}
-          </div>
-          <div className="text-xs text-purple-600 mt-1 font-medium">
-            {t('dashboard.clickToView')} →
-          </div>
-        </div>
+        />
       </div>
 
-      {/* User Info Card - Mobile Optimized */}
-      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-        <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">
-          {t('dashboard.profileInformation')}
-        </h2>
-        
-        {/* Mobile: Single column, Tablet+: Two columns */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
-          <div className="flex flex-col sm:flex-row sm:items-start">
-            <span className="text-gray-600 text-xs sm:text-sm font-medium mb-1 sm:mb-0">
-              {t('dashboard.username')}:
-            </span>
-            <span className="font-medium text-gray-900 sm:ml-2 break-all">
-              {user?.username}
-            </span>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row sm:items-start">
-            <span className="text-gray-600 text-xs sm:text-sm font-medium mb-1 sm:mb-0">
-              {t('dashboard.email')}:
-            </span>
-            <span className="font-medium text-gray-900 sm:ml-2 break-all">
-              {user?.email}
-            </span>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row sm:items-start">
-            <span className="text-gray-600 text-xs sm:text-sm font-medium mb-1 sm:mb-0">
-              {t('dashboard.accessLevel')}:
-            </span>
-            <span className="font-medium text-gray-900 sm:ml-2">
-              {getAccessLevelLabel(user?.accessLevel)}
-            </span>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row sm:items-start">
-            <span className="text-gray-600 text-xs sm:text-sm font-medium mb-1 sm:mb-0">
-              {t('dashboard.status')}:
-            </span>
-            <span className="font-medium text-gray-900 sm:ml-2">
-              {user?.employeeStatus}
-            </span>
-          </div>
-          
-          {user?.supervisor && (
-            <div className="flex flex-col sm:col-span-2">
-              <span className="text-gray-600 text-xs sm:text-sm font-medium mb-1">
-                {t('dashboard.supervisor')}:
-              </span>
-              <span className="font-medium text-gray-900 break-words">
-                {user.supervisor.name}
-              </span>
-            </div>
-          )}
-          
-          {user?.subordinates && user.subordinates.length > 0 && (
-            <div className="flex flex-col sm:col-span-2">
-              <span className="text-gray-600 text-xs sm:text-sm font-medium mb-1">
-                {t('dashboard.subordinates')}:
-              </span>
-              <span className="font-medium text-gray-900">
-                {user.subordinates.length} {user.subordinates.length > 1 ? t('dashboard.employees') : t('dashboard.employee')}
-              </span>
-            </div>
-          )}
+      {/* Profile Section */}
+      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+            {t('dashboard.profileInformation')}
+          </h2>
         </div>
-      </div>
+        <div className="p-6">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <InfoRow label={t('dashboard.username')} value={user?.username} />
+            <InfoRow label={t('dashboard.email')} value={user?.email} />
+            {user?.supervisor && (
+              <div className="sm:col-span-2 border-t border-gray-50">
+                <InfoRow label={t('dashboard.supervisor')} value={user.supervisor.name} isHighlight />
+              </div>
+            )}
+          </dl>
+        </div>
+      </section>
     </div>
   );
 }

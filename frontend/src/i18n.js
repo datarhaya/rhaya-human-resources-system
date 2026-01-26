@@ -90,6 +90,9 @@ const resources = {
         intern: 'Intern',
         reportsTo: 'Supervisor:',
         days: 'days',
+        items: 'request',
+        docs: 'docs',
+        hrs: 'hrs',
       },
 
       // Access Levels
@@ -757,6 +760,9 @@ const resources = {
         intern: 'Magang',
         reportsTo: 'Supervisor:',
         days: 'hari',
+        items: 'permintaan',
+        docs: 'doc',
+        hrs: 'jam',
       },
 
       // Access Levels
