@@ -1,4 +1,6 @@
 // frontend/src/pages/OvertimeApproval.jsx
+// MOBILE-RESPONSIVE VERSION - Horizontal tabs, collapsible filters, responsive cards
+
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -63,7 +65,6 @@ export default function OvertimeApproval() {
       if (activeTab === 'pending') {
         response = await apiClient.get('/overtime/pending-approval/list');
       } else if (activeTab === 'revision') {
-        // Fetch revision requests
         response = await apiClient.get('/overtime/admin/all-requests?status=REVISION_REQUESTED');
       } else if (isAdmin) {
         const status = activeTab === 'all' ? '' : activeTab.toUpperCase();
@@ -84,12 +85,10 @@ export default function OvertimeApproval() {
   const applyFilters = () => {
     let filtered = [...allRequests];
 
-    // Filter by division
     if (filters.divisionId) {
       filtered = filtered.filter(req => req.employee?.divisionId === filters.divisionId);
     }
 
-    // Filter by search (employee name or NIP)
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       filtered = filtered.filter(req => 
@@ -98,7 +97,6 @@ export default function OvertimeApproval() {
       );
     }
 
-    // Filter by request date range
     if (filters.requestDateFrom) {
       filtered = filtered.filter(req => 
         new Date(req.submittedAt) >= new Date(filters.requestDateFrom)
@@ -110,7 +108,6 @@ export default function OvertimeApproval() {
       );
     }
 
-    // Filter by overtime date range
     if (filters.overtimeDateFrom || filters.overtimeDateTo) {
       filtered = filtered.filter(req => {
         return req.entries.some(entry => {
@@ -122,7 +119,6 @@ export default function OvertimeApproval() {
       });
     }
 
-    // Filter by hours range
     if (filters.hoursMin) {
       filtered = filtered.filter(req => req.totalHours >= parseFloat(filters.hoursMin));
     }
@@ -191,13 +187,12 @@ export default function OvertimeApproval() {
       REVISION_REQUESTED: 'bg-orange-100 text-orange-800'
     };
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
+      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
         {status.replace('_', ' ')}
       </span>
     );
   };
 
-  // Helper function to truncate text
   const truncateText = (text, maxLength = 80) => {
     if (!text) return '';
     if (text.length <= maxLength) return text;
@@ -206,21 +201,80 @@ export default function OvertimeApproval() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">
+      {/* Header - Mobile Optimized */}
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
           {t('overtime.approvalTitle')}
         </h1>
-        <p className="text-sm text-gray-600 mt-1">
+        <p className="text-xs sm:text-sm text-gray-600 mt-1">
           {t('overtime.viewManageRequests')}
         </p>
       </div>
 
-      {/* Content */}
-      <div className="bg-white rounded-lg shadow">
-        {/* Tabs */}
+      {/* Content Card */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        {/* Tabs - Mobile: Horizontal Scroll, Desktop: Normal */}
         <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6" aria-label="Tabs">
+          {/* Mobile: Horizontal scrollable tabs */}
+          <nav className="flex sm:hidden overflow-x-auto scrollbar-hide px-2" aria-label="Tabs">
+            <button
+              onClick={() => setActiveTab('pending')}
+              className={`flex-shrink-0 py-3 px-3 border-b-2 font-medium text-xs whitespace-nowrap ${
+                activeTab === 'pending'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500'
+              }`}
+            >
+              {t('overtime.pending')}
+            </button>
+            <button
+              onClick={() => setActiveTab('revision')}
+              className={`flex-shrink-0 py-3 px-3 border-b-2 font-medium text-xs whitespace-nowrap ${
+                activeTab === 'revision'
+                  ? 'border-orange-500 text-orange-600'
+                  : 'border-transparent text-gray-500'
+              }`}
+            >
+              {t('overtime.revision')}
+            </button>
+            {isAdmin && (
+              <>
+                <button
+                  onClick={() => setActiveTab('all')}
+                  className={`flex-shrink-0 py-3 px-3 border-b-2 font-medium text-xs whitespace-nowrap ${
+                    activeTab === 'all'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500'
+                  }`}
+                >
+                  {t('overtime.allRequests')}
+                </button>
+                <button
+                  onClick={() => setActiveTab('approved')}
+                  className={`flex-shrink-0 py-3 px-3 border-b-2 font-medium text-xs whitespace-nowrap ${
+                    activeTab === 'approved'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500'
+                  }`}
+                >
+                  {t('overtime.approved')}
+                </button>
+                <button
+                  onClick={() => setActiveTab('rejected')}
+                  className={`flex-shrink-0 py-3 px-3 border-b-2 font-medium text-xs whitespace-nowrap ${
+                    activeTab === 'rejected'
+                      ? 'border-red-500 text-red-600'
+                      : 'border-transparent text-gray-500'
+                  }`}
+                >
+                  {t('overtime.rejected')}
+                </button>
+              </>
+            )}
+          </nav>
+
+          {/* Desktop: Normal flex tabs */}
+          <nav className="hidden sm:flex space-x-8 px-6" aria-label="Tabs">
             <button
               onClick={() => setActiveTab('pending')}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
@@ -278,35 +332,35 @@ export default function OvertimeApproval() {
           </nav>
         </div>
 
-        {/* Filters Section */}
+        {/* Filters Section - Mobile Optimized */}
         {isAdmin && (
-          <div className="p-6 border-b border-gray-200">
+          <div className="p-4 sm:p-6 border-b border-gray-200">
             <button
               onClick={() => setShowFilters(!showFilters)}
               className="flex items-center text-sm font-medium text-gray-700 hover:text-gray-900"
             >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
-              {showFilters ? t('overtime.hideFilters') : t('overtime.showFilters')}
+              <span className="truncate">{showFilters ? t('overtime.hideFilters') : t('overtime.showFilters')}</span>
               {hasActiveFilters && (
-                <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-600 rounded-full">
+                <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-600 rounded-full flex-shrink-0">
                   {Object.values(filters).filter(v => v !== '').length}
                 </span>
               )}
             </button>
 
             {showFilters && (
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="mt-4 space-y-4 sm:space-y-0 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-4 lg:gap-6">
                 {/* Division Filter */}
-                <div className="border-l-4 border-blue-500 pl-4">
+                <div className="border-l-4 border-blue-500 pl-3 sm:pl-4">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     {t('overtime.division')}
                   </label>
                   <select
                     value={filters.divisionId}
                     onChange={(e) => setFilters({...filters, divisionId: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">{t('overtime.allDivisions')}</option>
                     {divisions.map(div => (
@@ -316,7 +370,7 @@ export default function OvertimeApproval() {
                 </div>
 
                 {/* Search Filter */}
-                <div className="border-l-4 border-green-500 pl-4">
+                <div className="border-l-4 border-green-500 pl-3 sm:pl-4">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     {t('overtime.searchEmployee')}
                   </label>
@@ -325,12 +379,12 @@ export default function OvertimeApproval() {
                     value={filters.search}
                     onChange={(e) => setFilters({...filters, search: e.target.value})}
                     placeholder={t('overtime.searchPlaceholder')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
 
                 {/* Request Date Range */}
-                <div className="border-l-4 border-yellow-500 pl-4">
+                <div className="border-l-4 border-yellow-500 pl-3 sm:pl-4">
                   <p className="text-sm font-semibold text-gray-700 mb-2">{t('overtime.requestDateRange')}</p>
                   <div className="space-y-2">
                     <div>
@@ -339,7 +393,7 @@ export default function OvertimeApproval() {
                         type="date"
                         value={filters.requestDateFrom}
                         onChange={(e) => setFilters({...filters, requestDateFrom: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
                     <div>
@@ -348,14 +402,14 @@ export default function OvertimeApproval() {
                         type="date"
                         value={filters.requestDateTo}
                         onChange={(e) => setFilters({...filters, requestDateTo: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* Overtime Date Range */}
-                <div className="border-l-4 border-orange-500 pl-4">
+                <div className="border-l-4 border-orange-500 pl-3 sm:pl-4">
                   <p className="text-sm font-semibold text-gray-700 mb-2">{t('overtime.overtimeDateRange')}</p>
                   <div className="space-y-2">
                     <div>
@@ -364,7 +418,7 @@ export default function OvertimeApproval() {
                         type="date"
                         value={filters.overtimeDateFrom}
                         onChange={(e) => setFilters({...filters, overtimeDateFrom: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
                     <div>
@@ -373,16 +427,16 @@ export default function OvertimeApproval() {
                         type="date"
                         value={filters.overtimeDateTo}
                         onChange={(e) => setFilters({...filters, overtimeDateTo: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* Hours Range */}
-                <div className="border-l-4 border-purple-500 pl-4">
+                <div className="border-l-4 border-purple-500 pl-3 sm:pl-4">
                   <p className="text-sm font-semibold text-gray-700 mb-2">{t('overtime.hoursRange')}</p>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-2 sm:gap-4">
                     <div>
                       <label className="block text-xs text-gray-600 mb-1">{t('overtime.minHours')}</label>
                       <input
@@ -392,7 +446,7 @@ export default function OvertimeApproval() {
                         value={filters.hoursMin}
                         onChange={(e) => setFilters({...filters, hoursMin: e.target.value})}
                         placeholder="e.g., 8"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
                     <div>
@@ -404,17 +458,17 @@ export default function OvertimeApproval() {
                         value={filters.hoursMax}
                         onChange={(e) => setFilters({...filters, hoursMax: e.target.value})}
                         placeholder="e.g., 40"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
                   </div>
                 </div>
 
                 {hasActiveFilters && (
-                  <div className="flex justify-end">
+                  <div className="flex justify-end sm:col-span-2 lg:col-span-3">
                     <button
                       onClick={clearFilters}
-                      className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium"
+                      className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-medium hover:bg-gray-50 rounded-lg transition-colors"
                     >
                       {t('overtime.clearAll')}
                     </button>
@@ -429,10 +483,10 @@ export default function OvertimeApproval() {
         {loading ? (
           <div className="text-center py-12">
             <div className="animate-spin h-10 w-10 border-4 border-blue-600 border-t-transparent rounded-full mx-auto"></div>
-            <p className="mt-4 text-gray-600">{t('common.loading')}</p>
+            <p className="mt-4 text-sm text-gray-600">{t('common.loading')}</p>
           </div>
         ) : requests.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center py-12 px-4">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
@@ -442,133 +496,162 @@ export default function OvertimeApproval() {
             </p>
           </div>
         ) : (
-          <div className="space-y-4 p-6">
+          <div className="space-y-3 sm:space-y-4 p-4 sm:p-6">
             {requests.map((request) => (
-              <div key={request.id} className="border rounded-lg p-5 hover:shadow-md transition-shadow">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-                        <span className="text-white font-semibold text-sm">
-                          {request.employee?.name?.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{request.employee?.name}</h3>
-                        <p className="text-xs text-gray-500">
-                          {request.employee?.division?.name} • {request.employee?.role?.name}
-                        </p>
-                      </div>
+              <div key={request.id} className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                {/* Card Content */}
+                <div className="p-4 sm:p-5">
+                  {/* Employee Header - Mobile Optimized */}
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                      <span className="text-white font-semibold text-sm">
+                        {request.employee?.name?.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">{request.employee?.name}</h3>
+                      <p className="text-xs text-gray-500 truncate">
+                        {request.employee?.division?.name} • {request.employee?.role?.name}
+                      </p>
+                    </div>
+                    <div className="sm:hidden">
                       {getStatusBadge(request.status)}
                     </div>
+                  </div>
 
-                    {/* Improved Display Section */}
-                    <div className="bg-gray-50 rounded-lg p-4 mb-3">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Total Hours */}
-                        <div>
-                          <p className="text-gray-500 text-xs mb-1">{t('overtime.totalHours')}</p>
-                          <p className="font-semibold text-gray-900">{request.totalHours} {t('overtime.hours')}</p>
-                        </div>
+                  {/* Status badge - Desktop only */}
+                  <div className="hidden sm:block mb-3">
+                    {getStatusBadge(request.status)}
+                  </div>
 
-                        {/* Overtime Dates */}
-                        <div>
-                          <p className="text-gray-500 text-xs mb-1">{t('overtime.overtimeDates')}</p>
-                          <div className="text-sm text-gray-900">
-                            {request.entries && request.entries.length > 0 ? (
-                              <ul className="list-disc list-inside space-y-0.5">
-                                {request.entries.slice(0, 3).map((entry, idx) => (
-                                  <li key={idx} className="text-xs">
-                                    {format(new Date(entry.date), 'MMM dd, yyyy')} ({entry.hours}h)
-                                  </li>
-                                ))}
-                                {request.entries.length > 3 && (
-                                  <li className="text-xs text-blue-600 font-medium">
-                                    +{request.entries.length - 3} more dates
-                                  </li>
-                                )}
-                              </ul>
-                            ) : (
-                              <span className="text-xs text-gray-400">No dates</span>
-                            )}
+                  {/* Desktop Layout: Info Grid + Action Buttons side by side */}
+                  <div className="sm:flex sm:gap-4">
+                    {/* Info Grid - Left Side */}
+                    <div className="flex-1">
+                      <div className="bg-gray-50 rounded-lg p-3 sm:p-4 mb-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                          {/* Total Hours */}
+                          <div>
+                            <p className="text-gray-500 text-xs mb-1">{t('overtime.totalHours')}</p>
+                            <p className="font-semibold text-gray-900 text-sm">{request.totalHours} {t('overtime.hours')}</p>
+                          </div>
+
+                          {/* Overtime Dates */}
+                          <div className="sm:col-span-2">
+                            <p className="text-gray-500 text-xs mb-1">{t('overtime.overtimeDates')}</p>
+                            <div className="text-sm text-gray-900">
+                              {request.entries && request.entries.length > 0 ? (
+                                <ul className="space-y-0.5">
+                                  {request.entries.slice(0, 2).map((entry, idx) => (
+                                    <li key={idx} className="text-xs flex items-baseline">
+                                      <span className="inline-block w-1 h-1 rounded-full bg-blue-500 mr-2 mt-1.5 flex-shrink-0"></span>
+                                      <span>{format(new Date(entry.date), 'MMM dd, yyyy')} ({entry.hours}h)</span>
+                                    </li>
+                                  ))}
+                                  {request.entries.length > 2 && (
+                                    <li className="text-xs text-blue-600 font-medium ml-3">
+                                      +{request.entries.length - 2} more dates
+                                    </li>
+                                  )}
+                                </ul>
+                              ) : (
+                                <span className="text-xs text-gray-400">No dates</span>
+                              )}
+                            </div>
                           </div>
                         </div>
 
-                        {/* Submitted On */}
-                        <div>
-                          <p className="text-gray-500 text-xs mb-1">{t('overtime.submittedOn')}</p>
-                          <p className="font-semibold text-gray-900 text-sm">
-                            {format(new Date(request.submittedAt), 'MMM dd, yyyy')}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {format(new Date(request.submittedAt), 'HH:mm')}
-                          </p>
+                        {/* Entry Descriptions */}
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <p className="text-gray-500 text-xs mb-2">{t('overtime.entryDescriptions')}</p>
+                          <div className="space-y-2">
+                            {request.entries && request.entries.slice(0, 2).map((entry, idx) => (
+                              <div key={idx} className="flex items-start space-x-2">
+                                <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></span>
+                                <p className="text-xs text-gray-700 flex-1 break-words">
+                                  <span className="font-medium">{format(new Date(entry.date), 'MMM dd')}:</span> {truncateText(entry.description, 60)}
+                                </p>
+                              </div>
+                            ))}
+                            {request.entries && request.entries.length > 2 && (
+                              <p className="text-xs text-blue-600 font-medium pl-4">
+                                +{request.entries.length - 2} more entries
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
 
-                      {/* Entry Descriptions */}
-                      <div className="mt-4 pt-4 border-t border-gray-200">
-                        <p className="text-gray-500 text-xs mb-2">{t('overtime.entryDescriptions')}</p>
-                        <div className="space-y-2">
-                          {request.entries && request.entries.slice(0, 2).map((entry, idx) => (
-                            <div key={idx} className="flex items-start space-x-2">
-                              <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></span>
-                              <p className="text-xs text-gray-700">
-                                <span className="font-medium">{format(new Date(entry.date), 'MMM dd')}:</span> {truncateText(entry.description, 80)}
-                              </p>
-                            </div>
-                          ))}
-                          {request.entries && request.entries.length > 2 && (
-                            <p className="text-xs text-blue-600 font-medium pl-4">
-                              +{request.entries.length - 2} more entries
-                            </p>
-                          )}
-                        </div>
-                      </div>
+                      {/* Approver Info */}
+                      {request.status !== 'PENDING' && request.currentApprover && (
+                        <p className="text-xs sm:text-sm text-gray-600">
+                          {request.status === 'APPROVED' ? `✓ ${t('overtime.approvedBy')}` : `✗ ${t('overtime.rejectedBy')}`} {request.currentApprover.name}
+                        </p>
+                      )}
                     </div>
 
-                    {request.status !== 'PENDING' && request.currentApprover && (
-                      <p className="text-sm text-gray-600">
-                        {request.status === 'APPROVED' ? `✓ ${t('overtime.approvedBy')}` : `✗ ${t('overtime.rejectedBy')}`} {request.currentApprover.name}
-                      </p>
-                    )}
-                  </div>
+                    {/* Action Buttons - Right Side on Desktop, Below on Mobile */}
+                    <div className="flex gap-2 sm:flex-col sm:justify-center sm:space-y-2 sm:gap-0 mt-3 sm:mt-0 sm:min-w-[200px]">
+                      {/* View Details Button */}
+                      {isAdmin && (
+                        <Link
+                          to={`/overtime/detail/${request.id}`}
+                          className="flex-1 sm:flex-none px-3 py-2 sm:px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-center transition-colors flex items-center justify-center"
+                          title={t('overtime.viewDetails')}
+                        >
+                          {/* Mobile: Icon only */}
+                          {/* <svg className="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg> */}
+                          <img 
+                            src="/detail-icon.svg" 
+                            alt="" 
+                            className="w-5 h-5 sm:hidden brightness-0 invert" 
+                          />
+                          {/* Desktop: Custom icon + text */}
+                          <span className="hidden sm:flex items-center gap-2">
+                            <span className="text-sm">{t('overtime.viewDetails')}</span>
+                          </span>
+                        </Link>
+                      )}
 
-                  {/* Action Buttons */}
-                  <div className="ml-4 flex flex-col space-y-2">
-                    {/* View Details Button (always visible for admin) */}
-                    {isAdmin && (
-                      <Link
-                        to={`/overtime/detail/${request.id}`}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium text-center"
-                      >
-                        {t('overtime.viewDetails')}
-                      </Link>
-                    )}
-
-                    {/* Action buttons only for pending/revision requests */}
-                    {(request.status === 'PENDING' || request.status === 'REVISION_REQUESTED') && (
-                      <>
-                        <button
-                          onClick={() => openActionModal(request, 'approve')}
-                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
-                        >
-                          {t('overtime.approve')}
-                        </button>
-                        <button
-                          onClick={() => openActionModal(request, 'reject')}
-                          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium"
-                        >
-                          {t('overtime.reject')}
-                        </button>
-                        <button
-                          onClick={() => openActionModal(request, 'revision')}
-                          className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium"
-                        >
-                          {t('overtime.requestRevision')}
-                        </button>
-                      </>
-                    )}
+                      {/* Approval Action buttons */}
+                      {(request.status === 'PENDING' || request.status === 'REVISION_REQUESTED') && (
+                        <>
+                          <button
+                            onClick={() => openActionModal(request, 'approve')}
+                            className="flex-1 sm:flex-none px-3 py-2 sm:px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors flex items-center justify-center"
+                            title={t('overtime.approve')}
+                          >
+                            <svg className="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span className="hidden sm:inline text-sm">{t('overtime.approve')}</span>
+                          </button>
+                          <button
+                            onClick={() => openActionModal(request, 'reject')}
+                            className="flex-1 sm:flex-none px-3 py-2 sm:px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors flex items-center justify-center"
+                            title={t('overtime.reject')}
+                          >
+                            <svg className="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            <span className="hidden sm:inline text-sm">{t('overtime.reject')}</span>
+                          </button>
+                          <button
+                            onClick={() => openActionModal(request, 'revision')}
+                            className="flex-1 sm:flex-none px-3 py-2 sm:px-4 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium transition-colors flex items-center justify-center"
+                            title={t('overtime.requestRevision')}
+                          >
+                            <svg className="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            <span className="hidden sm:inline text-sm">{t('overtime.requestRevision')}</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -577,48 +660,54 @@ export default function OvertimeApproval() {
         )}
       </div>
 
-      {/* Action Modal */}
+      {/* Action Modal - Mobile Optimized */}
       {showModal && selectedRequest && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h2 className="text-xl font-bold mb-4 capitalize">
-              {actionType === 'approve' ? t('overtime.approve') : 
-               actionType === 'reject' ? t('overtime.reject') : 
-               t('overtime.requestRevision')} {t('overtime.overtimeRequest')}
-            </h2>
-            
-            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm"><span className="font-medium">{t('overtime.employee')}:</span> {selectedRequest.employee?.name}</p>
-              <p className="text-sm"><span className="font-medium">{t('overtime.totalHours')}:</span> {selectedRequest.totalHours}</p>
-            </div>
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-bold mb-4 capitalize">
+                {actionType === 'approve' ? t('overtime.approve') : 
+                 actionType === 'reject' ? t('overtime.reject') : 
+                 t('overtime.requestRevision')} {t('overtime.overtimeRequest')}
+              </h2>
+              
+              <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg space-y-2">
+                <p className="text-sm break-words">
+                  <span className="font-medium">{t('overtime.employee')}:</span> {selectedRequest.employee?.name}
+                </p>
+                <p className="text-sm">
+                  <span className="font-medium">{t('overtime.totalHours')}:</span> {selectedRequest.totalHours}
+                </p>
+              </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('overtime.commentLabel')} {(actionType === 'reject' || actionType === 'revision') && '*'}
-              </label>
-              <textarea
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                rows="4"
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder={t('overtime.commentPlaceholder')}
-              />
-            </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {t('overtime.commentLabel')} {(actionType === 'reject' || actionType === 'revision') && <span className="text-red-500">*</span>}
+                </label>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  rows="4"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  placeholder={t('overtime.commentPlaceholder')}
+                />
+              </div>
 
-            <div className="flex space-x-3">
-              <button
-                onClick={() => setShowModal(false)}
-                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
-              >
-                {t('overtime.cancel')}
-              </button>
-              <button
-                onClick={handleAction}
-                disabled={loading}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
-              >
-                {loading ? t('overtime.processing') : t('overtime.confirm')}
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                >
+                  {t('overtime.cancel')}
+                </button>
+                <button
+                  onClick={handleAction}
+                  disabled={loading}
+                  className="flex-1 px-4 py-2.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors text-sm font-medium"
+                >
+                  {loading ? t('overtime.processing') : t('overtime.confirm')}
+                </button>
+              </div>
             </div>
           </div>
         </div>
