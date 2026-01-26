@@ -397,7 +397,7 @@ export async function sendWelcomeEmailsToAll(testMode = false, testEmail = null)
       }
     });
 
-    console.log(`📊 Found ${employees.length} employee(s) to process`);
+    console.log(`Found ${employees.length} employee(s) to process`);
 
     if (employees.length === 0) {
       return {
@@ -418,7 +418,7 @@ export async function sendWelcomeEmailsToAll(testMode = false, testEmail = null)
     // Process each employee
     for (const employee of employees) {
       try {
-        console.log(`📧 Processing: ${employee.name} (${employee.email})`);
+        console.log(`Processing: ${employee.name} (${employee.email})`);
 
         // Generate password reset token
         const plainToken = generateResetToken();
@@ -453,7 +453,7 @@ export async function sendWelcomeEmailsToAll(testMode = false, testEmail = null)
 
         if (emailResult.success) {
           results.sent++;
-          console.log(`  ✅ Email sent to ${employee.email}`);
+          console.log(`  Email sent to ${employee.email}`);
         } else {
           results.failed++;
           results.errors.push({
@@ -461,7 +461,7 @@ export async function sendWelcomeEmailsToAll(testMode = false, testEmail = null)
             email: employee.email,
             error: emailResult.error
           });
-          console.log(`  ❌ Failed to send to ${employee.email}: ${emailResult.error}`);
+          console.log(`  Failed to send to ${employee.email}: ${emailResult.error}`);
         }
 
         // Small delay to avoid rate limiting
@@ -474,13 +474,13 @@ export async function sendWelcomeEmailsToAll(testMode = false, testEmail = null)
           email: employee.email,
           error: error.message
         });
-        console.error(`  ❌ Error processing ${employee.email}:`, error.message);
+        console.error(`  Error processing ${employee.email}:`, error.message);
       }
     }
 
-    console.log('\n📊 Summary:');
-    console.log(`  ✅ Sent: ${results.sent}`);
-    console.log(`  ❌ Failed: ${results.failed}`);
+    console.log('\n===Summary===:');
+    console.log(`  Sent: ${results.sent}`);
+    console.log(`  Failed: ${results.failed}`);
 
     return {
       success: true,
