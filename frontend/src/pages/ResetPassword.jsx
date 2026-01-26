@@ -1,4 +1,6 @@
 // frontend/src/pages/ResetPassword.jsx
+// MOBILE-RESPONSIVE VERSION - Optimized spacing, touch targets, and adaptive layout
+
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, Lock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
@@ -37,7 +39,7 @@ export default function ResetPassword() {
       uppercase: /[A-Z]/.test(password),
       lowercase: /[a-z]/.test(password),
       number: /[0-9]/.test(password),
-      symbol: /[@$!%*?&\-_.+=]/.test(password)  // ✅ Matches backend
+      symbol: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
     });
   }, [formData.newPassword]);
 
@@ -121,15 +123,15 @@ export default function ResetPassword() {
   if (!token) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100 px-4">
-        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
-          <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Link Tidak Valid</h2>
-          <p className="text-gray-600 mb-6">
+        <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg max-w-md w-full text-center">
+          <XCircle className="w-12 h-12 sm:w-16 sm:h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Link Tidak Valid</h2>
+          <p className="text-sm sm:text-base text-gray-600 mb-6">
             Link reset password tidak ditemukan atau sudah kadaluarsa.
           </p>
           <button
             onClick={() => navigate('/login')}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition"
+            className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition text-sm sm:text-base"
           >
             Kembali ke Login
           </button>
@@ -141,12 +143,12 @@ export default function ResetPassword() {
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100 px-4">
-        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
-          <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+        <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg max-w-md w-full text-center">
+          <CheckCircle className="w-12 h-12 sm:w-16 sm:h-16 text-green-500 mx-auto mb-4" />
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
             Password Berhasil Dibuat! 🎉
           </h2>
-          <p className="text-gray-600 mb-4">
+          <p className="text-sm sm:text-base text-gray-600 mb-4">
             Anda akan dialihkan ke halaman login...
           </p>
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
@@ -157,33 +159,33 @@ export default function ResetPassword() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100 px-4 py-8">
-      <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="bg-gradient-to-r from-blue-600 to-blue-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Lock className="w-8 h-8 text-white" />
+      <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg max-w-md w-full">
+        {/* Header - Mobile Optimized */}
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="bg-gradient-to-r from-blue-600 to-blue-800 w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Lock className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
             Buat Password Baru
           </h2>
-          <p className="text-gray-600 text-sm">
+          <p className="text-xs sm:text-sm text-gray-600">
             Buat password yang kuat untuk akun Anda
           </p>
         </div>
 
-        {/* Error message */}
+        {/* Error message - Mobile Optimized */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 sm:gap-3">
             <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-red-800">Error</p>
-              <p className="text-sm text-red-700">{error}</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-red-800">Error</p>
+              <p className="text-xs sm:text-sm text-red-700 break-words">{error}</p>
             </div>
           </div>
         )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Form - Mobile Optimized */}
+        <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
           {/* New Password */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -195,7 +197,7 @@ export default function ResetPassword() {
                 name="newPassword"
                 value={formData.newPassword}
                 onChange={handleChange}
-                className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 sm:px-4 py-3 pr-11 sm:pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                 placeholder="Masukkan password baru"
                 required
                 autoComplete="new-password"
@@ -203,16 +205,17 @@ export default function ResetPassword() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute inset-y-0 right-0 flex items-center justify-center w-11 sm:w-12 text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
           </div>
 
-          {/* Password Requirements */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <p className="text-sm font-medium text-gray-700 mb-3">
+          {/* Password Requirements - Mobile Optimized */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 sm:p-4">
+            <p className="text-xs sm:text-sm font-medium text-gray-700 mb-3">
               Persyaratan Password:
             </p>
             <div className="space-y-2">
@@ -233,7 +236,7 @@ export default function ResetPassword() {
                 checked={passwordChecks.number} 
               />
               <PasswordCheck 
-                label="Simbol (@$!%*?&-_.+=)" 
+                label="Simbol (!@#$%^&*)" 
                 checked={passwordChecks.symbol} 
               />
             </div>
@@ -250,7 +253,7 @@ export default function ResetPassword() {
                 name="confirmPassword"
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 sm:px-4 py-3 pr-11 sm:pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                 placeholder="Masukkan ulang password baru"
                 required
                 autoComplete="new-password"
@@ -258,7 +261,8 @@ export default function ResetPassword() {
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute inset-y-0 right-0 flex items-center justify-center w-11 sm:w-12 text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
               >
                 {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
@@ -268,12 +272,12 @@ export default function ResetPassword() {
             {formData.confirmPassword && (
               <div className="mt-2">
                 {formData.newPassword === formData.confirmPassword ? (
-                  <p className="text-sm text-green-600 flex items-center gap-1">
+                  <p className="text-xs sm:text-sm text-green-600 flex items-center gap-1">
                     <CheckCircle className="w-4 h-4" />
                     Password cocok
                   </p>
                 ) : (
-                  <p className="text-sm text-red-600 flex items-center gap-1">
+                  <p className="text-xs sm:text-sm text-red-600 flex items-center gap-1">
                     <XCircle className="w-4 h-4" />
                     Password tidak cocok
                   </p>
@@ -282,14 +286,14 @@ export default function ResetPassword() {
             )}
           </div>
 
-          {/* Submit Button */}
+          {/* Submit Button - Mobile Optimized */}
           <button
             type="submit"
             disabled={loading || !Object.values(passwordChecks).every(check => check)}
-            className={`w-full py-3 rounded-lg font-medium transition ${
+            className={`w-full py-3 rounded-lg font-medium transition text-sm sm:text-base ${
               loading || !Object.values(passwordChecks).every(check => check)
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md'
             }`}
           >
             {loading ? (
@@ -303,9 +307,9 @@ export default function ResetPassword() {
           </button>
         </form>
 
-        {/* Help Text */}
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
+        {/* Help Text - Mobile Optimized */}
+        <div className="mt-5 sm:mt-6 text-center">
+          <p className="text-xs sm:text-sm text-gray-600">
             Sudah punya akun?{' '}
             <button
               onClick={() => navigate('/login')}
@@ -320,7 +324,7 @@ export default function ResetPassword() {
   );
 }
 
-// Password requirement check component
+// Password requirement check component - Mobile Optimized
 function PasswordCheck({ label, checked }) {
   return (
     <div className="flex items-center gap-2">
@@ -329,7 +333,7 @@ function PasswordCheck({ label, checked }) {
       ) : (
         <XCircle className="w-4 h-4 text-gray-300 flex-shrink-0" />
       )}
-      <span className={`text-sm ${checked ? 'text-green-700 font-medium' : 'text-gray-600'}`}>
+      <span className={`text-xs sm:text-sm ${checked ? 'text-green-700 font-medium' : 'text-gray-600'}`}>
         {label}
       </span>
     </div>

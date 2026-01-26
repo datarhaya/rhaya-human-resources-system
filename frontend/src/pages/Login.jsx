@@ -1,5 +1,5 @@
 // frontend/src/pages/Login.jsx
-// UPDATED: Login with NIP or Email
+// MOBILE-RESPONSIVE VERSION - Optimized spacing, touch targets, and adaptive layout
 
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
@@ -14,7 +14,7 @@ export default function Login() {
   const { t } = useTranslation();
   
   const [formData, setFormData] = useState({
-    identifier: '',  // Changed from 'username' to 'identifier'
+    identifier: '',  // NIP or Email
     password: ''
   });
   const [error, setError] = useState('');
@@ -58,21 +58,21 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">{t('login.title') || 'Login'}</h1>
-          <p className="text-gray-600 mt-2">{t('login.subtitle') || 'Welcome back! Please login to your account.'}</p>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg w-full max-w-md">
+        {/* Header - Mobile Optimized */}
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t('login.title') || 'Login'}</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-2">{t('login.subtitle') || 'Welcome back! Please login to your account.'}</p>
         </div>
 
-        {/* Error Message - Positioned above form */}
+        {/* Error Message - Mobile Optimized */}
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded">
+          <div className="bg-red-50 border-l-4 border-red-500 p-3 sm:p-4 mb-4 sm:mb-6 rounded">
             <div className="flex items-start">
-              <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm text-red-800 font-medium">
+              <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 mr-2 sm:mr-3 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-red-800 font-medium break-words">
                   {error}
                 </p>
               </div>
@@ -80,8 +80,8 @@ export default function Login() {
           </div>
         )}
 
-        {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Login Form - Mobile Optimized */}
+        <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
           {/* NIP or Email */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -91,7 +91,7 @@ export default function Login() {
               type="text"
               value={formData.identifier}
               onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+              className={`w-full px-3 sm:px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-sm sm:text-base ${
                 error ? 'border-red-300 bg-red-50' : 'border-gray-300'
               }`}
               placeholder={t('login.enterIdentifier') || 'Enter your NIP or Email'}
@@ -99,7 +99,7 @@ export default function Login() {
               disabled={loading}
               autoComplete="username"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 mt-1.5">
               {t('login.identifierHelp') || 
                'You can use your NIP (employee ID) or email address'}
             </p>
@@ -115,7 +115,7 @@ export default function Login() {
                 type={showPassword ? 'text' : 'password'}
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                className={`w-full px-3 sm:px-4 py-3 pr-11 sm:pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-sm sm:text-base ${
                   error ? 'border-red-300 bg-red-50' : 'border-gray-300'
                 }`}
                 placeholder={t('login.enterPassword') || 'Enter your password'}
@@ -126,9 +126,10 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none disabled:opacity-50"
+                className="absolute inset-y-0 right-0 flex items-center justify-center w-11 sm:w-12 text-gray-500 hover:text-gray-700 focus:outline-none disabled:opacity-50 transition-colors"
                 disabled={loading}
                 tabIndex={-1}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
@@ -139,18 +140,18 @@ export default function Login() {
           <div className="text-right">
             <Link
               to="/forgot-password"
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors inline-block"
               tabIndex={loading ? -1 : 0}
             >
               Forgot password?
             </Link>
           </div>
 
-          {/* Submit Button */}
+          {/* Submit Button - Mobile Optimized */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
+            className="w-full bg-blue-600 text-white py-3 sm:py-3.5 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center text-sm sm:text-base shadow-sm hover:shadow-md"
           >
             {loading ? (
               <>
@@ -166,8 +167,8 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Footer Note */}
-        <div className="mt-6 text-center text-xs text-gray-500">
+        {/* Footer Note - Mobile Optimized */}
+        <div className="mt-5 sm:mt-6 text-center text-xs text-gray-500">
           <p>By signing in, you agree to our terms and conditions</p>
         </div>
       </div>
