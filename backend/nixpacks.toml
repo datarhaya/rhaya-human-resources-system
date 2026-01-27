@@ -1,9 +1,10 @@
 # nixpacks.toml
 
 [phases.setup]
-# We must list EVERYTHING we need, because manual config overrides auto-detection.
-# 'nodejs' and 'npm' are required to run your backend.
-nixPkgs = ["nodejs", "npm", "qpdf"]
+# 'nodejs' includes npm automatically.
+# We specify 'nodejs-18_x' to match the version Railway was using earlier (Node 18),
+# but you can change this to 'nodejs-20_x' or just 'nodejs' (for latest) if you prefer.
+nixPkgs = ["nodejs", "qpdf"]
 
 [phases.install]
 cmds = ["npm install"]
