@@ -179,19 +179,29 @@ export const uploadPayslipController = async (req, res) => {
       }
     }
 
-    res.json({
+    // res.json({
+    //   success: true,
+    //   message: isNewUpload 
+    //     ? 'Payslip berhasil diupload dan dienkripsi' 
+    //     : 'Payslip berhasil diupdate dan dienkripsi',
+    //   data: payslip,
+    //   encrypted: true  // ✅ Indicate PDF is encrypted
+    // });
+    return res.status(200).json({
       success: true,
-      message: isNewUpload 
-        ? 'Payslip berhasil diupload dan dienkripsi' 
-        : 'Payslip berhasil diupdate dan dienkripsi',
-      data: payslip,
-      encrypted: true  // ✅ Indicate PDF is encrypted
+      message: isNewUpload ? 'Payslip berhasil diupload' : 'Payslip berhasil diupdate',
+      data: payslip
     });
 
   } catch (error) {
     console.error('❌ Upload payslip error:', error);
     
-    res.status(500).json({
+    // res.status(500).json({
+    //   error: 'Failed to upload payslip',
+    //   message: error.message
+    // });
+    return res.status(500).json({
+      success: false,
       error: 'Failed to upload payslip',
       message: error.message
     });

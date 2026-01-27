@@ -115,6 +115,7 @@ export default function PayslipManagement() {
 
   const performUpload = async () => {
     setLoading(true);
+    
     try {
       const formData = new FormData();
       formData.append('file', uploadData.file);
@@ -124,39 +125,34 @@ export default function PayslipManagement() {
       formData.append('sendNotification', uploadData.sendNotification);
 
       const response = await apiClient.post('/payslips/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 30000
       });
 
-      if (response.data.success) {
-        // ✅ Show encryption success message
-        alert(response.data.message || 'Payslip berhasil diupload dan dienkripsi dengan password tanggal lahir karyawan');
+      if (response.data && response.data.success) {
         setShowUploadModal(false);
         setShowWarningModal(false);
-        resetUploadForm();
-        fetchData();
+        
+        setUploadData({
+          employeeId: '',
+          year: new Date().getFullYear(),
+          month: new Date().getMonth() + 1,
+          file: null,
+          sendNotification: true
+        });
+        setSelectedEmployee(null);
+        setExistingPayslip(null);
+        
+        // ✅ FIX: Fetch BEFORE alert (auto-refresh)
+        await fetchData();
+        
+        alert(response.data.message || 'Payslip berhasil diupload');
+      } else {
+        throw new Error('Unexpected response');
       }
     } catch (error) {
       console.error('Upload error:', error);
-      
-      // ✅ Handle specific encryption errors
-      const errorMsg = error.response?.data?.error || 'Failed to upload payslip';
-      
-      if (errorMsg.includes('Tanggal lahir')) {
-        // Birth date error
-        alert(errorMsg);
-        const employee = users.find(u => u.id === uploadData.employeeId);
-        if (employee) {
-          setBirthDateWarning({
-            employeeName: employee.name,
-            employeeId: employee.id
-          });
-        }
-      } else if (errorMsg.includes('mengenkripsi')) {
-        // Encryption error
-        alert('Gagal mengenkripsi PDF. Mohon coba lagi atau hubungi IT support.');
-      } else {
-        alert(errorMsg);
-      }
+      alert(error.response?.data?.error || 'Upload failed');
     } finally {
       setLoading(false);
     }
@@ -1098,6 +1094,33 @@ export default function PayslipManagement() {
           </div>
         </div>
       )}
+
+      {loading && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
+        <div className="bg-white rounded-lg p-8 max-w-sm w-full mx-4 text-center">
+          <div className="relative mx-auto w-16 h-16 mb-4">
+            <div className="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+          </div>
+          
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            🔒 Mengenkripsi Payslip
+          </h3>
+          
+          <p className="text-sm text-gray-600 mb-3">
+            Sedang mengenkripsi file PDF...
+          </p>
+          
+          <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
+            <div className="bg-blue-600 h-full rounded-full animate-pulse" style={{width: '70%'}}></div>
+          </div>
+          
+          <p className="text-xs text-gray-500 mt-3">
+            Proses ini 3-5 detik
+          </p>
+        </div>
+      </div>
+    )}
     </div>
   );
 }
