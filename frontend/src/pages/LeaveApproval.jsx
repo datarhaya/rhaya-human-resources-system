@@ -158,8 +158,15 @@ export default function LeaveApproval() {
   const hasActiveFilters = Object.values(filters).some(value => value !== '');
 
   const handleAction = async () => {
-    if (actionType === 'reject' && !comment.trim()) {
+    // Validate comment is required for ALL actions (approve, reject)
+    if (!comment.trim()) {
       alert(t('leave.commentRequired'));
+      return;
+    }
+
+    // Validate minimum 20 characters
+    if (comment.trim().length < 20) {
+      alert('Komentar minimal 20 karakter. Saat ini: ' + comment.trim().length + ' karakter');
       return;
     }
 
@@ -167,7 +174,7 @@ export default function LeaveApproval() {
     try {
       const endpoint = actionType === 'approve' ? 'approve' : 'reject';
       await apiClient.post(`/leave/${selectedRequest.id}/${endpoint}`, {
-        comment: comment || null
+        comment: comment.trim()  // Always send trimmed comment
       });
 
       alert(t('leave.actionSuccess'));
@@ -694,16 +701,29 @@ export default function LeaveApproval() {
 
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('leave.commentLabel')} {actionType === 'reject' && <span className="text-red-600">*</span>}
+                  {t('leave.commentLabel')} <span className="text-red-600">*</span>
+                  <span className="text-xs text-gray-500 ml-2">
+                    ({t('leave.minCharacters')}: {comment.trim().length})
+                  </span>
                 </label>
                 <textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   rows="4"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                    comment.trim().length > 0 && comment.trim().length < 20 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300'
+                  }`}
                   placeholder={t('leave.commentPlaceholder')}
-                  required={actionType === 'reject'}
+                  required
                 />
+                {comment.trim().length > 0 && comment.trim().length < 20 && (
+                  <p className="mt-1 text-xs text-red-600">
+                    {/* Kurang {20 - comment.trim().length} karakter lagi */}
+                    {comment.trim().length} / 20 {t('leave.characters')}
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
