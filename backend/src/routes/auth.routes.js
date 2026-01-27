@@ -14,7 +14,7 @@ const router = express.Router();
 
 // POST /api/auth/login - With rate limiting
 router.post('/login', 
-  loginLimiter,  // 5 attempts per 15 minutes
+  // loginLimiter,  // 5 attempts per 15 minutes
   [
     body('identifier')
       .notEmpty().withMessage('NIP or Email is required')
@@ -34,7 +34,7 @@ router.get('/me', authenticate, authController.getCurrentUser);
 // POST /api/auth/change-password - With rate limiting and strong password validation
 router.post('/change-password',
   authenticate,
-  changePasswordLimiter,  // 10 attempts per hour
+  // changePasswordLimiter,  // 10 attempts per hour
   [
     body('currentPassword')
       .notEmpty().withMessage('Current password is required'),
@@ -47,7 +47,7 @@ router.post('/change-password',
 
 // POST /api/auth/forgot-password - With rate limiting
 router.post('/forgot-password',
-  forgotPasswordLimiter,  // 3 attempts per hour
+  // forgotPasswordLimiter,  // 3 attempts per hour
   [
     body('email')
       .isEmail().withMessage('Valid email is required')
@@ -61,7 +61,7 @@ router.get('/verify-reset-token/:token', authController.verifyResetToken);
 
 // POST /api/auth/reset-password - With rate limiting and strong password validation
 router.post('/reset-password',
-  resetPasswordLimiter,  // 5 attempts per hour
+  // resetPasswordLimiter,  // 5 attempts per hour
   [
     body('token')
       .notEmpty().withMessage('Token is required'),
