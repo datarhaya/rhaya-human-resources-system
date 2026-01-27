@@ -580,7 +580,31 @@ const resources = {
         netSalary: 'Net Salary',
         download: 'Download',
       },
-
+      payslips: {
+        title: "My Payslips",
+        documents: "DOCUMENTS",
+        description: "View and download your monthly payslips securely",
+        totalPayslips: "TOTAL PAYSLIPS",
+        years: "YEARS",
+        latestPayslip: "LATEST PAYSLIP",
+        docs: "docs",
+        thn: "years",
+        searchPlaceholder: "Search month or year...",
+        filter: "Filter",
+        filterByYear: "Filter by Year",
+        allYears: "All Years",
+        noPayslips: "No payslips available",
+        files: "files",
+        download: "Download PDF",
+        downloading: "Downloading...",
+        clearFilters: "Clear All Filters",
+        showing: "Showing",
+        of: "of",
+        payslips: "Payslips",
+        uploaded: "Uploaded",
+        file:"File",
+        noMatchingPayslips: "No matching payslips found.",
+      },
       // User Profile
       profile: {
         // Page
@@ -1248,7 +1272,32 @@ const resources = {
         netSalary: 'Gaji Bersih',
         download: 'Unduh',
       },
-
+      
+      payslips: {
+        title: "Slip Gaji Saya",
+        documents: "DOKUMEN",
+        description: "Lihat dan unduh slip gaji bulanan Anda dengan aman",
+        totalPayslips: "TOTAL SLIP GAJI",
+        years: "TAHUN",
+        latestPayslip: "SLIP TERBARU",
+        docs: "dokumen",
+        thn: "tahun",
+        searchPlaceholder: "Cari bulan atau tahun...",
+        filter: "Filter",
+        filterByYear: "Filter per Tahun",
+        allYears: "Semua Tahun",
+        noPayslips: "Slip gaji tidak tersedia",
+        files: "slip",
+        download: "Unduh PDF",
+        downloading: "Mengunduh...",
+        clearFilters: "Hapus Semua Filter",
+        showing: "Menampilkan",
+        of: "dari",
+        payslips: "Payslip",
+        uploaded: "Diunggah",
+        file:"File",
+        noMatchingPayslips: "Tidak ada slip gaji yang cocok ditemukan.",
+      },
       // User Profile
       profile: {
         // Page
