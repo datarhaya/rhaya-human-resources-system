@@ -3,7 +3,7 @@
 
 [phases.setup]
 # Install system dependencies including QPDF for PDF encryption
-aptPkgs = ["qpdf=11.9.1-1"]
+nixPkgs = ["qpdf"]
 
 [phases.install]
 # Install Node.js dependencies
