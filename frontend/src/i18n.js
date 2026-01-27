@@ -549,6 +549,9 @@ const resources = {
         rejectedOn: 'Rejected on',
         submitted: 'Submitted',
         noPendingReview: 'No pending requests to review',
+        commentPlaceholder: 'Insert 20 character at minimum',
+        minCharacters : 'Min. 20 characters',
+        characters : "characters",
 
         // Error Dialog
         error: 'Error',
@@ -1241,7 +1244,10 @@ const resources = {
         rejectedOn: 'Ditolak pada',
         submitted: 'Diajukan',
         noPendingReview: 'Tidak ada permintaan tertunda untuk ditinjau',
-        
+        commentPlaceholder: 'Masukkan komentar minimal 20 karakter',
+        minCharacters : 'Min. 20 karakter',
+        characters : "karakter",
+
         // Error Dialog
         error: 'Kesalahan',
         success: 'Berhasil',
