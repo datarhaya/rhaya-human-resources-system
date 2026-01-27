@@ -39,6 +39,7 @@ export default function PayslipManagement() {
 
   // Selected employee for searchable dropdown
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [birthDateWarning, setBirthDateWarning] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -86,52 +87,78 @@ export default function PayslipManagement() {
       return;
     }
 
-    // Check if payslip already exists
+    const employee = users.find(u => u.id === uploadData.employeeId);
+    
+    if (!employee) {
+      alert('Selected employee not found');
+      return;
+    }
+
+    // ✅ Use dateOfBirth (not birthDate)
+    if (!employee.dateOfBirth) {
+      setBirthDateWarning({
+        employeeName: employee.name,
+        employeeId: employee.id
+      });
+      return;
+    }
+
     const existing = checkExistingPayslip();
     
     if (existing) {
-      // Show warning modal
       setExistingPayslip(existing);
       setShowWarningModal(true);
     } else {
-      // Proceed with upload directly
       await performUpload();
     }
   };
 
   const performUpload = async () => {
+    setLoading(true);
     try {
       const formData = new FormData();
       formData.append('file', uploadData.file);
       formData.append('employeeId', uploadData.employeeId);
       formData.append('year', uploadData.year);
       formData.append('month', uploadData.month);
-      formData.append('sendNotification', uploadData.sendNotification); 
+      formData.append('sendNotification', uploadData.sendNotification);
 
-      await apiClient.post('/payslips/upload', formData, {
+      const response = await apiClient.post('/payslips/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      
-      const notificationMsg = uploadData.sendNotification 
-        ? ' and email notification sent' 
-        : '';
-      alert(`Payslip uploaded successfully${notificationMsg}`);
-      
-      setShowUploadModal(false);
-      setShowWarningModal(false);
-      setUploadData({
-        employeeId: '',
-        year: new Date().getFullYear(),
-        month: new Date().getMonth() + 1,
-        file: null,
-        sendNotification: true  
-      });
-      setSelectedEmployee(null);
-      setExistingPayslip(null);
-      fetchData();
+
+      if (response.data.success) {
+        // ✅ Show encryption success message
+        alert(response.data.message || 'Payslip berhasil diupload dan dienkripsi dengan password tanggal lahir karyawan');
+        setShowUploadModal(false);
+        setShowWarningModal(false);
+        resetUploadForm();
+        fetchData();
+      }
     } catch (error) {
       console.error('Upload error:', error);
-      alert(error.response?.data?.error || 'Upload failed');
+      
+      // ✅ Handle specific encryption errors
+      const errorMsg = error.response?.data?.error || 'Failed to upload payslip';
+      
+      if (errorMsg.includes('Tanggal lahir')) {
+        // Birth date error
+        alert(errorMsg);
+        const employee = users.find(u => u.id === uploadData.employeeId);
+        if (employee) {
+          setBirthDateWarning({
+            employeeName: employee.name,
+            employeeId: employee.id
+          });
+        }
+      } else if (errorMsg.includes('mengenkripsi')) {
+        // Encryption error
+        alert('Gagal mengenkripsi PDF. Mohon coba lagi atau hubungi IT support.');
+      } else {
+        alert(errorMsg);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -615,6 +642,22 @@ export default function PayslipManagement() {
         </div>
       </div>
 
+      {/* Encryption Info Banner */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+        <div className="flex items-start gap-2">
+          <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-blue-800">🔒 Payslip Terenkripsi</p>
+            <p className="text-xs text-blue-700 mt-1">
+              File PDF akan dienkripsi dengan password tanggal lahir karyawan (format: DDMMYYYY). 
+              Pastikan karyawan sudah memiliki tanggal lahir di sistem.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -625,6 +668,11 @@ export default function PayslipManagement() {
                 onClick={() => {
                   setShowUploadModal(false);
                   setSelectedEmployee(null);
+                  {selectedEmployee && !users.find(u => u.id === selectedEmployee.value)?.dateOfBirth && (
+                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                      ⚠️ Karyawan ini belum memiliki tanggal lahir. Upload tidak dapat dilanjutkan.
+                    </div>
+                  )}
                   setUploadData({
                     employeeId: '',
                     year: new Date().getFullYear(),
@@ -768,6 +816,56 @@ export default function PayslipManagement() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Birth Date Warning Modal */}
+      {birthDateWarning && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Tanggal Lahir Diperlukan
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Karyawan <strong>{birthDateWarning.employeeName}</strong> belum memiliki tanggal lahir di sistem.
+                </p>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                  <p className="text-sm text-blue-800">
+                    <strong>ℹ️ Kenapa perlu tanggal lahir?</strong><br />
+                    Payslip dienkripsi dengan password tanggal lahir karyawan (format: DDMMYYYY) untuk keamanan data.
+                  </p>
+                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  Mohon update data karyawan terlebih dahulu sebelum upload payslip.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setBirthDateWarning(null);
+                      // Optionally navigate to employee edit page
+                      // navigate(`/employees/${birthDateWarning.employeeId}/edit`);
+                    }}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Update Data Karyawan
+                  </button>
+                  <button
+                    onClick={() => setBirthDateWarning(null)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Tutup
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

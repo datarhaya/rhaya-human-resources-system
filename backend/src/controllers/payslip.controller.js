@@ -4,6 +4,7 @@
 import { PrismaClient } from '@prisma/client';
 import { uploadPayslip, getFileFromR2, deleteFromR2 } from '../config/storage.js';
 import { sendPayslipNotificationEmail, sendBatchPayslipNotification } from '../services/email.service.js';
+import { encryptPayslipPDF, validateBirthDate } from '../utils/pdfEncryption.js';
 
 const prisma = new PrismaClient();
 
@@ -28,6 +29,36 @@ export const uploadPayslipController = async (req, res) => {
       });
     }
 
+    // ✅ Get employee with date of birth
+    const employee = await prisma.user.findUnique({
+      where: { id: employeeId },
+      select: { 
+        id: true, 
+        name: true, 
+        email: true, 
+        employeeStatus: true,
+        dateOfBirth: true  // ✅ Correct field name
+      }
+    });
+
+    if (!employee) {
+      return res.status(404).json({ 
+        error: 'Employee not found' 
+      });
+    }
+
+    // ✅ BLOCK UPLOAD if no date of birth
+    if (!validateBirthDate(employee.dateOfBirth)) {
+      return res.status(400).json({ 
+        error: 'Tanggal lahir karyawan harus diisi sebelum upload payslip. Mohon update data karyawan terlebih dahulu.',
+        field: 'dateOfBirth',
+        employeeId: employee.id,
+        employeeName: employee.name
+      });
+    }
+
+    console.log(`✅ Birth date validation passed for employee: ${employee.name}`);
+
     // Check if payslip already exists
     const existing = await prisma.payslip.findUnique({
       where: {
@@ -39,17 +70,31 @@ export const uploadPayslipController = async (req, res) => {
       }
     });
 
-    // Upload file to R2 (using helper function)
+    // ✅ ENCRYPT PDF with date of birth password (DDMMYYYY)
+    let encryptedBuffer;
+    try {
+      console.log(`🔒 Encrypting PDF for employee: ${employee.name}`);
+      encryptedBuffer = await encryptPayslipPDF(file.buffer, employee.dateOfBirth);
+      console.log(`✅ PDF encrypted successfully (size: ${encryptedBuffer.length} bytes)`);
+    } catch (encryptError) {
+      console.error('❌ PDF encryption failed:', encryptError);
+      return res.status(500).json({ 
+        error: 'Gagal mengenkripsi file PDF. Mohon coba lagi atau hubungi IT support.',
+        details: encryptError.message
+      });
+    }
+
+    // Upload ENCRYPTED file to R2
     let r2Key;
     try {
       r2Key = await uploadPayslip(
-        file.buffer, 
+        encryptedBuffer,  // ✅ Upload encrypted buffer, not original
         employeeId, 
         parseInt(year), 
         parseInt(month), 
         file.originalname
       );
-      console.log('✅ File uploaded to R2:', r2Key);
+      console.log('✅ Encrypted file uploaded to R2:', r2Key);
     } catch (uploadError) {
       console.error('Error uploading to R2:', uploadError);
       return res.status(500).json({ 
@@ -76,7 +121,7 @@ export const uploadPayslipController = async (req, res) => {
         data: {
           fileName: file.originalname,
           fileUrl: r2Key,
-          fileSize: file.size,
+          fileSize: encryptedBuffer.length,  // ✅ Use encrypted size
           grossSalary: grossSalary ? parseFloat(grossSalary) : null,
           netSalary: netSalary ? parseFloat(netSalary) : null,
           notes: notes || null,
@@ -101,7 +146,7 @@ export const uploadPayslipController = async (req, res) => {
           month: parseInt(month),
           fileName: file.originalname,
           fileUrl: r2Key,
-          fileSize: file.size,
+          fileSize: encryptedBuffer.length,  // ✅ Use encrypted size
           grossSalary: grossSalary ? parseFloat(grossSalary) : null,
           netSalary: netSalary ? parseFloat(netSalary) : null,
           notes: notes || null,
@@ -136,8 +181,11 @@ export const uploadPayslipController = async (req, res) => {
 
     res.json({
       success: true,
-      message: isNewUpload ? 'Payslip uploaded successfully' : 'Payslip updated successfully',
-      data: payslip
+      message: isNewUpload 
+        ? 'Payslip berhasil diupload dan dienkripsi' 
+        : 'Payslip berhasil diupdate dan dienkripsi',
+      data: payslip,
+      encrypted: true  // ✅ Indicate PDF is encrypted
     });
 
   } catch (error) {
