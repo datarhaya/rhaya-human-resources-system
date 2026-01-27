@@ -11,8 +11,9 @@
  */
 
 const MIN_LENGTH = 12;
-// ✅ EXPANDED: Must match frontend exactly!
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&\-_.+=])[A-Za-z\d@$!%*?&\-_.+=]/;
+// ✅ MUST MATCH FRONTEND EXACTLY!
+// Allowed symbols: @ $ ! % * ? & - _ . + = #
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&\-_.+=#])[A-Za-z\d@$!%*?&\-_.+=#]+$/;
 
 /**
  * Validate password strength
@@ -49,9 +50,9 @@ export function validatePassword(password) {
     errors.push('Password must contain at least one number');
   }
 
-  // ✅ EXPANDED: Check for special character - MUST MATCH FRONTEND!
-  if (!/[@$!%*?&\-_.+=]/.test(password)) {
-    errors.push('Password must contain at least one special character (@$!%*?&-_.+=)');
+  // ✅ MUST MATCH FRONTEND! Symbols: @ $ ! % * ? & - _ . + = #
+  if (!/[@$!%*?&\-_.+=#]/.test(password)) {
+    errors.push('Password must contain at least one special character (@$!%*?&-_.+=#)');
   }
 
   // Check for common weak passwords
@@ -80,7 +81,7 @@ export function getPasswordRequirements() {
     'Contains at least one uppercase letter (A-Z)',
     'Contains at least one lowercase letter (a-z)',
     'Contains at least one number (0-9)',
-    'Contains at least one special character (@$!%*?&-_.+=)'  // ✅ Updated
+    'Contains at least one special character (@$!%*?&-_.+=#)'
   ];
 }
 

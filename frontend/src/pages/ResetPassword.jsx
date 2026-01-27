@@ -39,7 +39,8 @@ export default function ResetPassword() {
       uppercase: /[A-Z]/.test(password),
       lowercase: /[a-z]/.test(password),
       number: /[0-9]/.test(password),
-      symbol: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
+      // ✅ MUST MATCH BACKEND: @ $ ! % * ? & - _ . + = #
+      symbol: /[@$!%*?&\-_.+=#]/.test(password)
     });
   }, [formData.newPassword]);
 
@@ -236,7 +237,7 @@ export default function ResetPassword() {
                 checked={passwordChecks.number} 
               />
               <PasswordCheck 
-                label="Simbol (!@#$%^&*)" 
+                label="Simbol (@$!%*?&-_.+=#)" 
                 checked={passwordChecks.symbol} 
               />
             </div>
