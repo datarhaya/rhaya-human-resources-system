@@ -1,14 +1,12 @@
 # nixpacks.toml
-# Railway deployment configuration for Node.js with QPDF support
 
 [phases.setup]
-# Install system dependencies including QPDF for PDF encryption
-nixPkgs = ["qpdf"]
+# We must list EVERYTHING we need, because manual config overrides auto-detection.
+# 'nodejs' and 'npm' are required to run your backend.
+nixPkgs = ["nodejs", "npm", "qpdf"]
 
 [phases.install]
-# Install Node.js dependencies
 cmds = ["npm install"]
 
 [start]
-# Start command
 cmd = "npm start"
