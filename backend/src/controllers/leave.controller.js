@@ -23,6 +23,15 @@ export const submitLeaveRequest = async (req, res) => {
       });
     }
 
+    // ✅ NEW: Validate attachment for sick leave > 2 days
+    if (leaveType === 'SICK_LEAVE' && totalDays > 2 && !attachment) {
+      return res.status(400).json({
+        success: false,
+        error: 'Surat keterangan dokter diperlukan untuk cuti sakit lebih dari 2 hari',
+        details: ['Surat keterangan dokter diperlukan untuk cuti sakit lebih dari 2 hari']
+      });
+    }
+
     // Get employee with relationships
     const employee = await prisma.user.findUnique({
       where: { id: employeeId },
@@ -47,8 +56,8 @@ export const submitLeaveRequest = async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'Validation failed',
-        message: 'Validation failed',  // Some frontends check this
-        details: errors  // ← Array of error messages
+        message: 'Validation failed',
+        details: errors
       });
     }
 
@@ -88,7 +97,6 @@ export const submitLeaveRequest = async (req, res) => {
         console.log('✅ Leave request notification sent to:', approver.email);
       }
     } catch (emailError) {
-      // Don't fail the request if email fails
       console.error('⚠️ Leave request email notification failed:', emailError.message);
     }
 

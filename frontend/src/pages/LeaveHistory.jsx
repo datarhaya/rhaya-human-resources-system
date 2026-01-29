@@ -57,7 +57,8 @@ export default function LeaveHistory() {
   const getAvailableLeaveTypes = () => {
     const allLeaveTypes = [
       { value: 'ANNUAL_LEAVE', labelKey: 'annualLeave', isPaid: true, requiresAttachment: false },
-      { value: 'SICK_LEAVE', labelKey: 'sickLeave', isPaid: true, requiresAttachment: true, noteKey: 'attachmentNote' },
+      // { value: 'SICK_LEAVE', labelKey: 'sickLeave', isPaid: true, requiresAttachment: true, noteKey: 'attachmentNote' },
+      { value: 'SICK_LEAVE', labelKey: 'sickLeave', isPaid: true, requiresAttachment: 'conditional', noteKey: 'attachmentNote' },
       { value: 'MATERNITY_LEAVE', labelKey: 'maternityLeave', isPaid: true, requiresAttachment: false, femaleOnly: true },
       { value: 'MENSTRUAL_LEAVE', labelKey: 'menstrualLeave', isPaid: true, requiresAttachment: false, femaleOnly: true },
       { value: 'MARRIAGE_LEAVE', labelKey: 'marriageLeave', isPaid: true, requiresAttachment: false },
@@ -70,6 +71,23 @@ export default function LeaveHistory() {
     }
     
     return allLeaveTypes;
+  };
+
+  const isAttachmentRequired = (leaveType, totalDays) => {
+    const leaveTypeConfig = leaveTypes.find(lt => lt.value === leaveType);
+    
+    if (!leaveTypeConfig) return false;
+    
+    // If requiresAttachment is 'conditional', check totalDays
+    if (leaveTypeConfig.requiresAttachment === 'conditional') {
+      // Sick leave requires attachment only if > 2 days
+      if (leaveType === 'SICK_LEAVE') {
+        return totalDays > 2;
+      }
+    }
+    
+    // Otherwise return the boolean value
+    return leaveTypeConfig.requiresAttachment === true;
   };
 
   const leaveTypes = getAvailableLeaveTypes();
@@ -607,24 +625,49 @@ export default function LeaveHistory() {
                 />
               </div>
 
-              {/* Attachment */}
-              {currentLeaveType?.requiresAttachment && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {t('leave.attachment')} <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="file"
-                    onChange={(e) => setFormData({ ...formData, attachment: e.target.files[0] })}
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    required
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    {t('leave.attachmentNote')}
-                  </p>
-                </div>
-              )}
+              {/* Attachment - Conditional for Sick Leave */}
+              {(() => {
+                const totalDays = calculateWorkingDays(formData.startDate, formData.endDate);
+                const attachmentRequired = isAttachmentRequired(formData.leaveType, totalDays);
+                
+                return attachmentRequired && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {t('leave.attachment')} <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="file"
+                      onChange={(e) => setFormData({ ...formData, attachment: e.target.files[0] })}
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      required
+                    />
+                    {/* Info box for short sick leave */}
+                    {formData.leaveType === 'SICK_LEAVE' && formData.startDate && formData.endDate && (() => {
+                      const totalDays = calculateWorkingDays(formData.startDate, formData.endDate);
+                      if (totalDays > 0 && totalDays <= 2) {
+                        return (
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <p className="text-sm text-blue-800">
+                              ℹ️ Cuti sakit {totalDays} hari tidak memerlukan surat keterangan dokter
+                            </p>
+                          </div>
+                        );
+                      }
+                      if (totalDays > 2) {
+                        return (
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                            <p className="text-sm text-yellow-800">
+                              ⚠️ Cuti sakit {totalDays} hari memerlukan surat keterangan dokter
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
+                );
+              })()}
 
               {/* Submit Button - Mobile Optimized */}
               <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
