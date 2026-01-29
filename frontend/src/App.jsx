@@ -26,6 +26,7 @@ import LeaveApproval from './pages/LeaveApproval';
 import OvertimeRecapManagement from './pages/OvertimeRecapManagement';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import LeaveDetail from './pages/LeaveDetail';
 
 
 // Layout
@@ -131,6 +132,14 @@ function App() {
                 <LeaveApproval />
               </ProtectedRoute>
           } />
+
+          <Route 
+            path="/leave/:requestId" element={
+            <ProtectedRoute>
+              <LeaveDetail />
+            </ProtectedRoute>
+          } />
+
           
           <Route path="/overtime/request" element={
             <ProtectedRoute>

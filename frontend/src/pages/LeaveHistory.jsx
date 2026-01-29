@@ -11,6 +11,8 @@ import { id, enUS } from 'date-fns/locale';
 import { format, addDays, getDay, addMonths } from 'date-fns';
 import i18n from '../i18n';
 import "react-datepicker/dist/react-datepicker.css";
+import { useNavigate } from 'react-router-dom';
+
 
 export default function LeaveHistory() {
   const { user } = useAuth();
@@ -28,7 +30,9 @@ export default function LeaveHistory() {
     messages: [],
     isSuccess: false
   });
-
+  
+  const navigate = useNavigate();
+  
   // Register locales for DatePicker
   registerLocale('id', id);
   registerLocale('en', enUS);
@@ -649,7 +653,7 @@ export default function LeaveHistory() {
                         return (
                           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                             <p className="text-sm text-blue-800">
-                              ℹ️ Cuti sakit {totalDays} hari tidak memerlukan surat keterangan dokter
+                              Cuti sakit {totalDays} hari tidak memerlukan surat keterangan dokter
                             </p>
                           </div>
                         );
@@ -658,7 +662,7 @@ export default function LeaveHistory() {
                         return (
                           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                             <p className="text-sm text-yellow-800">
-                              ⚠️ Cuti sakit {totalDays} hari memerlukan surat keterangan dokter
+                              Cuti sakit {totalDays} hari memerlukan surat keterangan dokter
                             </p>
                           </div>
                         );
@@ -808,7 +812,7 @@ export default function LeaveHistory() {
                 )}
               </div>
 
-              {/* Results - Mobile Optimized Cards */}
+              {/* Results Cards */}
               {requests.length === 0 ? (
                 <div className="text-center py-12 px-4">
                   <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -820,7 +824,11 @@ export default function LeaveHistory() {
               ) : (
                 <div className="space-y-3 sm:space-y-4">
                   {requests.map((request) => (
-                    <div key={request.id} className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                    <div 
+                        key={request.id}
+                        className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer"
+                        onClick={() => navigate(`/leave/${request.id}`)}
+                      >
                       <div className="p-4">
                         {/* Header */}
                         <div className="flex flex-wrap items-center gap-2 mb-3">

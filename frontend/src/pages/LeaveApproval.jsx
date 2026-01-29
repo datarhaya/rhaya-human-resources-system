@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import apiClient from '../api/client';
+import { useNavigate } from 'react-router-dom';
 
 export default function LeaveApproval() {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ export default function LeaveApproval() {
   const [comment, setComment] = useState('');
   const [divisions, setDivisions] = useState([]);
   const [pendingCount, setPendingCount] = useState(0);
+  const navigate = useNavigate();
 
   // Filter state
   const [filters, setFilters] = useState({
@@ -643,6 +645,12 @@ export default function LeaveApproval() {
                       {/* Action Buttons - Mobile: Icon Only Row, Desktop: Stacked */}
                       {request.status === 'PENDING' && (
                         <div className="flex gap-2 sm:flex-col sm:justify-center sm:space-y-2 sm:gap-0 mt-3 sm:mt-0 sm:min-w-[140px]">
+                          <button
+                            onClick={() => navigate(`/leave/${request.id}`)}
+                            className="flex-1 sm:flex-initial px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium text-sm"
+                          >
+                            View Details
+                          </button>
                           <button
                             onClick={() => openActionModal(request, 'approve')}
                             className="flex-1 sm:flex-none px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center"
