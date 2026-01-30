@@ -77,6 +77,19 @@ export default function LeaveHistory() {
     return allLeaveTypes;
   };
 
+  const StatusBadge = ({ status }) => {
+    const styles = {
+      PENDING: 'bg-orange-50 text-orange-600 border-orange-100',
+      APPROVED: 'bg-green-50 text-green-600 border-green-100',
+      REJECTED: 'bg-red-50 text-red-600 border-red-100'
+    };
+    return (
+      <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase border ${styles[status]}`}>
+        {status}
+      </span>
+    );
+  };
+
   const isAttachmentRequired = (leaveType, totalDays) => {
     const leaveTypeConfig = leaveTypes.find(lt => lt.value === leaveType);
     
@@ -582,7 +595,7 @@ export default function LeaveHistory() {
                     locale={i18n.language}
                     dateFormat="dd MMM yyyy"
                     className="w-full px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
-                    placeholderText={t('leave.selectDate')}
+                    placeholderText={t('leave.selectStartDate')}
                     required
                     disabled={formData.leaveType === 'MENSTRUAL_LEAVE'}
                   />
@@ -598,7 +611,7 @@ export default function LeaveHistory() {
                     locale={i18n.language}
                     dateFormat="dd MMM yyyy"
                     className="w-full px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
-                    placeholderText={t('leave.selectDate')}
+                    placeholderText={t('leave.selectEndDate')}
                     required
                     disabled={formData.leaveType === 'MATERNITY_LEAVE' || formData.leaveType === 'MENSTRUAL_LEAVE'}
                   />
@@ -824,81 +837,105 @@ export default function LeaveHistory() {
               ) : (
                 <div className="space-y-3 sm:space-y-4">
                   {requests.map((request) => (
-                    <div 
-                        key={request.id}
-                        className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer"
-                        onClick={() => navigate(`/leave/${request.id}`)}
-                      >
-                      <div className="p-4">
-                        {/* Header */}
-                        <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <div 
+                    key={request.id}
+                    className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 flex flex-col h-full overflow-hidden transition-all hover:shadow-md"
+                  >
+                    {/* 1. Card Header */}
+                    <div className="p-5 flex items-center justify-between border-b border-gray-50 bg-white">
+                      <div className="flex items-center space-x-3 min-w-0">
+                        <div className="min-w-0">
                           <h3 className="font-semibold text-gray-900 text-sm sm:text-base flex-1 min-w-0 truncate">
                             {getLeaveTypeLabel(request.leaveType)}
                           </h3>
-                          {getStatusBadge(request.status)}
-                          {!request.isPaid && (
-                            <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">
-                              Unpaid
-                            </span>
-                          )}
+                          <p className="text-[12px] text-gray-400 uppercase font-bold mt-1 tracking-tighter">
+                            {request.totalDays} {t('leave.days')}
+                          </p>
                         </div>
-                        
-                        {/* Info Grid - Mobile: 1 col, Tablet: 2 cols */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600 mb-3">
-                          <div>
-                            <span className="font-medium">Start:</span> {formatDate(request.startDate)}
-                          </div>
-                          <div>
-                            <span className="font-medium">End:</span> {formatDate(request.endDate)}
-                          </div>
-                          <div>
-                            <span className="font-medium">Duration:</span> {request.totalDays} day(s)
-                          </div>
-                          <div>
-                            <span className="font-medium">Submitted:</span> {formatDate(request.createdAt)}
-                          </div>
-                        </div>
-
-                        {/* Reason */}
-                        <div className="text-xs sm:text-sm text-gray-700 mb-2 break-words">
-                          <span className="font-medium">Reason:</span> {request.reason}
-                        </div>
-
-                        {/* Current Approver */}
-                        {request.currentApprover && (
-                          <div className="text-xs sm:text-sm text-gray-600 mb-2">
-                            <span className="font-medium">Current Approver:</span> {request.currentApprover.name}
-                          </div>
-                        )}
-
-                        {/* Approved Status */}
-                        {request.status === 'APPROVED' && request.approvedAt && (
-                          <div className="text-xs sm:text-sm text-green-600">
-                            ✓ Approved on {formatDate(request.approvedAt)}
-                          </div>
-                        )}
-
-                        {/* Rejection Reason */}
-                        {request.status === 'REJECTED' && request.supervisorComment && (
-                          <div className="mt-2 p-2 sm:p-3 bg-red-50 rounded text-xs sm:text-sm text-red-800">
-                            <span className="font-medium">Rejection Reason:</span> {request.supervisorComment}
-                          </div>
-                        )}
-
-                        {/* Delete Button - Pending only */}
-                        {request.status === 'PENDING' && (
-                          <div className="mt-3 pt-3 border-t border-gray-200">
-                            <button
-                              onClick={() => handleDelete(request.id)}
-                              className="w-full sm:w-auto px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
-                            >
-                              Delete
-                            </button>
-                          </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <StatusBadge status={request.status} />
+                        {!request.isPaid && (
+                          <span className="text-[9px] font-black text-orange-600 uppercase tracking-tighter">
+                            Unpaid
+                          </span>
                         )}
                       </div>
                     </div>
-                  ))}
+
+                    {/* 2. Card Body: 2x2 Info Grid */}
+                    <div className="p-5 flex-1 space-y-5">
+                      <div className="grid grid-cols-2 gap-y-5 gap-x-4">
+                        <div className="space-y-0.5">
+                          <p className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">
+                            {t('leave.startDate')}
+                          </p>
+                          <p className="text-xs font-bold text-gray-900">{formatDate(request.startDate)}</p>
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">
+                            {t('leave.endDate')}
+                          </p>
+                          <p className="text-xs font-bold text-gray-900">{formatDate(request.endDate)}</p>
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">
+                            {t('leave.submitted')}
+                          </p>
+                          <p className="text-xs font-bold text-gray-900">{formatDate(request.createdAt)}</p>
+                        </div>
+                        {request.currentApprover && (
+                          <div className="space-y-0.5">
+                            <p className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">
+                              {t('overtime.currentApprover')}
+                            </p>
+                            <p className="text-xs font-bold text-blue-600 uppercase truncate">{request.currentApprover.name}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Logic-Based Status Messages */}
+                      {request.status === 'APPROVED' && request.approvedAt && (
+                        <div className="flex items-center space-x-2 bg-green-50 px-3 py-2 rounded-xl border border-green-100">
+                          <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                          <p className="text-[10px] font-bold text-green-700 uppercase tracking-tighter">
+                            Approved on {formatDate(request.approvedAt)}
+                          </p>
+                        </div>
+                      )}
+
+                      {request.status === 'REJECTED' && request.supervisorComment && (
+                        <div className="bg-red-50/50 rounded-xl p-3 border border-red-100">
+                          <p className="text-[10px] font-bold text-red-400 uppercase mb-1">Rejection Reason</p>
+                          <p className="text-xs text-red-800 italic leading-relaxed line-clamp-2">
+                            "{request.supervisorComment}"
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 3. Card Footer: Sticky Action Bar */}
+                    <div className="mt-auto border-t border-gray-50 flex">
+                      {request.status === 'PENDING' && (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(request.id);
+                          }}
+                          className="flex-1 py-4 text-[11px] font-black uppercase tracking-widest text-red-400 hover:bg-red-50 transition-colors border-r border-gray-50"
+                        >
+                          {t('common.delete')}
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => navigate(`/leave/${request.id}`)}
+                        className="flex-[2] py-4 text-[11px] font-black uppercase tracking-widest text-blue-600 hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
+                      >
+                        View Detail <span className="text-sm">→</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
                 </div>
               )}
             </div>

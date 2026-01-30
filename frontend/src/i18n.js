@@ -375,7 +375,9 @@ const resources = {
         submitManage: 'Submit and manage your leave requests',
         request: 'Request Leave',
         history: 'Leave History',
+        detailTitle: 'Leave Request Detail',
         approval: 'Leave Approval',
+        requestSummary: 'Request Summary',
 
         title: 'Leave Management',
         description: 'Submit and manage your leave requests',
@@ -569,6 +571,7 @@ const resources = {
         menstrualLeave: 'Menstrual Leave',
         marriageLeave: 'Marriage Leave',
         unpaidLeave: 'Unpaid Leave',
+        employeeInformation: 'Employee Information',
       },
 
       // Payslips
@@ -613,6 +616,7 @@ const resources = {
         // Page
         myProfile: 'My Profile',
         viewManage: 'View and manage your personal information',
+        employeeInformation: 'Employee Information',
         
         // Loading & Error
         loadingProfile: 'Loading profile...',
@@ -1067,9 +1071,11 @@ const resources = {
         // Page titles
         management: 'Manajemen Cuti',
         submitManage: 'Ajukan dan kelola permintaan cuti Anda',
+        detailTitle: 'Detail Permintaan Cuti',
         request: 'Ajukan Cuti',
         history: 'Riwayat Cuti',
         approval: 'Persetujuan Cuti',
+        requestSummary: 'Rangkuman Pengajuan',
 
         title: 'Manajemen Cuti',
         description: 'Ajukan dan kelola permintaan cuti Anda',
@@ -1264,6 +1270,8 @@ const resources = {
         menstrualLeave: 'Cuti Haid',
         marriageLeave: 'Cuti Menikah',
         unpaidLeave: 'Cuti Tidak Dibayar',
+
+        employeeInformation: 'Informasi Karyawan',
       },
 
       // Payslips
@@ -1309,6 +1317,7 @@ const resources = {
         // Page
         myProfile: 'Profil Saya',
         viewManage: 'Lihat dan kelola informasi pribadi Anda',
+        employeeInformation: 'Informasi Pegawai',
         
         // Loading & Error
         loadingProfile: 'Memuat profil...',

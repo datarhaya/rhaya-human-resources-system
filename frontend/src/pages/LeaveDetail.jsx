@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import apiClient from '../api/client';
 import { format, parseISO } from 'date-fns';
+import { Calendar, User, Briefcase, FileText, Clock, XCircle, ArrowLeft, CheckCircle, AlertCircle, Ban } from 'lucide-react';
 
 export default function LeaveDetail() {
   const { requestId } = useParams();
@@ -36,115 +37,6 @@ export default function LeaveDetail() {
     }
   };
 
-  // Status badge component
-  const StatusBadge = ({ status }) => {
-    const styles = {
-      PENDING: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      APPROVED: 'bg-green-100 text-green-800 border-green-200',
-      REJECTED: 'bg-red-100 text-red-800 border-red-200',
-      CANCELLED: 'bg-gray-100 text-gray-800 border-gray-200'
-    };
-
-    const labels = {
-      PENDING: 'Pending Approval',
-      APPROVED: 'Approved',
-      REJECTED: 'Rejected',
-      CANCELLED: 'Cancelled'
-    };
-
-    const icons = {
-      PENDING: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-        </svg>
-      ),
-      APPROVED: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-        </svg>
-      ),
-      REJECTED: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-        </svg>
-      ),
-      CANCELLED: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clipRule="evenodd" />
-        </svg>
-      )
-    };
-
-    return (
-      <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg border-2 ${styles[status]}`}>
-        {icons[status]}
-        <span className="text-sm font-semibold">{labels[status]}</span>
-      </div>
-    );
-  };
-
-  // Leave type badge
-  const LeaveTypeBadge = ({ leaveType }) => {
-    const types = {
-      ANNUAL_LEAVE: { label: 'Annual Leave', color: 'blue'},
-      SICK_LEAVE: { label: 'Sick Leave', color: 'red'},
-      MATERNITY_LEAVE: { label: 'Maternity Leave', color: 'pink'},
-      MENSTRUAL_LEAVE: { label: 'Menstrual Leave', color: 'purple'},
-      MARRIAGE_LEAVE: { label: 'Marriage Leave', color: 'yellow'},
-      UNPAID_LEAVE: { label: 'Unpaid Leave', color: 'gray'}
-    };
-
-    const typeInfo = types[leaveType] || types.ANNUAL_LEAVE;
-
-    return (
-      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-${typeInfo.color}-100 text-${typeInfo.color}-800`}>
-        <span className="mr-1">{typeInfo.icon}</span>
-        {typeInfo.label}
-      </span>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <svg className="animate-spin h-10 w-10 text-blue-600 mx-auto" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <p className="mt-4 text-gray-600">Loading leave request...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !request) {
-    return (
-      <div className="max-w-4xl mx-auto mt-8 px-4">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <div className="flex items-center">
-            <svg className="w-6 h-6 text-red-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
-            <div>
-              <h3 className="text-lg font-semibold text-red-800">Error</h3>
-              <p className="text-red-600">{error || 'Leave request not found'}</p>
-            </div>
-          </div>
-          <button
-            onClick={() => navigate(-1)}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-          >
-            Back to Leave History
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const isOwner = request.employeeId === user?.id;
-  const isApprover = request.currentApproverId === user?.id;
-
   // Check if leave has started
   const hasStarted = () => {
     if (!request) return false;
@@ -167,7 +59,8 @@ export default function LeaveDetail() {
       if (response.data.success) {
         alert('Cuti berhasil dibatalkan. Saldo cuti telah dikembalikan.');
         setShowCancelModal(false);
-        navigate('/leave-history');
+        setCancelReason('');
+        await fetchRequest(); // Refresh to show updated status
       }
     } catch (error) {
       console.error('Cancel error:', error);
@@ -178,289 +71,425 @@ export default function LeaveDetail() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 py-6 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Back
-          </button>
-          
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-              Leave Request Details
-            </h1>
-            <div className="mt-3 sm:mt-0">
-              <StatusBadge status={request.status} />
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Clock className="animate-spin h-10 w-10 text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading leave request...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !request) {
+    return (
+      <div className="max-w-4xl mx-auto mt-8 px-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <div className="flex items-center">
+            <AlertCircle className="w-6 h-6 text-red-600 mr-3" />
+            <div>
+              <h3 className="text-lg font-semibold text-red-800">Error</h3>
+              <p className="text-red-600">{error || 'Leave request not found'}</p>
             </div>
+          </div>
+          <button
+            onClick={() => navigate('/leave-history')}
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          >
+            Back to Leave History
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const isOwner = request.employeeId === user?.id;
+
+  // Build timeline events
+  const timelineEvents = [];
+
+  // 1. Request Submitted
+  timelineEvents.push({
+    type: 'SUBMITTED',
+    label: 'Request Submitted',
+    actor: request.employee?.name,
+    date: request.createdAt,
+    icon: FileText,
+    color: 'blue'
+  });
+
+  // 2. Approved (if has approvedAt - regardless of current status)
+  // This shows approval even if later cancelled
+  if (request.approvedAt) {
+    timelineEvents.push({
+      type: 'APPROVED',
+      label: 'Approved',
+      actor: request.currentApprover?.name || request.supervisor?.name || 'Approver',
+      date: request.approvedAt,
+      comment: request.supervisorComment || request.comment,
+      icon: CheckCircle,
+      color: 'green'
+    });
+  }
+
+  // 3. Rejected (if rejected)
+  if (request.status === 'REJECTED' && request.rejectedAt) {
+    timelineEvents.push({
+      type: 'REJECTED',
+      label: 'Rejected',
+      actor: request.currentApprover?.name || request.supervisor?.name || 'Approver',
+      date: request.rejectedAt,
+      comment: request.supervisorComment || request.comment,
+      icon: XCircle,
+      color: 'red'
+    });
+  }
+
+  // 4. Cancelled (if cancelled - shows after approval)
+  if (request.status === 'CANCELLED' && request.cancelledAt) {
+    timelineEvents.push({
+      type: 'CANCELLED',
+      label: 'Cancelled by Employee',
+      actor: request.employee?.name,
+      date: request.cancelledAt,
+      comment: request.cancellationReason,
+      icon: Ban,
+      color: 'gray'
+    });
+  }
+
+  return (
+    <div className="space-y-6 max-w-4xl mx-auto px-2 pb-20">
+      {/* 1. Navigation & Header */}
+      <header className="py-2">
+        <button 
+          onClick={() => navigate(-1)} 
+          className="flex items-center text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-blue-600 transition-colors mb-4"
+        >
+          <ArrowLeft size={14} className="mr-1" /> {t('common.back')}
+        </button>
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-bold text-blue-600 uppercase tracking-[0.2em] mb-1">{t('leave.management')}</p>
+            <h1 className="text-2xl sm:text-4xl font-black text-gray-900 tracking-tight">{t('leave.detailTitle')}</h1>
+          </div>
+          <StatusBadge status={request.status} />
+        </div>
+      </header>
+
+      {/* 2. Employee Profile Card */}
+      <section className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 p-6 sm:p-8">
+        <div className="flex items-center space-x-4 pb-6 border-b border-gray-50 mb-6">
+          <div className="h-14 w-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-black text-xl shadow-lg shadow-blue-100">
+            {request.employee?.name?.charAt(0)}
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest leading-none mb-1">{t('profile.employeeInformation')}</p>
+            <h2 className="text-xl font-black text-gray-900 tracking-tight">{request.employee?.name}</h2>
           </div>
         </div>
+        <dl className="grid grid-cols-2 gap-y-6 gap-x-4">
+          <InfoItem label={t('profile.employeeId')} value={request.employee?.nip} />
+          <InfoItem label={t('profile.role')} value={request.employee?.role?.name} />
+          <div className="col-span-2">
+            <InfoItem label={t('profile.division')} value={request.employee?.division?.name} />
+          </div>
+        </dl>
+      </section>
 
-        {/* Main Content */}
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          {/* Employee Information */}
-          <div className="border-b border-gray-200 bg-gray-50 px-6 py-4">
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">Employee Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-500">Name</p>
-                <p className="text-base font-medium text-gray-900">{request.employee?.name}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">NIP</p>
-                <p className="text-base font-medium text-gray-900">{request.employee?.nip || '-'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Division</p>
-                <p className="text-base font-medium text-gray-900">{request.employee?.division?.name || '-'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Role</p>
-                <p className="text-base font-medium text-gray-900">{request.employee?.role?.name || '-'}</p>
-              </div>
+      {/* 3. Leave Summary Details */}
+      <section className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-50 flex items-center space-x-2 text-gray-400">
+          <Calendar size={18} />
+          <h3 className="text-xs font-black uppercase tracking-widest">{t('leave.requestSummary')}</h3>
+        </div>
+        <div className="p-6 sm:p-8">
+          <div className="flex justify-between items-end pb-8 border-b border-gray-50">
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t('leave.totalDays')}</p>
+              <p className="text-4xl font-black text-gray-900 leading-none tracking-tighter">
+                {request.totalDays} <span className="text-sm font-bold text-gray-400 lowercase">{t('leave.days')}</span>
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t('leave.type')}</p>
+              <p className="text-lg font-black text-blue-600 uppercase tracking-tighter">{request.leaveType?.replace('_', ' ')}</p>
             </div>
           </div>
 
-          {/* Leave Details */}
-          <div className="px-6 py-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Leave Details</h2>
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-8">
+            <InfoItem label={t('leave.startDate')} value={format(parseISO(request.startDate), 'EEEE, MMM dd, yyyy')} />
+            <InfoItem label={t('leave.endDate')} value={format(parseISO(request.endDate), 'EEEE, MMM dd, yyyy')} />
             
-            <div className="space-y-4">
-              {/* Leave Type */}
-              <div className="flex items-start">
-                <div className="w-32 text-sm text-gray-500">Leave Type:</div>
-                <div className="flex-1">
-                  <LeaveTypeBadge leaveType={request.leaveType} />
-                </div>
-              </div>
-
-              {/* Dates */}
-              <div className="flex items-start">
-                <div className="w-32 text-sm text-gray-500">Start Date:</div>
-                <div className="flex-1 text-base text-gray-900">
-                  {format(parseISO(request.startDate), 'EEEE, dd MMMM yyyy')}
-                </div>
-              </div>
-
-              <div className="flex items-start">
-                <div className="w-32 text-sm text-gray-500">End Date:</div>
-                <div className="flex-1 text-base text-gray-900">
-                  {format(parseISO(request.endDate), 'EEEE, dd MMMM yyyy')}
-                </div>
-              </div>
-
-              {/* Duration */}
-              <div className="flex items-start">
-                <div className="w-32 text-sm text-gray-500">Duration:</div>
-                <div className="flex-1">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                    {request.totalDays} {request.totalDays === 1 ? 'day' : 'days'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Reason */}
-              <div className="flex items-start">
-                <div className="w-32 text-sm text-gray-500">Reason:</div>
-                <div className="flex-1 text-base text-gray-900 whitespace-pre-wrap">
-                  {request.reason}
-                </div>
-              </div>
-
-              {/* Attachment */}
-              {request.attachment && (
-                <div className="flex items-start">
-                  <div className="w-32 text-sm text-gray-500">Attachment:</div>
-                  <div className="flex-1">
-                    <a
-                      href={request.attachment}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                    >
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                      </svg>
-                      View Attachment
-                    </a>
-                  </div>
-                </div>
-              )}
-
-              {/* Comment (if approved/rejected) */}
-              {request.comment && (
-                <div className="flex items-start">
-                  <div className="w-32 text-sm text-gray-500">Comment:</div>
-                  <div className="flex-1">
-                    <div className={`p-3 rounded-lg ${
-                      request.status === 'APPROVED' ? 'bg-green-50' : 'bg-red-50'
-                    }`}>
-                      <p className="text-sm text-gray-900">{request.comment}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Submitted At */}
-              <div className="flex items-start">
-                <div className="w-32 text-sm text-gray-500">Submitted:</div>
-                <div className="flex-1 text-base text-gray-900">
-                  {format(parseISO(request.createdAt), 'dd MMM yyyy, HH:mm')}
-                </div>
-              </div>
-
-              {/* Approved/Rejected At */}
-              {request.approvedAt && (
-                <div className="flex items-start">
-                  <div className="w-32 text-sm text-gray-500">
-                    {request.status === 'APPROVED' ? 'Approved At:' : 'Rejected At:'}
-                  </div>
-                  <div className="flex-1 text-base text-gray-900">
-                    {format(parseISO(request.approvedAt), 'dd MMM yyyy, HH:mm')}
-                  </div>
-                </div>
-              )}
+            <div className="sm:col-span-2 bg-gray-50/50 rounded-2xl p-5 border border-gray-100">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">{t('leave.reason')}</p>
+              <p className="text-sm font-medium text-gray-700 leading-relaxed whitespace-pre-line italic">"{request.reason}"</p>
             </div>
-          </div>
 
-          {/* Approval Flow */}
-          {request.currentApprover && (
-            <div className="border-t border-gray-200 bg-gray-50 px-6 py-4">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Approval Flow</h2>
-              <div className="space-y-2">
-                <div className="flex items-center">
-                  <div className="w-32 text-sm text-gray-500">Current Approver:</div>
-                  <div className="flex-1 text-base font-medium text-gray-900">
-                    {request.currentApprover?.name}
-                  </div>
-                </div>
-                {request.supervisor && (
-                  <div className="flex items-center">
-                    <div className="w-32 text-sm text-gray-500">Supervisor:</div>
-                    <div className="flex-1 text-base text-gray-900">
-                      {request.supervisor?.name}
-                    </div>
-                  </div>
-                )}
-                {request.divisionHead && (
-                  <div className="flex items-center">
-                    <div className="w-32 text-sm text-gray-500">Division Head:</div>
-                    <div className="flex-1 text-base text-gray-900">
-                      {request.divisionHead?.name}
-                    </div>
-                  </div>
-                )}
+            {/* Attachment if exists */}
+            {request.attachment && (
+              <div className="sm:col-span-2">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Attachment</p>
+                <a
+                  href={request.attachment}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-bold"
+                >
+                  <FileText size={16} className="mr-2" />
+                  View Attachment
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* 4. Approval Timeline */}
+      <section className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-50 flex items-center space-x-2 text-gray-400">
+          <Briefcase size={18} />
+          <h3 className="text-xs font-black uppercase tracking-widest">Request Timeline</h3>
+        </div>
+        <div className="p-6 sm:p-8">
+          {/* Supervisor Info (if exists) */}
+          {request.supervisor && (
+            <div className="flex items-center space-x-4 p-4 bg-gray-50/50 rounded-2xl border border-gray-100 mb-6">
+              <div className="h-10 w-10 bg-white rounded-full flex items-center justify-center text-gray-400 border border-gray-100">
+                <User size={18} />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">{t('profile.supervisor')}</p>
+                <p className="text-sm font-bold text-gray-900">{request.supervisor.name}</p>
               </div>
             </div>
           )}
 
-          {/* Action Buttons */}
-          <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
-            <div className="flex flex-col sm:flex-row gap-3">
-              {/* Cancel Button - Now Enabled! */}
-              {isOwner && request.status === 'APPROVED' && !hasStarted() && (
-                <button
-                  onClick={() => setShowCancelModal(true)}
-                  className="flex-1 sm:flex-initial px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
-                >
-                  Cancel Leave
-                </button>
-              )}
+          {/* Timeline */}
+          <div className="relative pl-8">
+            <div className="space-y-8">
+              {/* Timeline Events - each event handles its own connector line */}
+              {timelineEvents.map((event, index) => (
+                <TimelineEvent 
+                  key={index} 
+                  event={event} 
+                  isLast={index === timelineEvents.length - 1} 
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Pending status - OUTSIDE timeline container */}
+          {request.status === 'PENDING' && (
+            <div className="relative pl-8 mt-8">
+              <div className="relative">
+                <div className="absolute -left-8 top-1.5 w-4 h-4 rounded-full border-2 border-white shadow-sm z-10 bg-orange-400 animate-pulse" />
+                <div className="bg-orange-50/50 rounded-2xl border border-orange-100 p-4">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <Clock size={18} className="text-orange-600" />
+                    <div>
+                      <p className="text-[10px] font-bold text-orange-600 uppercase tracking-tight">Pending Approval</p>
+                      <p className="text-sm font-bold text-orange-900">{request.currentApprover?.name || 'Awaiting Approver'}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-orange-700 mt-2">Waiting for approval decision</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* 5. Employee Actions - Cancel Button */}
+      {isOwner && request.status === 'APPROVED' && !hasStarted() && (
+        <button 
+          onClick={() => setShowCancelModal(true)}
+          className="w-full py-4 bg-red-50 text-red-600 rounded-2xl border border-red-100 text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-red-100 transition-all"
+        >
+          <XCircle size={16} />
+          Cancel Leave
+        </button>
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <div className="flex items-start mb-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                <Ban className="w-6 h-6 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-black text-gray-900 mb-2">
+                  Batalkan Cuti?
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Apakah Anda yakin ingin membatalkan cuti ini?
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-blue-800 font-bold mb-2">
+                ℹ️ Yang akan terjadi:
+              </p>
+              <ul className="text-sm text-blue-700 space-y-1 ml-4 list-disc">
+                <li>Status cuti berubah menjadi "Dibatalkan"</li>
+                {request.leaveType === 'ANNUAL_LEAVE' && (
+                  <li>Saldo cuti Anda akan dikembalikan (+{request.totalDays} hari)</li>
+                )}
+                <li>Notifikasi akan dikirim ke atasan</li>
+                <li>Anda diharapkan hadir pada tanggal cuti yang dibatalkan</li>
+              </ul>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                Alasan Pembatalan (Opsional)
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                placeholder="Contoh: Ada pekerjaan mendesak yang harus diselesaikan..."
+                disabled={cancelling}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Memberikan alasan membantu tim memahami situasi Anda
+              </p>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancelReason('');
+                }}
+                disabled={cancelling}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-bold disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleCancelLeave}
+                disabled={cancelling}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-bold disabled:opacity-50 flex items-center justify-center"
+              >
+                {cancelling ? (
+                  <>
+                    <Clock className="animate-spin h-4 w-4 mr-2" />
+                    Membatalkan...
+                  </>
+                ) : (
+                  'Ya, Batalkan Cuti'
+                )}
+              </button>
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
 
-        {/* Cancel Confirmation Modal */}
-        {showCancelModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
-              <div className="flex items-start mb-4">
-                <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
-                  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">
-                    Batalkan Cuti?
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Apakah Anda yakin ingin membatalkan cuti ini?
-                  </p>
-                </div>
-              </div>
+// Timeline Event Component
+const TimelineEvent = ({ event, isLast }) => {
+  const colorClasses = {
+    blue: {
+      dot: 'bg-blue-500',
+      bg: 'bg-blue-50/50',
+      border: 'border-blue-100',
+      text: 'text-blue-600',
+      textDark: 'text-blue-900'
+    },
+    green: {
+      dot: 'bg-green-500',
+      bg: 'bg-green-50/50',
+      border: 'border-green-100',
+      text: 'text-green-600',
+      textDark: 'text-green-900'
+    },
+    red: {
+      dot: 'bg-red-500',
+      bg: 'bg-red-50/50',
+      border: 'border-red-100',
+      text: 'text-red-600',
+      textDark: 'text-red-900'
+    },
+    gray: {
+      dot: 'bg-gray-500',
+      bg: 'bg-gray-50/50',
+      border: 'border-gray-200',
+      text: 'text-gray-600',
+      textDark: 'text-gray-900'
+    }
+  };
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                <p className="text-sm text-blue-800">
-                  <strong>Yang akan terjadi:</strong>
-                </p>
-                <ul className="text-sm text-blue-700 mt-2 space-y-1 ml-4 list-disc">
-                  <li>Status cuti berubah menjadi "Dibatalkan"</li>
-                  {request.leaveType === 'ANNUAL_LEAVE' && (
-                    <li>Saldo cuti Anda akan dikembalikan (+{request.totalDays} hari)</li>
-                  )}
-                  <li>Notifikasi akan dikirim ke atasan</li>
-                  <li>Anda diharapkan hadir pada tanggal cuti yang dibatalkan</li>
-                </ul>
-              </div>
-              
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Alasan Pembatalan (Opsional)
-                </label>
-                <textarea
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                  placeholder="Contoh: Ada pekerjaan mendesak yang harus diselesaikan..."
-                  disabled={cancelling}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Memberikan alasan membantu tim memahami situasi Anda
-                </p>
-              </div>
-              
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowCancelModal(false);
-                    setCancelReason('');
-                  }}
-                  disabled={cancelling}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium disabled:opacity-50"
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={handleCancelLeave}
-                  disabled={cancelling}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 flex items-center justify-center"
-                >
-                  {cancelling ? (
-                    <>
-                      <svg className="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Membatalkan...
-                    </>
-                  ) : (
-                    'Ya, Batalkan Cuti'
-                  )}
-                </button>
-              </div>
+  const colors = colorClasses[event.color] || colorClasses.gray;
+  const Icon = event.icon;
+
+  return (
+    <div className="relative">
+      {/* Timeline dot - positioned at -32px (left-8 = -2rem = -32px) */}
+      <div className={`absolute -left-8 top-1.5 w-4 h-4 rounded-full border-2 border-white shadow-sm z-10 ${colors.dot}`} />
+      
+      {/* Vertical line connector - centered with dot */}
+      {/* Dot: left-8 = -32px, width 16px (w-4), so center is at -32px + 8px = -24px */}
+      {/* Line should be at -24px - 1px (half of w-0.5 which is 2px) = -25px */}
+      {!isLast && (
+        <div className="absolute left-[-25px] top-[24px] w-0.5 bg-gray-200" style={{ height: 'calc(100% + 16px)' }} />
+      )}
+      
+      {/* Event card */}
+      <div className={`${colors.bg} rounded-2xl border ${colors.border} p-4`}>
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex items-center space-x-3">
+            <Icon size={18} className={colors.text} />
+            <div>
+              <p className={`text-[10px] font-bold ${colors.text} uppercase tracking-tight`}>{event.label}</p>
+              <p className={`text-sm font-bold ${colors.textDark}`}>{event.actor}</p>
             </div>
+          </div>
+          {event.date && (
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">
+              {format(new Date(event.date), 'MMM dd, yyyy • HH:mm')}
+            </p>
+          )}
+        </div>
+
+        {/* Comment if exists */}
+        {event.comment && (
+          <div className="mt-3 bg-white/50 rounded-xl p-3 border border-gray-100">
+            <p className="text-xs text-gray-600 italic leading-relaxed">
+              "{event.comment}"
+            </p>
           </div>
         )}
       </div>
     </div>
   );
-}
+};
+
+// Helper Components
+const InfoItem = ({ label, value }) => (
+  <div>
+    <dt className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{label}</dt>
+    <dd className="text-sm font-bold text-gray-900">{value || '—'}</dd>
+  </div>
+);
+
+const StatusBadge = ({ status, isSmall }) => {
+  const styles = {
+    PENDING: 'bg-orange-50 text-orange-600 border-orange-100',
+    APPROVED: 'bg-green-50 text-green-600 border-green-100',
+    REJECTED: 'bg-red-50 text-red-600 border-red-100',
+    CANCELLED: 'bg-gray-50 text-gray-600 border-gray-200'
+  };
+  return (
+    <span className={`rounded-lg border font-black uppercase tracking-tighter ${isSmall ? 'px-2 py-0.5 text-[9px]' : 'px-4 py-1.5 text-xs'} ${styles[status] || styles.PENDING}`}>
+      {status}
+    </span>
+  );
+};

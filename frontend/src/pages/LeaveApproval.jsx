@@ -643,40 +643,45 @@ export default function LeaveApproval() {
                       </div>
 
                       {/* Action Buttons - Mobile: Icon Only Row, Desktop: Stacked */}
-                      {request.status === 'PENDING' && (
-                        <div className="flex gap-2 sm:flex-col sm:justify-center sm:space-y-2 sm:gap-0 mt-3 sm:mt-0 sm:min-w-[140px]">
-                          <button
-                            onClick={() => navigate(`/leave/${request.id}`)}
-                            className="flex-1 sm:flex-initial px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium text-sm"
-                          >
-                            View Details
-                          </button>
-                          <button
-                            onClick={() => openActionModal(request, 'approve')}
-                            className="flex-1 sm:flex-none px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center"
-                            title={t('leave.approve')}
-                          >
-                            {/* Mobile: Icon only */}
-                            <svg className="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            {/* Desktop: Text */}
-                            <span className="hidden sm:inline text-sm">{t('leave.approve')}</span>
-                          </button>
-                          <button
-                            onClick={() => openActionModal(request, 'reject')}
-                            className="flex-1 sm:flex-none px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center"
-                            title={t('leave.reject')}
-                          >
-                            {/* Mobile: Icon only */}
-                            <svg className="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                            {/* Desktop: Text */}
-                            <span className="hidden sm:inline text-sm">{t('leave.reject')}</span>
-                          </button>
-                        </div>
-                      )}
+                      <div className="flex gap-2 sm:flex-col sm:justify-center sm:space-y-2 sm:gap-0 mt-3 sm:mt-0 sm:min-w-[140px]">
+                        {/* View Details button - ALWAYS VISIBLE for all statuses */}
+                        <button
+                          onClick={() => navigate(`/leave/${request.id}`)}
+                          className="flex-1 sm:flex-initial px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium text-sm"
+                        >
+                          View Details
+                        </button>
+                        
+                        {/* Approve/Reject buttons - ONLY for pending requests */}
+                        {request.status === 'PENDING' && (
+                          <>
+                            <button
+                              onClick={() => openActionModal(request, 'approve')}
+                              className="flex-1 sm:flex-none px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center"
+                              title={t('leave.approve')}
+                            >
+                              {/* Mobile: Icon only */}
+                              <svg className="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              {/* Desktop: Text */}
+                              <span className="hidden sm:inline text-sm">{t('leave.approve')}</span>
+                            </button>
+                            <button
+                              onClick={() => openActionModal(request, 'reject')}
+                              className="flex-1 sm:flex-none px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center"
+                              title={t('leave.reject')}
+                            >
+                              {/* Mobile: Icon only */}
+                              <svg className="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                              {/* Desktop: Text */}
+                              <span className="hidden sm:inline text-sm">{t('leave.reject')}</span>
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
