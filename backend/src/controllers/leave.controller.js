@@ -4,7 +4,8 @@ import leaveService from '../services/leave.service.js';
 import { 
   sendLeaveRequestNotification,
   sendLeaveApprovedEmail,
-  sendLeaveRejectedEmail 
+  sendLeaveRejectedEmail,
+  sendLeaveCancellationEmail
 } from '../services/email.service.js';
 
 /**
@@ -148,6 +149,151 @@ export const getMyLeaveRequests = async (req, res) => {
   } catch (error) {
     console.error('Get leave requests error:', error);
     return res.status(500).json({ error: 'Failed to fetch leave requests' });
+  }
+};
+
+/**
+ * Cancel approved leave request
+ * POST /api/leave/:requestId/cancel
+ */
+export const cancelLeaveRequest = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { reason } = req.body;
+    const userId = req.user.id;
+
+    console.log(`[Cancel Leave] User ${userId} attempting to cancel leave ${requestId}`);
+
+    // Get leave request with all relationships
+    const leaveRequest = await prisma.leaveRequest.findUnique({
+      where: { id: requestId },
+      include: {
+        employee: {
+          include: {
+            division: true,
+            role: true,
+            supervisor: true
+          }
+        },
+        currentApprover: {
+          select: { id: true, name: true, email: true }
+        },
+        supervisor: {
+          select: { id: true, name: true, email: true }
+        },
+        divisionHead: {
+          select: { id: true, name: true, email: true }
+        }
+      }
+    });
+
+    if (!leaveRequest) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Leave request not found' 
+      });
+    }
+
+    // ✅ Check 1: Only employee can cancel their own leave
+    if (leaveRequest.employeeId !== userId) {
+      return res.status(403).json({ 
+        success: false,
+        error: 'Only the employee can cancel their own leave request'
+      });
+    }
+
+    // ✅ Check 2: Only APPROVED leaves can be cancelled
+    if (leaveRequest.status !== 'APPROVED') {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Only approved leaves can be cancelled',
+        currentStatus: leaveRequest.status
+      });
+    }
+
+    // ✅ Check 3: Cannot cancel leave that has already started
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Start of today
+    
+    const leaveStart = new Date(leaveRequest.startDate);
+    leaveStart.setHours(0, 0, 0, 0); // Start of leave date
+    
+    if (leaveStart <= today) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Cannot cancel leave that has already started or is in the past',
+        leaveStartDate: leaveRequest.startDate
+      });
+    }
+
+    console.log(`✅ All validations passed. Cancelling leave...`);
+
+    // Update leave status to CANCELLED
+    const updatedLeave = await prisma.leaveRequest.update({
+      where: { id: requestId },
+      data: {
+        status: 'CANCELLED',
+        cancelledAt: new Date(),
+        cancellationReason: reason || 'Cancelled by employee'
+      },
+      include: {
+        employee: {
+          include: {
+            division: true,
+            role: true
+          }
+        }
+      }
+    });
+
+    console.log(`✅ Leave status updated to CANCELLED`);
+
+    // ✅ Restore leave balance (only for paid leave types)
+    if (leaveRequest.leaveType === 'ANNUAL_LEAVE') {
+      try {
+        await leaveService.restoreLeaveBalance(
+          leaveRequest.employeeId,
+          leaveRequest.totalDays,
+          new Date(leaveRequest.startDate).getFullYear()
+        );
+        console.log(`✅ Leave balance restored: ${leaveRequest.totalDays} days`);
+      } catch (balanceError) {
+        console.error('⚠️ Failed to restore leave balance:', balanceError);
+        // Don't fail the cancellation if balance restoration fails
+      }
+    }
+
+    // ✅ Send cancellation notification emails
+    try {
+      await sendLeaveCancellationEmail(
+        leaveRequest.employee,
+        leaveRequest,
+        reason || 'No reason provided',
+        [
+          leaveRequest.currentApprover?.email,
+          leaveRequest.supervisor?.email,
+          leaveRequest.divisionHead?.email
+        ].filter(email => email) // Remove null/undefined emails
+      );
+      console.log(`✅ Cancellation notification emails sent`);
+    } catch (emailError) {
+      console.error('⚠️ Failed to send cancellation emails:', emailError);
+      // Don't fail the cancellation if email fails
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Leave cancelled successfully',
+      data: updatedLeave
+    });
+
+  } catch (error) {
+    console.error('❌ Cancel leave error:', error);
+    return res.status(500).json({ 
+      success: false,
+      error: 'Failed to cancel leave request',
+      message: error.message
+    });
   }
 };
 

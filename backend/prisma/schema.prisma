@@ -68,6 +68,8 @@ model User {
   @@index([roleId])
   @@index([divisionId])
   @@index([accessLevel])
+  @@index([email], map: "idx_users_email")
+  @@index([nip], map: "idx_users_nip")
   @@map("users")
 }
 
@@ -136,6 +138,8 @@ model LeaveRequest {
   supervisorStatus    String?
   totalDays           Float
   isToil              Boolean        @default(false)
+  cancellationReason  String?
+  cancelledAt         DateTime?
   currentApprover     User?          @relation("LeaveCurrentApprover", fields: [currentApproverId], references: [id])
   divisionHead        User?          @relation("LeaveDivisionHead", fields: [divisionHeadId], references: [id])
   employee            User           @relation(fields: [employeeId], references: [id])

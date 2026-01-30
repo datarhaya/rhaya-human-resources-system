@@ -3605,6 +3605,311 @@ export async function sendBatchPayslipNotification(employees, payslipDetails) {
   };
 }
 
+/**
+ * Send leave cancellation notification email
+ * @param {Object} employee - Employee who cancelled the leave
+ * @param {Object} leaveRequest - Leave request that was cancelled
+ * @param {string} cancellationReason - Reason for cancellation
+ * @param {Array<string>} ccEmails - List of emails to CC
+ */
+export async function sendLeaveCancellationEmail(employee, leaveRequest, cancellationReason, ccEmails = []) {
+  const leaveTypeLabels = {
+    ANNUAL_LEAVE: 'Annual Leave',
+    SICK_LEAVE: 'Sick Leave',
+    MATERNITY_LEAVE: 'Maternity Leave',
+    MENSTRUAL_LEAVE: 'Menstrual Leave',
+    MARRIAGE_LEAVE: 'Marriage Leave',
+    UNPAID_LEAVE: 'Unpaid Leave'
+  };
+
+  const leaveTypeLabel = leaveTypeLabels[leaveRequest.leaveType] || leaveRequest.leaveType;
+
+  const startDate = new Date(leaveRequest.startDate).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  const endDate = new Date(leaveRequest.endDate).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6;
+          color: ${BRAND_COLORS.textPrimary};
+          margin: 0;
+          padding: 0;
+          background-color: #F9F9F9;
+        }
+        .email-wrapper {
+          width: 100%;
+          background-color: #F9F9F9;
+          padding: 40px 20px;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          background: ${BRAND_COLORS.accent};
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header {
+          background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+          color: ${BRAND_COLORS.accent};
+          padding: 40px 30px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 28px;
+          font-weight: 600;
+          letter-spacing: -0.5px;
+        }
+        .content {
+          padding: 40px 30px;
+        }
+        .content p {
+          margin: 0 0 20px 0;
+          font-size: 16px;
+          line-height: 1.8;
+        }
+        .status-badge {
+          display: inline-block;
+          background: #dc2626;
+          color: ${BRAND_COLORS.accent};
+          padding: 10px 24px;
+          border-radius: 25px;
+          font-weight: 600;
+          font-size: 14px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin: 20px 0;
+        }
+        .details-card {
+          background: ${BRAND_COLORS.cardBg};
+          border: 1px solid ${BRAND_COLORS.cardBorder};
+          border-radius: 10px;
+          padding: 25px;
+          margin: 30px 0;
+        }
+        .details-card h3 {
+          margin: 0 0 20px 0;
+          font-size: 18px;
+          font-weight: 600;
+          color: ${BRAND_COLORS.primary};
+          text-align: center;
+        }
+        .detail-row {
+          display: flex;
+          padding: 12px 0;
+          border-bottom: 1px solid ${BRAND_COLORS.cardBorder};
+        }
+        .detail-row:last-child {
+          border-bottom: none;
+        }
+        .detail-label {
+          font-weight: 600;
+          color: ${BRAND_COLORS.textPrimary};
+          min-width: 140px;
+          flex-shrink: 0;
+        }
+        .detail-value {
+          color: ${BRAND_COLORS.textSecondary};
+          flex: 1;
+        }
+        .alert-box {
+          background: #FEF3C7;
+          border-left: 4px solid #F59E0B;
+          padding: 20px;
+          margin: 25px 0;
+          border-radius: 8px;
+        }
+        .alert-box strong {
+          color: #92400E;
+          display: block;
+          margin-bottom: 8px;
+        }
+        .alert-box p {
+          margin: 0;
+          color: #78350F;
+          font-size: 15px;
+        }
+        .reason-box {
+          background: #FFF7ED;
+          border: 1px solid #FED7AA;
+          padding: 20px;
+          margin: 25px 0;
+          border-radius: 8px;
+        }
+        .reason-box h4 {
+          margin: 0 0 10px 0;
+          color: #92400E;
+          font-size: 16px;
+        }
+        .reason-text {
+          color: #78350F;
+          font-style: italic;
+          margin: 0;
+        }
+        .footer {
+          padding: 30px;
+          background: ${BRAND_COLORS.cardBg};
+          text-align: center;
+          color: ${BRAND_COLORS.textSecondary};
+          font-size: 14px;
+          border-top: 1px solid ${BRAND_COLORS.cardBorder};
+        }
+        .footer-text {
+          margin: 5px 0;
+        }
+        .footer-signature {
+          font-weight: 600;
+          color: ${BRAND_COLORS.textPrimary};
+          margin-bottom: 10px;
+        }
+        .footer-note {
+          font-size: 12px;
+          color: #999999;
+          margin-top: 15px;
+        }
+        
+        @media only screen and (max-width: 600px) {
+          .email-wrapper {
+            padding: 20px 10px;
+          }
+          .content {
+            padding: 30px 20px;
+          }
+          .details-card {
+            padding: 20px 15px;
+          }
+          .detail-row {
+            flex-direction: column;
+          }
+          .detail-label {
+            min-width: auto;
+            margin-bottom: 5px;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="email-wrapper">
+        <div class="container">
+          <div class="header">
+            <h1>Leave Cancelled</h1>
+          </div>
+          
+          <div class="content">
+            <p>Dear Team,</p>
+            
+            <p><strong>${employee.name}</strong> has cancelled their previously approved leave request.</p>
+            
+            <div style="text-align: center;">
+              <div class="status-badge">CANCELLED</div>
+            </div>
+            
+            <div class="details-card">
+              <h3>Employee Information</h3>
+              
+              <div class="detail-row">
+                <div class="detail-label">Name:</div>
+                <div class="detail-value">${employee.name}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Division:</div>
+                <div class="detail-value">${employee.division?.name || '-'}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Role:</div>
+                <div class="detail-value">${employee.role?.name || '-'}</div>
+              </div>
+            </div>
+
+            <div class="details-card">
+              <h3>Cancelled Leave Details</h3>
+              
+              <div class="detail-row">
+                <div class="detail-label">Leave Type:</div>
+                <div class="detail-value">${leaveTypeLabel}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Start Date:</div>
+                <div class="detail-value">${startDate}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">End Date:</div>
+                <div class="detail-value">${endDate}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Duration:</div>
+                <div class="detail-value">${leaveRequest.totalDays} ${leaveRequest.totalDays === 1 ? 'day' : 'days'}</div>
+              </div>
+              
+              <div class="detail-row">
+                <div class="detail-label">Original Reason:</div>
+                <div class="detail-value">${leaveRequest.reason}</div>
+              </div>
+            </div>
+
+            ${cancellationReason && cancellationReason !== 'No reason provided' ? `
+              <div class="reason-box">
+                <h4>Cancellation Reason:</h4>
+                <p class="reason-text">${cancellationReason}</p>
+              </div>
+            ` : ''}
+
+            <div class="alert-box">
+              <strong>Important Notice</strong>
+              <p>
+                ${leaveRequest.leaveType === 'ANNUAL_LEAVE' 
+                  ? `The employee's leave balance has been restored (+${leaveRequest.totalDays} days).` 
+                  : 'This cancellation has been recorded in the system.'}
+              </p>
+              <p style="margin-top: 10px;">
+                The employee is now expected to be available during the originally scheduled leave dates.
+              </p>
+            </div>
+          </div>
+          
+          <div class="footer">
+            <div class="footer-signature">HR Team</div>
+            <div class="footer-text">Human Resources Department</div>
+            <div class="footer-note">This is an automated notification from the HR system.</div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  // Use your existing sendEmail function that calls SMTP2go API
+  return sendEmail({
+    to: process.env.HR_EMAIL || 'hr@rhayaflicks.com',
+    cc: ccEmails.length > 0 ? ccEmails : undefined,
+    subject: `Leave Cancelled: ${employee.name} - ${leaveTypeLabel}`,
+    html: html
+  });
+}
+
 export default {
   sendEmail,
   sendOvertimeApprovedEmail,
@@ -3619,5 +3924,6 @@ export default {
   sendPasswordResetEmail,
   sendPasswordChangedEmail,
   sendPayslipNotificationEmail,
-  sendBatchPayslipNotification
+  sendBatchPayslipNotification,
+  sendLeaveCancellationEmail
 };

@@ -11,7 +11,8 @@ import {
   rejectLeaveRequest,
   getLeaveRequestDetails,
   deleteLeaveRequest,
-  getLeaveBalanceByYear
+  getLeaveBalanceByYear,
+  cancelLeaveRequest
 } from '../controllers/leave.controller.js';
 
 const router = express.Router();
@@ -25,6 +26,7 @@ router.get('/my-requests', getMyLeaveRequests);
 router.get('/my-balance', getMyLeaveBalance);
 router.get('/:requestId', getLeaveRequestDetails);
 router.delete('/:requestId', deleteLeaveRequest);
+router.post('/:requestId/cancel', cancelLeaveRequest);
 
 // Approver routes (Level 1-4)
 router.get('/pending-approval/list', getPendingApprovalList);

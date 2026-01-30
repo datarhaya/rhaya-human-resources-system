@@ -429,6 +429,77 @@ export const updateLeaveBalance = async (leaveRequest) => {
   }
 };
 
+/**
+ * Restore leave balance when leave is cancelled
+ * @param {string} employeeId - Employee ID
+ * @param {number} days - Number of days to restore
+ * @param {number} year - Year of the leave
+ */
+export async function restoreLeaveBalance(employeeId, days, year) {
+  try {
+    console.log(`[Restore Balance] Restoring ${days} days for employee ${employeeId} in year ${year}`);
+
+    // Find or create leave balance for the year
+    let leaveBalance = await prisma.leaveBalance.findUnique({
+      where: {
+        employeeId_year: {
+          employeeId,
+          year
+        }
+      }
+    });
+
+    if (!leaveBalance) {
+      console.warn(`[Restore Balance] No leave balance found for ${year}. Creating default.`);
+      
+      // Get employee to determine initial balance
+      const employee = await prisma.user.findUnique({
+        where: { id: employeeId }
+      });
+
+      // Default annual leave (adjust based on your policy)
+      const defaultAnnualQuota = 12;
+
+      leaveBalance = await prisma.leaveBalance.create({
+        data: {
+          employeeId,
+          year,
+          annualQuota: defaultAnnualQuota,
+          annualUsed: 0,
+          annualRemaining: defaultAnnualQuota
+        }
+      });
+    }
+
+    // Calculate new balances
+    const newAnnualUsed = Math.max(0, leaveBalance.annualUsed - days);
+    const newAnnualRemaining = leaveBalance.annualQuota - newAnnualUsed;
+
+    // Update balance
+    const updatedBalance = await prisma.leaveBalance.update({
+      where: {
+        employeeId_year: {
+          employeeId,
+          year
+        }
+      },
+      data: {
+        annualUsed: newAnnualUsed,
+        annualRemaining: newAnnualRemaining
+      }
+    });
+
+    console.log(`✅ Balance restored. Was: ${leaveBalance.annualUsed} used, Now: ${newAnnualUsed} used`);
+    console.log(`✅ Remaining leave: ${newAnnualRemaining} days`);
+
+    return updatedBalance;
+
+  } catch (error) {
+    console.error('[Restore Balance] Error:', error);
+    throw new Error(`Failed to restore leave balance: ${error.message}`);
+  }
+}
+
 export default {
   calculateWorkingDays,
   calculateAnnualLeaveQuota,
@@ -437,5 +508,6 @@ export default {
   validateLeaveRequest,
   determineLeaveApprover,
   createLeaveRequest,
-  updateLeaveBalance
+  updateLeaveBalance,
+  restoreLeaveBalance
 };
