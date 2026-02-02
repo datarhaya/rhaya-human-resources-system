@@ -1,7 +1,7 @@
 // backend/src/routes/overtime.routes.js
 import express from 'express';
 import * as overtimeController from '../controllers/overtime.controller.js';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, authorizeAdmin } from '../middleware/auth.js';
 import { checkRecapLock } from '../middleware/recapLock.middleware.js';
 
 const router = express.Router();
@@ -62,5 +62,7 @@ router.post('/admin/reset-balance/:userId', authenticate, overtimeController.res
 
 // Get overtime statistics
 router.get('/admin/statistics', authenticate, overtimeController.getOvertimeStatistics);
+
+router.post('/:requestId/admin-reject', authenticate, authorizeAdmin, overtimeController.adminRejectApprovedOvertime);
 
 export default router;

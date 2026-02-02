@@ -3910,6 +3910,319 @@ export async function sendLeaveCancellationEmail(employee, leaveRequest, cancell
   });
 }
 
+/**
+ * Send admin rejection notification email
+ * Notifies employee, supervisor, and HR that admin rejected an approved overtime
+ * 
+ * @param {Object} employee - Employee whose overtime was rejected
+ * @param {Object} overtimeRequest - Overtime request that was rejected
+ * @param {string} adminReason - Admin's reason for rejection
+ * @param {string} adminName - Name of admin who rejected
+ * @param {Array<string>} ccEmails - List of emails to CC
+ */
+export async function sendAdminRejectOvertimeEmail(employee, overtimeRequest, adminReason, adminName, ccEmails = []) {
+  try {
+    // Format dates and amounts
+    const formattedDates = overtimeRequest.entries.map(entry => {
+      return new Date(entry.date).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    }).join(', ');
+
+    const formattedAmount = new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(overtimeRequest.totalAmount);
+
+    // Approval date
+    const approvalDate = overtimeRequest.approvedAt 
+      ? new Date(overtimeRequest.approvedAt).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+      : 'N/A';
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: ${BRAND_COLORS.textPrimary};
+            margin: 0;
+            padding: 0;
+            background-color: #F9F9F9;
+          }
+          .email-wrapper {
+            width: 100%;
+            background-color: #F9F9F9;
+            padding: 40px 20px;
+          }
+          .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: ${BRAND_COLORS.accent};
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+          }
+          .header {
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            color: ${BRAND_COLORS.accent};
+            padding: 40px 30px;
+            text-align: center;
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+          }
+          .content {
+            padding: 40px 30px;
+          }
+          .content p {
+            margin: 0 0 20px 0;
+            font-size: 16px;
+            line-height: 1.8;
+          }
+          .status-badge {
+            display: inline-block;
+            background: #dc2626;
+            color: ${BRAND_COLORS.accent};
+            padding: 10px 24px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 20px 0;
+          }
+          .details-card {
+            background: ${BRAND_COLORS.cardBg};
+            border: 1px solid ${BRAND_COLORS.cardBorder};
+            border-radius: 10px;
+            padding: 25px;
+            margin: 30px 0;
+          }
+          .details-card h3 {
+            margin: 0 0 20px 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: ${BRAND_COLORS.primary};
+            text-align: center;
+          }
+          .detail-row {
+            display: flex;
+            padding: 12px 0;
+            border-bottom: 1px solid ${BRAND_COLORS.cardBorder};
+          }
+          .detail-row:last-child {
+            border-bottom: none;
+          }
+          .detail-label {
+            font-weight: 600;
+            color: ${BRAND_COLORS.textPrimary};
+            min-width: 140px;
+            flex-shrink: 0;
+          }
+          .detail-value {
+            color: ${BRAND_COLORS.textSecondary};
+            flex: 1;
+          }
+          .alert-box {
+            background: #FEF3C7;
+            border-left: 4px solid #F59E0B;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 8px;
+          }
+          .alert-box strong {
+            color: #92400E;
+            display: block;
+            margin-bottom: 8px;
+          }
+          .alert-box p {
+            margin: 0;
+            color: #78350F;
+            font-size: 15px;
+          }
+          .reason-box {
+            background: #FFF7ED;
+            border: 2px solid #FED7AA;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 10px;
+          }
+          .reason-box h4 {
+            margin: 0 0 10px 0;
+            color: #92400E;
+            font-size: 16px;
+            font-weight: 700;
+          }
+          .reason-text {
+            color: #78350F;
+            font-style: italic;
+            margin: 0;
+            line-height: 1.6;
+          }
+          .footer {
+            padding: 30px;
+            background: ${BRAND_COLORS.cardBg};
+            text-align: center;
+            color: ${BRAND_COLORS.textSecondary};
+            font-size: 14px;
+            border-top: 1px solid ${BRAND_COLORS.cardBorder};
+          }
+          .footer-text {
+            margin: 5px 0;
+          }
+          .footer-signature {
+            font-weight: 600;
+            color: ${BRAND_COLORS.textPrimary};
+            margin-bottom: 10px;
+          }
+          .footer-note {
+            font-size: 12px;
+            color: #999999;
+            margin-top: 15px;
+          }
+          
+          @media only screen and (max-width: 600px) {
+            .email-wrapper {
+              padding: 20px 10px;
+            }
+            .content {
+              padding: 30px 20px;
+            }
+            .details-card {
+              padding: 20px 15px;
+            }
+            .detail-row {
+              flex-direction: column;
+            }
+            .detail-label {
+              min-width: auto;
+              margin-bottom: 5px;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="email-wrapper">
+          <div class="container">
+            <div class="header">
+              <h1>Overtime Rejected by HR Admin</h1>
+            </div>
+            
+            <div class="content">
+              <p>Dear <strong>${employee.name}</strong>,</p>
+              
+              <p>Your previously <strong>approved</strong> overtime request has been <strong>rejected by HR Administration</strong>.</p>
+              
+              <div style="text-align: center;">
+                <div class="status-badge">ADMIN OVERRIDE</div>
+              </div>
+
+              <div class="details-card">
+                <h3>Overtime Details</h3>
+                
+                <div class="detail-row">
+                  <div class="detail-label">Employee:</div>
+                  <div class="detail-value">${employee.name}</div>
+                </div>
+                
+                <div class="detail-row">
+                  <div class="detail-label">Division:</div>
+                  <div class="detail-value">${employee.division?.name || '-'}</div>
+                </div>
+                
+                <div class="detail-row">
+                  <div class="detail-label">Date(s):</div>
+                  <div class="detail-value">${formattedDates}</div>
+                </div>
+                
+                <div class="detail-row">
+                  <div class="detail-label">Hours:</div>
+                  <div class="detail-value">${overtimeRequest.totalHours} hours</div>
+                </div>
+                
+                <div class="detail-row">
+                  <div class="detail-label">Amount:</div>
+                  <div class="detail-value">${formattedAmount}</div>
+                </div>
+                
+                <div class="detail-row">
+                  <div class="detail-label">Originally Approved:</div>
+                  <div class="detail-value">${approvalDate}</div>
+                </div>
+                
+                <div class="detail-row">
+                  <div class="detail-label">Rejected By:</div>
+                  <div class="detail-value">${adminName} (HR Admin)</div>
+                </div>
+              </div>
+
+              <div class="reason-box">
+                <h4>Admin Rejection Reason:</h4>
+                <p class="reason-text">"${adminReason}"</p>
+              </div>
+
+              <div class="alert-box">
+                <strong>Balance Adjustment</strong>
+                <p>
+                  Your overtime balance has been adjusted: <strong>-${overtimeRequest.totalHours} hours</strong>
+                </p>
+                <p style="margin-top: 10px;">
+                  This overtime will <strong>not</strong> be included in your payroll.
+                </p>
+              </div>
+
+              <p>
+                If you believe this rejection is in error or have questions, please contact the HR department.
+              </p>
+              
+              <p style="margin-top: 30px;">
+                Best regards,<br>
+                <strong>HR Administration</strong>
+              </p>
+            </div>
+            
+            <div class="footer">
+              <div class="footer-signature">HR Team</div>
+              <div class="footer-text">Human Resources Department</div>
+              <div class="footer-text">PT Rhaya Flicks Indonesia</div>
+              <div class="footer-note">This is an automated notification from the HR system. For questions, please contact HR directly.</div>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Use existing sendEmail helper (SMTP2go API)
+    return sendEmail({
+      to: employee.email,
+      cc: ccEmails.length > 0 ? ccEmails.filter(e => e !== employee.email) : undefined,
+      subject: `Overtime Rejected by HR Admin: ${overtimeRequest.totalHours} hours`,
+      html: html
+    });
+
+  } catch (error) {
+    console.error('❌ Send admin rejection email error:', error);
+    throw error;
+  }
+}
+
 export default {
   sendEmail,
   sendOvertimeApprovedEmail,
@@ -3925,5 +4238,6 @@ export default {
   sendPasswordChangedEmail,
   sendPayslipNotificationEmail,
   sendBatchPayslipNotification,
-  sendLeaveCancellationEmail
+  sendLeaveCancellationEmail,
+  sendAdminRejectOvertimeEmail
 };

@@ -598,12 +598,12 @@ export default function OvertimeHistory() {
                     <h4 className="text-xs sm:text-sm font-medium text-blue-900 mb-2">{t('overtime.comments')}</h4>
                     {request.supervisorComment && (
                       <p className="text-xs sm:text-sm text-blue-800 mb-1">
-                        <strong>{t('overtime.supervisor')}:</strong> {request.supervisorComment}
+                        <strong>{t('overtime.supervisor')}</strong> {request.supervisorComment}
                       </p>
                     )}
                     {request.divisionHeadComment && (
                       <p className="text-xs sm:text-sm text-blue-800">
-                        <strong>{t('overtime.divisionHead')}:</strong> {request.divisionHeadComment}
+                        <strong>{t('overtime.divisionHead')}</strong> {request.divisionHeadComment}
                       </p>
                     )}
                   </div>

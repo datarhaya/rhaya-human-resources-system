@@ -1,5 +1,6 @@
 // backend/src/controllers/overtime.controller.js
 import * as overtimeService from '../services/overtime.service.js';
+import * as revisionService from '../services/overtimeRevision.service.js';
 import { isAfter, subDays, startOfDay } from 'date-fns';
 import { PrismaClient } from '@prisma/client';
 import { 
@@ -131,8 +132,20 @@ export const submitOvertimeRequest = async (req, res) => {
     });
     console.log('Created request with currentApproverId:', overtimeRequest.currentApproverId);
 
+    // ✅ NEW: Log submission in revision history
+    await revisionService.logSubmission(
+      overtimeRequest.id,
+      employeeId,
+      {
+        totalHours,
+        totalAmount,
+        entries: entries
+      }
+    );
+
     // Update pending hours in balance
     await overtimeService.updatePendingHours(employeeId, totalHours, 'ADD');
+    console.log('✅ Pending hours updated for employee:', employeeId);
 
     // Send email notification to approver
     try {
@@ -334,17 +347,20 @@ export const editOvertimeRequest = async (req, res) => {
     });
 
     // Log revision
-    await overtimeService.createRevision({
-      overtimeRequestId: requestId,
-      revisedBy: employeeId,
-      action: 'EDIT',
-      changes: {
-        oldEntries: existingRequest.entries,
-        newEntries: entries,
-        oldTotal: oldTotalHours,
-        newTotal: newTotalHours
+    await revisionService.logEdit(
+      requestId,
+      employeeId,
+      {
+        totalHours: oldTotalHours,
+        totalAmount: existingRequest.totalAmount,
+        entries: existingRequest.entries
+      },
+      {
+        totalHours: newTotalHours,
+        totalAmount: newTotalAmount,
+        entries: entries
       }
-    });
+    );
 
     res.json({
       message: 'Overtime request updated successfully',
@@ -652,6 +668,29 @@ export const approveOvertimeRequest = async (req, res) => {
       console.error('⚠️ Email failed but overtime approved:', emailError);
     }
 
+    if (request.supervisorId && !request.supervisorDate) {
+      // Supervisor approval
+      await revisionService.logSupervisorApproval(
+        requestId,
+        approverId,
+        comment
+      );
+    } else if (request.employee.division?.headId && !request.divisionHeadDate) {
+      // Division head approval
+      await revisionService.logDivisionHeadApproval(
+        requestId,
+        approverId,
+        comment
+      );
+    } else {
+      // Direct/final approval
+      await revisionService.logFinalApproval(
+        requestId,
+        approverId,
+        comment
+      );
+    }
+
     return res.json({
       success: true,
       message: 'Overtime request approved successfully',
@@ -773,6 +812,29 @@ export const rejectOvertimeRequest = async (req, res) => {
       console.error('⚠️ Rejection email failed:', emailError.message);
     }
 
+    if (request.supervisorId && !request.supervisorDate) {
+      // Supervisor rejection
+      await revisionService.logSupervisorRejection(
+        requestId,
+        approverId,
+        comment
+      );
+    } else if (request.employee.division?.headId && !request.divisionHeadDate) {
+      // Division head rejection
+      await revisionService.logDivisionHeadRejection(
+        requestId,
+        approverId,
+        comment
+      );
+    } else {
+      // Final rejection
+      await revisionService.logFinalRejection(
+        requestId,
+        approverId,
+        comment
+      );
+    }
+
     return res.json({
       success: true,
       message: 'Overtime request rejected',
@@ -862,6 +924,13 @@ export const requestRevision = async (req, res) => {
     });
 
     // Send revision request email notification to employee
+    await revisionService.logRevisionRequest(
+      requestId,
+      approverId,
+      comment
+    );
+
+    // Send revision request email notification to employee
     try {
       await sendOvertimeRevisionRequestedEmail(
         updatedRequest.employee,
@@ -901,6 +970,8 @@ export const requestRevision = async (req, res) => {
     return res.status(500).json({ error: 'Failed to request revision' });
   }
 };
+
+
 
 // ============================================
 // ADMIN/HR CONTROLLERS
@@ -1023,5 +1094,177 @@ export const getOvertimeStatistics = async (req, res) => {
   } catch (error) {
     console.error('Get statistics error:', error);
     res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * Admin reject approved overtime (Override)
+ * POST /api/overtime/:requestId/admin-reject
+ * Only for System Administrator (Level 1)
+ */
+export const adminRejectApprovedOvertime = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { comment } = req.body;
+    const adminId = req.user.id;
+    const adminName = req.user.name;
+
+    console.log(`[Admin Reject] Admin ${adminName} attempting to reject approved overtime ${requestId}`);
+
+    // Validate comment
+    if (!comment || comment.trim().length < 20) {
+      return res.status(400).json({
+        success: false,
+        error: 'Admin rejection reason required (minimum 20 characters)',
+        details: ['Please provide a detailed reason for rejecting this approved overtime']
+      });
+    }
+
+    // Get overtime request with all details
+    const overtimeRequest = await prisma.overtimeRequest.findUnique({
+      where: { id: requestId },
+      include: {
+        employee: {
+          include: {
+            division: true,
+            role: true
+          }
+        },
+        entries: true,
+        supervisor: {
+          select: { id: true, name: true, email: true }
+        },
+        finalApprover: {
+          select: { id: true, name: true, email: true }
+        }
+      }
+    });
+
+    if (!overtimeRequest) {
+      return res.status(404).json({
+        success: false,
+        error: 'Overtime request not found'
+      });
+    }
+
+    // ✅ Check 1: Must be APPROVED
+    if (overtimeRequest.status !== 'APPROVED') {
+      return res.status(400).json({
+        success: false,
+        error: 'Can only reject approved overtime requests',
+        currentStatus: overtimeRequest.status
+      });
+    }
+
+    // ✅ Check 2: Cannot reject if already recapped (in payroll)
+    if (overtimeRequest.isRecapped) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot reject overtime that has been recapped for payroll',
+        recappedDate: overtimeRequest.recappedDate
+      });
+    }
+
+    console.log(`✅ All validations passed. Proceeding with admin rejection...`);
+
+    // Save original data before overwriting (Solves Problem #2!)
+    const originalData = {
+      supervisorComment: overtimeRequest.supervisorComment,
+      approvedAt: overtimeRequest.approvedAt,
+      finalApproverId: overtimeRequest.finalApproverId,
+      totalHours: overtimeRequest.totalHours,
+      status: overtimeRequest.status
+    };
+
+    // Update overtime request status to REJECTED
+    const updatedRequest = await prisma.overtimeRequest.update({
+      where: { id: requestId },
+      data: {
+        status: 'REJECTED',
+        rejectedAt: new Date(),
+        supervisorComment: `[ADMIN OVERRIDE] ${comment}`, // Prefix to indicate admin action
+        currentApproverId: adminId // Record who rejected it
+      },
+      include: {
+        employee: {
+          include: {
+            division: true,
+            role: true
+          }
+        },
+        entries: true
+      }
+    });
+
+    console.log(`✅ Overtime status updated to REJECTED by admin`);
+
+    // ✅ CRITICAL: Log admin rejection (Preserves original data!)
+    await revisionService.logAdminRejection(
+      requestId,
+      adminId,
+      comment,
+      originalData
+    );
+
+    // ✅ Deduct overtime balance (remove the hours that were added)
+    try {
+      await revisionService.deductOvertimeBalance(
+        overtimeRequest.employeeId,
+        overtimeRequest.totalHours
+      );
+      console.log(`✅ Overtime balance deducted: -${overtimeRequest.totalHours} hours`);
+    } catch (balanceError) {
+      console.error('⚠️ Failed to deduct overtime balance:', balanceError);
+      // Don't fail the rejection if balance deduction fails
+    }
+
+    // ✅ Send notification emails
+    try {
+      const { sendAdminRejectOvertimeEmail } = await import('../services/email.service.js');
+      
+      // Send to employee, supervisor, and HR
+      await sendAdminRejectOvertimeEmail(
+        overtimeRequest.employee,
+        overtimeRequest,
+        comment,
+        adminName,
+        [
+          overtimeRequest.supervisor?.email,
+          overtimeRequest.finalApprover?.email,
+          process.env.HR_EMAIL
+        ].filter(email => email) // Remove nulls
+      );
+      console.log(`✅ Admin rejection notification emails sent`);
+    } catch (emailError) {
+      console.error('⚠️ Failed to send admin rejection emails:', emailError);
+      // Don't fail the rejection if email fails
+    }
+
+    // ✅ Log audit trail
+    console.log(`[AUDIT] Admin Override Rejection:`, {
+      overtimeId: requestId,
+      adminId: adminId,
+      adminName: adminName,
+      employeeId: overtimeRequest.employeeId,
+      employeeName: overtimeRequest.employee.name,
+      hours: overtimeRequest.totalHours,
+      amount: overtimeRequest.totalAmount,
+      reason: comment,
+      timestamp: new Date().toISOString()
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Overtime request rejected by admin successfully',
+      data: updatedRequest
+    });
+
+  } catch (error) {
+    console.error('❌ Admin reject overtime error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to reject overtime request',
+      message: error.message
+    });
   }
 };

@@ -241,9 +241,10 @@ export const getOvertimeRequestById = async (requestId) => {
           name: true,
           email: true,
           nip: true,
-          role: true,
-          division: true,
-          overtimeRate: true
+          role: true,           // This gets the whole role object
+          division: true,       // This gets the whole division object
+          overtimeRate: true,
+          accessLevel: true     // ✅ accessLevel is on User, not Role
         }
       },
       currentApprover: {
@@ -259,6 +260,41 @@ export const getOvertimeRequestById = async (requestId) => {
           name: true,
           email: true
         }
+      },
+      divisionHead: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      },
+      finalApprover: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      },
+      // ✅ CORRECTED: Include revisions with proper Role structure
+      revisions: {
+        include: {
+          reviser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              accessLevel: true,    // ✅ accessLevel is on User
+              role: {
+                select: {
+                  id: true,
+                  name: true,
+                  description: true
+                }
+              }
+            }
+          }
+        },
+        orderBy: { createdAt: 'asc' }
       }
     }
   });
@@ -615,6 +651,60 @@ export const processMonthlyBalance = async (params) => {
     details: results
   };
 };
+
+/**
+ * Deduct overtime balance when admin rejects approved overtime
+ * @param {string} employeeId - Employee ID
+ * @param {number} hours - Number of hours to deduct
+ */
+export const deductOvertimeBalance = async (employeeId, hours) => {
+  try {
+    console.log(`[Deduct Balance] Deducting ${hours} hours for employee ${employeeId}`);
+
+    // Find overtime balance
+    let balance = await prisma.overtimeBalance.findUnique({
+      where: { employeeId }
+    });
+
+    if (!balance) {
+      console.warn(`[Deduct Balance] No balance found for employee ${employeeId}`);
+      // Create a balance record with negative hours (this shouldn't happen but handle it)
+      balance = await prisma.overtimeBalance.create({
+        data: {
+          employeeId,
+          currentBalance: -hours, // Negative balance
+          pendingHours: 0,
+          totalPaid: 0
+        }
+      });
+      console.log(`⚠️ Created new balance record with -${hours} hours`);
+      return balance;
+    }
+
+    // Calculate new balance
+    const newBalance = Math.max(0, balance.currentBalance - hours);
+    
+    console.log(`[Deduct Balance] Current: ${balance.currentBalance} hours`);
+    console.log(`[Deduct Balance] Deducting: ${hours} hours`);
+    console.log(`[Deduct Balance] New balance: ${newBalance} hours`);
+
+    // Update balance
+    const updatedBalance = await prisma.overtimeBalance.update({
+      where: { employeeId },
+      data: {
+        currentBalance: newBalance
+      }
+    });
+
+    console.log(`✅ Balance deducted successfully`);
+    return updatedBalance;
+
+  } catch (error) {
+    console.error('[Deduct Balance] Error:', error);
+    throw new Error(`Failed to deduct overtime balance: ${error.message}`);
+  }
+};
+
 
 // ============================================
 // REVISION OPERATIONS
