@@ -157,13 +157,13 @@ export default function UserProfile() {
             
             <div className="mt-8 grid grid-cols-2 gap-4 pt-8 border-t border-gray-50">
               <div className="text-left">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t('profile.leave')}</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t('profile.leaveBalance')}</p>
                 <p className="text-lg font-black text-blue-600 leading-none">
                   {user.leaveBalance?.annualRemaining || 0} <span className="text-[10px] text-gray-400 uppercase">{t('profile.days')}</span>
                 </p>
               </div>
               <div className="text-left">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t('profile.overtime')}</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t('profile.overtimeBalance')}</p>
                 <p className="text-lg font-black text-green-600 leading-none">
                   {user.overtimeBalance?.currentBalance?.toFixed(1) || 0} <span className="text-[10px] text-gray-400 uppercase">{t('profile.hours')}</span>
                 </p>
@@ -251,7 +251,7 @@ export default function UserProfile() {
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t('profile.overtimeRate')}</p>
                 <p className="text-xl font-black text-gray-900 tracking-tighter">
                   {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(user.overtimeRate)}
-                  <span className="text-xs text-gray-400 ml-1 font-bold lowercase">/ jam</span>
+                  <span className="text-xs text-gray-400 ml-1 font-bold lowercase">/ 8 {t('profile.hours')}</span>
                 </p>
               </div>
             </div>
