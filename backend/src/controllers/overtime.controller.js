@@ -132,7 +132,7 @@ export const submitOvertimeRequest = async (req, res) => {
     });
     console.log('Created request with currentApproverId:', overtimeRequest.currentApproverId);
 
-    // ✅ NEW: Log submission in revision history
+    // Log submission in revision history
     await revisionService.logSubmission(
       overtimeRequest.id,
       employeeId,
@@ -145,7 +145,7 @@ export const submitOvertimeRequest = async (req, res) => {
 
     // Update pending hours in balance
     await overtimeService.updatePendingHours(employeeId, totalHours, 'ADD');
-    console.log('✅ Pending hours updated for employee:', employeeId);
+    console.log('Pending hours updated for employee:', employeeId);
 
     // Send email notification to approver
     try {
@@ -156,7 +156,7 @@ export const submitOvertimeRequest = async (req, res) => {
 
       if (approver && approver.email) {
         await sendOvertimeRequestNotification(approver, overtimeRequest, employee);
-        console.log('✅ Overtime request notification sent to:', approver.email);
+        console.log('Overtime request notification sent to:', approver.email);
       }
     } catch (emailError) {
       // Don't fail the request if email fails
@@ -636,7 +636,7 @@ export const approveOvertimeRequest = async (req, res) => {
       }
     });
 
-    console.log('✅ Updated request status:', updatedRequest.status); // Debug log
+    console.log('Updated request status:', updatedRequest.status); // Debug log
 
     // If fully approved, update balance
     if (updatedRequest.status === 'APPROVED') {
@@ -653,7 +653,7 @@ export const approveOvertimeRequest = async (req, res) => {
         }
       });
       
-      console.log('✅ Balance updated for employee:', request.employeeId);
+      console.log('Balance updated for employee:', request.employeeId);
     }
 
     // Send email notification
@@ -662,7 +662,7 @@ export const approveOvertimeRequest = async (req, res) => {
         request.employee,
         request
       );
-      console.log('✅ Approval email sent to:', request.employee.email);
+      console.log('Approval email sent to:', request.employee.email);
     } catch (emailError) {
       // Don't fail the request if email fails
       console.error('⚠️ Email failed but overtime approved:', emailError);
@@ -806,7 +806,7 @@ export const rejectOvertimeRequest = async (req, res) => {
         comment,
         req.user.name
       );
-      console.log('✅ Rejection email sent to:', updatedRequest.employee.email);
+      console.log('Rejection email sent to:', updatedRequest.employee.email);
     } catch (emailError) {
       // Don't fail the request if email fails
       console.error('⚠️ Rejection email failed:', emailError.message);
@@ -938,7 +938,7 @@ export const requestRevision = async (req, res) => {
         comment,
         req.user.name
       );
-      console.log('✅ Revision request email sent to:', updatedRequest.employee.email);
+      console.log('Revision request email sent to:', updatedRequest.employee.email);
     } catch (emailError) {
       // Don't fail the request if email fails
       console.error('⚠️ Revision request email failed:', emailError.message);
@@ -1147,7 +1147,7 @@ export const adminRejectApprovedOvertime = async (req, res) => {
       });
     }
 
-    // ✅ Check 1: Must be APPROVED
+    // Check 1: Must be APPROVED
     if (overtimeRequest.status !== 'APPROVED') {
       return res.status(400).json({
         success: false,
@@ -1156,7 +1156,7 @@ export const adminRejectApprovedOvertime = async (req, res) => {
       });
     }
 
-    // ✅ Check 2: Cannot reject if already recapped (in payroll)
+    // Check 2: Cannot reject if already recapped (in payroll)
     if (overtimeRequest.isRecapped) {
       return res.status(400).json({
         success: false,
@@ -1165,7 +1165,7 @@ export const adminRejectApprovedOvertime = async (req, res) => {
       });
     }
 
-    console.log(`✅ All validations passed. Proceeding with admin rejection...`);
+    console.log(`All validations passed. Proceeding with admin rejection...`);
 
     // Save original data before overwriting (Solves Problem #2!)
     const originalData = {
@@ -1196,9 +1196,9 @@ export const adminRejectApprovedOvertime = async (req, res) => {
       }
     });
 
-    console.log(`✅ Overtime status updated to REJECTED by admin`);
+    console.log(`Overtime status updated to REJECTED by admin`);
 
-    // ✅ CRITICAL: Log admin rejection (Preserves original data!)
+    // CRITICAL: Log admin rejection (Preserves original data!)
     await revisionService.logAdminRejection(
       requestId,
       adminId,
@@ -1206,19 +1206,19 @@ export const adminRejectApprovedOvertime = async (req, res) => {
       originalData
     );
 
-    // ✅ Deduct overtime balance (remove the hours that were added)
+    // Deduct overtime balance (remove the hours that were added)
     try {
       await revisionService.deductOvertimeBalance(
         overtimeRequest.employeeId,
         overtimeRequest.totalHours
       );
-      console.log(`✅ Overtime balance deducted: -${overtimeRequest.totalHours} hours`);
+      console.log(`Overtime balance deducted: -${overtimeRequest.totalHours} hours`);
     } catch (balanceError) {
       console.error('⚠️ Failed to deduct overtime balance:', balanceError);
       // Don't fail the rejection if balance deduction fails
     }
 
-    // ✅ Send notification emails
+    // Send notification emails
     try {
       const { sendAdminRejectOvertimeEmail } = await import('../services/email.service.js');
       
@@ -1234,13 +1234,13 @@ export const adminRejectApprovedOvertime = async (req, res) => {
           process.env.HR_EMAIL
         ].filter(email => email) // Remove nulls
       );
-      console.log(`✅ Admin rejection notification emails sent`);
+      console.log(`Admin rejection notification emails sent`);
     } catch (emailError) {
       console.error('⚠️ Failed to send admin rejection emails:', emailError);
       // Don't fail the rejection if email fails
     }
 
-    // ✅ Log audit trail
+    // Log audit trail
     console.log(`[AUDIT] Admin Override Rejection:`, {
       overtimeId: requestId,
       adminId: adminId,
@@ -1264,6 +1264,301 @@ export const adminRejectApprovedOvertime = async (req, res) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to reject overtime request',
+      message: error.message
+    });
+  }
+};
+
+/**
+ * Admin edit overtime request (Both APPROVED and REJECTED)
+ * PUT /api/overtime/:requestId/admin-edit
+ * Only for System Administrator (Level 1)
+ * 
+ * Cases:
+ * 1. Edit APPROVED → Stays APPROVED, balance auto-adjusted
+ * 2. Edit REJECTED → Changes to PENDING, reassign to current supervisor
+ */
+export const adminEditOvertime = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { entries, reason } = req.body;
+    const adminId = req.user.id;
+    const adminName = req.user.name;
+
+    console.log(`[Admin Edit] Admin ${adminName} editing overtime ${requestId}`);
+
+    // ✅ Validate reason
+    if (!reason || reason.trim().length < 20) {
+      return res.status(400).json({
+        success: false,
+        error: 'Admin edit reason required (minimum 20 characters)',
+        details: ['Please provide a detailed reason for editing this overtime']
+      });
+    }
+
+    // ✅ Validate entries
+    if (!entries || !Array.isArray(entries) || entries.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'At least one overtime entry is required'
+      });
+    }
+
+    // Get existing overtime request
+    const existingRequest = await prisma.overtimeRequest.findUnique({
+      where: { id: requestId },
+      include: {
+        employee: {
+          include: {
+            division: true,
+            role: true,
+            supervisor: true
+          }
+        },
+        entries: true,
+        supervisor: true
+      }
+    });
+
+    if (!existingRequest) {
+      return res.status(404).json({
+        success: false,
+        error: 'Overtime request not found'
+      });
+    }
+
+    // ✅ Check: Cannot edit if recapped
+    if (existingRequest.isRecapped) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot edit recapped overtime',
+        recappedDate: existingRequest.recappedDate
+      });
+    }
+
+    // ✅ Check: Can only edit APPROVED or REJECTED
+    if (!['APPROVED', 'REJECTED'].includes(existingRequest.status)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Can only edit APPROVED or REJECTED overtime requests',
+        currentStatus: existingRequest.status
+      });
+    }
+
+    console.log(`✅ Validation passed. Current status: ${existingRequest.status}`);
+
+    // Validate each entry
+    const today = startOfDay(new Date());
+    for (const entry of entries) {
+      if (!entry.date || !entry.hours || !entry.description) {
+        return res.status(400).json({
+          error: 'Each entry must have date, hours, and description'
+        });
+      }
+
+      if (entry.hours <= 0 || entry.hours > 12) {
+        return res.status(400).json({
+          error: `Invalid hours for ${entry.date}. Must be between 0.5 and 12 hours`
+        });
+      }
+
+      // Admin can edit any historical date (not recapped)
+      const entryDate = startOfDay(new Date(entry.date));
+      if (isAfter(entryDate, today)) {
+        return res.status(400).json({
+          error: `Date ${entry.date} is in the future. Cannot submit.`
+        });
+      }
+    }
+
+    // Check for duplicate dates in submission
+    const dates = entries.map(e => e.date);
+    const uniqueDates = new Set(dates);
+    if (dates.length !== uniqueDates.size) {
+      return res.status(400).json({
+        error: 'Duplicate dates found in submission.'
+      });
+    }
+
+    // Check duplicate with OTHER requests (exclude current)
+    const existingDates = await overtimeService.checkDuplicateDatesExcluding(
+      existingRequest.employeeId,
+      dates,
+      requestId
+    );
+    if (existingDates.length > 0) {
+      return res.status(400).json({
+        error: `Dates already exist in other requests: ${existingDates.join(', ')}`,
+        duplicateDates: existingDates
+      });
+    }
+
+    // Save original data for revision history
+    const originalData = {
+      status: existingRequest.status,
+      totalHours: existingRequest.totalHours,
+      totalAmount: existingRequest.totalAmount,
+      entries: existingRequest.entries
+    };
+
+    // Calculate new totals
+    const newTotalHours = entries.reduce((sum, e) => sum + parseFloat(e.hours), 0);
+    const overtimeRate = parseFloat(existingRequest.employee.overtimeRate) || 37500;
+    const newTotalAmount = (newTotalHours / 8) * overtimeRate;
+
+    console.log(`[Admin Edit] Hours: ${originalData.totalHours} → ${newTotalHours}`);
+
+    // Prepare update data based on current status
+    let updateData = {};
+    let newStatus = existingRequest.status;
+
+    // Case 1: Editing APPROVED → Stays APPROVED
+    if (existingRequest.status === 'APPROVED') {
+      newStatus = 'APPROVED';
+      updateData = {
+        totalHours: newTotalHours,
+        totalAmount: newTotalAmount,
+        status: 'APPROVED' // Stays approved
+      };
+
+      // ✅ Adjust balance automatically
+      const hoursDifference = newTotalHours - originalData.totalHours;
+      if (hoursDifference !== 0) {
+        await prisma.overtimeBalance.upsert({
+          where: { employeeId: existingRequest.employeeId },
+          update: {
+            currentBalance: { increment: hoursDifference }
+          },
+          create: {
+            employeeId: existingRequest.employeeId,
+            currentBalance: newTotalHours,
+            pendingHours: 0,
+            totalPaid: 0
+          }
+        });
+        console.log(`✅ Balance adjusted: ${hoursDifference > 0 ? '+' : ''}${hoursDifference} hours`);
+      }
+    }
+    // Case 2: Editing REJECTED → Changes to PENDING
+    else if (existingRequest.status === 'REJECTED') {
+      newStatus = 'PENDING';
+
+      // Get employee's current supervisor
+      const currentSupervisorId = existingRequest.employee.supervisorId;
+      if (!currentSupervisorId) {
+        return res.status(400).json({
+          error: 'Employee has no supervisor assigned'
+        });
+      }
+
+      updateData = {
+        totalHours: newTotalHours,
+        totalAmount: newTotalAmount,
+        status: 'PENDING',
+        currentApproverId: currentSupervisorId,
+        supervisorId: currentSupervisorId,
+        supervisorStatus: 'PENDING',
+        supervisorComment: null,
+        supervisorDate: null,
+        rejectedAt: null
+      };
+
+      // ✅ Add to pending hours (REJECTED had 0, now needs tracking)
+      await prisma.overtimeBalance.upsert({
+        where: { employeeId: existingRequest.employeeId },
+        update: {
+          pendingHours: { increment: newTotalHours }
+        },
+        create: {
+          employeeId: existingRequest.employeeId,
+          currentBalance: 0,
+          pendingHours: newTotalHours,
+          totalPaid: 0
+        }
+      });
+
+      console.log(`✅ Status changed: REJECTED → PENDING`);
+      console.log(`✅ Pending hours added: +${newTotalHours} hours`);
+      console.log(`✅ Reassigned to current supervisor: ${currentSupervisorId}`);
+    }
+
+    // Update overtime request
+    const updatedRequest = await overtimeService.updateOvertimeRequest(requestId, {
+      entries,
+      totalHours: newTotalHours,
+      totalAmount: newTotalAmount,
+      status: newStatus
+    });
+
+    // Apply additional updates
+    await prisma.overtimeRequest.update({
+      where: { id: requestId },
+      data: updateData
+    });
+
+    // ✅ Log admin edit in revision history
+    const action = existingRequest.status === 'APPROVED' 
+      ? 'ADMIN_EDITED_APPROVED' 
+      : 'ADMIN_EDITED_REJECTED';
+
+    await revisionService.logRevision({
+      overtimeRequestId: requestId,
+      revisedBy: adminId,
+      action: action,
+      changes: {
+        before: {
+          status: originalData.status,
+          totalHours: originalData.totalHours,
+          totalAmount: originalData.totalAmount,
+          entriesCount: originalData.entries.length
+        },
+        after: {
+          status: newStatus,
+          totalHours: newTotalHours,
+          totalAmount: newTotalAmount,
+          entriesCount: entries.length
+        },
+        balanceAdjustment: existingRequest.status === 'APPROVED' 
+          ? newTotalHours - originalData.totalHours 
+          : null,
+        reassignedTo: existingRequest.status === 'REJECTED' 
+          ? updateData.currentApproverId 
+          : null
+      },
+      comment: reason
+    });
+
+    console.log(`✅ Admin edit completed successfully`);
+
+    // Log audit trail
+    console.log(`[AUDIT] Admin Edit:`, {
+      overtimeId: requestId,
+      adminId: adminId,
+      adminName: adminName,
+      employeeId: existingRequest.employeeId,
+      employeeName: existingRequest.employee.name,
+      originalStatus: originalData.status,
+      newStatus: newStatus,
+      hoursChange: `${originalData.totalHours} → ${newTotalHours}`,
+      reason: reason,
+      timestamp: new Date().toISOString()
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Overtime request edited successfully',
+      data: {
+        ...updatedRequest,
+        previousStatus: originalData.status,
+        newStatus: newStatus
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Admin edit overtime error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to edit overtime request',
       message: error.message
     });
   }

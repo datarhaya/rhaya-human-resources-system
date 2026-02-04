@@ -10,17 +10,19 @@ const prisma = new PrismaClient();
  * These define all the actions we track in the overtime workflow
  */
 export const REVISION_ACTIONS = {
-  SUBMITTED: 'SUBMITTED',                      // Initial submission
-  EDITED: 'EDITED',                            // Employee edited request
-  APPROVED_SUPERVISOR: 'APPROVED_SUPERVISOR',   // Supervisor approved
-  REJECTED_SUPERVISOR: 'REJECTED_SUPERVISOR',   // Supervisor rejected
-  APPROVED_DIVHEAD: 'APPROVED_DIVHEAD',        // Division head approved
-  REJECTED_DIVHEAD: 'REJECTED_DIVHEAD',        // Division head rejected
-  REVISION_REQUESTED: 'REVISION_REQUESTED',     // Revision requested
-  ADMIN_REJECTED: 'ADMIN_REJECTED',            // Admin override rejection
-  FINAL_APPROVED: 'FINAL_APPROVED',            // Final approval
-  FINAL_REJECTED: 'FINAL_REJECTED',            // Final rejection
-  DELETED: 'DELETED'                           // Request deleted
+  SUBMITTED: 'SUBMITTED',                         // Initial submission
+  EDITED: 'EDITED',                               // Employee edited request
+  APPROVED_SUPERVISOR: 'APPROVED_SUPERVISOR',     // Supervisor approved
+  REJECTED_SUPERVISOR: 'REJECTED_SUPERVISOR',     // Supervisor rejected
+  APPROVED_DIVHEAD: 'APPROVED_DIVHEAD',           // Division head approved
+  REJECTED_DIVHEAD: 'REJECTED_DIVHEAD',           // Division head rejected
+  REVISION_REQUESTED: 'REVISION_REQUESTED',       // Revision requested
+  ADMIN_REJECTED: 'ADMIN_REJECTED',               // Admin override rejection
+  ADMIN_EDITED_APPROVED: 'ADMIN_EDITED_APPROVED', // Admin edited approved overtime
+  ADMIN_EDITED_REJECTED: 'ADMIN_EDITED_REJECTED', // Admin edited rejected overtime
+  FINAL_APPROVED: 'FINAL_APPROVED',               // Final approval
+  FINAL_REJECTED: 'FINAL_REJECTED',               // Final rejection
+  DELETED: 'DELETED'                              // Request deleted
 };
 
 /**
@@ -70,8 +72,7 @@ export const logRevision = async ({
 
   } catch (error) {
     console.error(`❌ Failed to log revision:`, error);
-    // Don't throw - revision logging shouldn't break the main flow
-    // Just log the error and continue
+    // Disengaja tidak ada throw di sini biar tetep lanjut meskipun logging gagal
     return null;
   }
 };
@@ -379,5 +380,5 @@ export default {
   logFinalApproval,
   logFinalRejection,
   logDeletion,
-  deductOvertimeBalance  // ✅ ADD THIS
+  deductOvertimeBalance  
 };

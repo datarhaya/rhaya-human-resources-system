@@ -65,4 +65,7 @@ router.get('/admin/statistics', authenticate, overtimeController.getOvertimeStat
 
 router.post('/:requestId/admin-reject', authenticate, authorizeAdmin, overtimeController.adminRejectApprovedOvertime);
 
+router.put('/:requestId/admin-edit', authenticate, authorizeAdmin, overtimeController.adminEditOvertime);
+
+
 export default router;

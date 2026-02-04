@@ -1,7 +1,7 @@
 // frontend/src/pages/OvertimeDetail.jsx
 // MOBILE-RESPONSIVE VERSION - Card layout, collapsible sections, touch-friendly
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getOvertimeRequestById } from '../api/client';
@@ -9,12 +9,12 @@ import { format } from 'date-fns';
 import { useAuth } from '../hooks/useAuth';
 import apiClient from '../api/client';
 import { 
-  FileText,      // For submitted
-  Clock,         // For pending
-  CheckCircle,   // For approved
-  XCircle,       // For rejected
-  Ban,          // For admin rejection
-  Edit3,         // For revision
+  FileText,       // For submitted
+  Clock,          // For pending
+  CheckCircle,    // For approved
+  XCircle,        // For rejected
+  Ban,            // For admin rejection
+  Edit3,          // For revision
   User,
   ArrowLeft
 } from 'lucide-react';
@@ -33,11 +33,63 @@ export default function OvertimeDetail() {
   const [confirmReject, setConfirmReject] = useState(false);
   const [rejecting, setRejecting] = useState(false);
 
+  const [showAdminEditModal, setShowAdminEditModal] = useState(false);
+  const [editEntries, setEditEntries] = useState([]);
+  const [editReason, setEditReason] = useState('');
+  const [editing, setEditing] = useState(false);
+
   const isAdmin = user?.accessLevel === 1;
 
   useEffect(() => {
     fetchRequest();
   }, [requestId]);
+
+  const timelineEvents = useMemo(() => {
+    if (!request || !request.revisions) return [];
+    
+    // Build timeline inline (no separate function needed)
+    const events = [];
+    
+    if (request.revisions && request.revisions.length > 0) {
+      request.revisions.forEach(revision => {
+        // Event config
+        const eventMap = {
+          SUBMITTED: { label: 'Request Submitted', icon: FileText, color: 'blue' },
+          EDITED: { label: 'Request Edited', icon: Edit3, color: 'blue', showChanges: true },
+          APPROVED_SUPERVISOR: { label: 'Approved by Supervisor', icon: CheckCircle, color: 'green' },
+          REJECTED_SUPERVISOR: { label: 'Rejected by Supervisor', icon: XCircle, color: 'red' },
+          APPROVED_DIVHEAD: { label: 'Approved by Division Head', icon: CheckCircle, color: 'green' },
+          REJECTED_DIVHEAD: { label: 'Rejected by Division Head', icon: XCircle, color: 'red' },
+          REVISION_REQUESTED: { label: 'Revision Requested', icon: Edit3, color: 'orange' },
+          ADMIN_REJECTED: { label: 'Rejected by HR Admin (Override)', icon: Ban, color: 'gray', showOriginalData: true },
+          ADMIN_EDITED_APPROVED: { label: 'Edited by HR Admin (Approved)', icon: Edit3, color: 'blue', showChanges: true },
+          ADMIN_EDITED_REJECTED: { label: 'Edited by HR Admin (Resubmitted)', icon: Edit3, color: 'orange', showChanges: true },
+          FINAL_APPROVED: { label: 'Finally Approved', icon: CheckCircle, color: 'green' },
+          FINAL_REJECTED: { label: 'Finally Rejected', icon: XCircle, color: 'red' },
+          DELETED: { label: 'Request Deleted', icon: XCircle, color: 'gray' }
+        };
+
+        const config = eventMap[revision.action];
+        if (config) {
+          events.push({
+            type: revision.action,
+            label: config.label,
+            actor: revision.reviser?.name || 'System',
+            actorRole: revision.reviser?.role?.name,
+            date: revision.createdAt,
+            comment: revision.comment,
+            changes: revision.changes,
+            icon: config.icon,
+            color: config.color,
+            showChanges: config.showChanges,
+            showOriginalData: config.showOriginalData
+          });
+        }
+      });
+    }
+    
+    return events;
+  }, [request]);
 
   const fetchRequest = async () => {
     try {
@@ -129,174 +181,86 @@ export default function OvertimeDetail() {
     }
   };
 
-  const buildTimelineEvents = (request) => {
-    const events = [];
+  const handleAdminEdit = async () => {
+    if (editReason.trim().length < 20) {
+      alert('Edit reason must be at least 20 characters');
+      return;
+    }
 
-    // ✅ Use revision history if available (accurate timeline)
-    if (request.revisions && request.revisions.length > 0) {
-      console.log(`Building timeline from ${request.revisions.length} revisions`);
+    // Validate entries
+    for (const entry of editEntries) {
+      if (!entry.date || !entry.hours || !entry.description) {
+        alert('All entries must have date, hours, and description');
+        return;
+      }
+      if (entry.hours <= 0 || entry.hours > 12) {
+        alert(`Invalid hours for ${entry.date}. Must be between 0.5 and 12 hours`);
+        return;
+      }
+    }
+
+    try {
+      setEditing(true);
       
-      request.revisions.forEach(revision => {
-        const event = mapRevisionToEvent(revision);
-        if (event) {
-          events.push(event);
-        }
+      const response = await apiClient.put(`/overtime/${requestId}/admin-edit`, {
+        entries: editEntries.map(e => ({
+          date: e.date,
+          hours: parseFloat(e.hours),
+          description: e.description
+        })),
+        reason: editReason.trim()
       });
-      
-      return events;
-    }
 
-    // ⚠️ Fallback to old method if no revisions (backwards compatibility)
-    console.log('No revisions found, using fallback timeline');
-    
-    // 1. Request Submitted
-    events.push({
-      type: 'SUBMITTED',
-      label: 'Request Submitted',
-      actor: request.employee?.name,
-      date: request.submittedAt || request.createdAt,
-      icon: FileText,
-      color: 'blue'
-    });
-
-    // 2. Supervisor Action
-    if (request.supervisor && request.supervisorStatus !== 'PENDING') {
-      if (request.supervisorStatus === 'APPROVED') {
-        events.push({
-          type: 'SUPERVISOR_APPROVED',
-          label: 'Approved by Supervisor',
-          actor: request.supervisor.name,
-          date: request.supervisorDate,
-          comment: request.supervisorComment,
-          icon: CheckCircle,
-          color: 'green'
-        });
-      } else if (request.supervisorStatus === 'REJECTED') {
-        events.push({
-          type: 'SUPERVISOR_REJECTED',
-          label: 'Rejected by Supervisor',
-          actor: request.supervisor.name,
-          date: request.supervisorDate,
-          comment: request.supervisorComment,
-          icon: XCircle,
-          color: 'red'
-        });
+      if (response.data.success) {
+        const statusChange = request.status === 'REJECTED' ? ' Status changed to PENDING for reapproval.' : '';
+        alert(`Overtime edited successfully!${statusChange}`);
+        setShowAdminEditModal(false);
+        await fetchRequest(); // Refresh
       }
+    } catch (error) {
+      console.error('Admin edit error:', error);
+      const errorMsg = error.response?.data?.error || 'Failed to edit overtime';
+      alert(errorMsg);
+    } finally {
+      setEditing(false);
     }
-
-    // 3. Division Head Action
-    if (request.divisionHead && request.divisionHeadStatus !== 'PENDING') {
-      if (request.divisionHeadStatus === 'APPROVED') {
-        events.push({
-          type: 'DIVHEAD_APPROVED',
-          label: 'Approved by Division Head',
-          actor: request.divisionHead.name,
-          date: request.divisionHeadDate,
-          comment: request.divisionHeadComment,
-          icon: CheckCircle,
-          color: 'green'
-        });
-      } else if (request.divisionHeadStatus === 'REJECTED') {
-        events.push({
-          type: 'DIVHEAD_REJECTED',
-          label: 'Rejected by Division Head',
-          actor: request.divisionHead.name,
-          date: request.divisionHeadDate,
-          comment: request.divisionHeadComment,
-          icon: XCircle,
-          color: 'red'
-        });
-      }
-    }
-
-    return events;
   };
 
-  const mapRevisionToEvent = (revision) => {
-    // Event configuration map
-    const eventMap = {
-      SUBMITTED: {
-        label: 'Request Submitted',
-        icon: FileText,
-        color: 'blue',
-        showChanges: true
-      },
-      EDITED: {
-        label: 'Request Edited',
-        icon: Edit3,
-        color: 'blue',
-        showChanges: true
-      },
-      APPROVED_SUPERVISOR: {
-        label: 'Approved by Supervisor',
-        icon: CheckCircle,
-        color: 'green'
-      },
-      REJECTED_SUPERVISOR: {
-        label: 'Rejected by Supervisor',
-        icon: XCircle,
-        color: 'red'
-      },
-      APPROVED_DIVHEAD: {
-        label: 'Approved by Division Head',
-        icon: CheckCircle,
-        color: 'green'
-      },
-      REJECTED_DIVHEAD: {
-        label: 'Rejected by Division Head',
-        icon: XCircle,
-        color: 'red'
-      },
-      REVISION_REQUESTED: {
-        label: 'Revision Requested',
-        icon: Edit3,
-        color: 'orange'
-      },
-      ADMIN_REJECTED: {
-        label: 'Rejected by HR Admin (Override)',
-        icon: Ban,
-        color: 'gray',
-        showOriginalData: true
-      },
-      FINAL_APPROVED: {
-        label: 'Finally Approved',
-        icon: CheckCircle,
-        color: 'green'
-      },
-      FINAL_REJECTED: {
-        label: 'Finally Rejected',
-        icon: XCircle,
-        color: 'red'
-      },
-      DELETED: {
-        label: 'Request Deleted',
-        icon: XCircle,
-        color: 'gray'
-      }
-    };
+  const openAdminEditModal = () => {
+    // Initialize edit entries from current request
+    const entries = request.entries.map(entry => ({
+      date: format(new Date(entry.date), 'yyyy-MM-dd'),
+      hours: entry.hours.toString(),
+      description: entry.description
+    }));
+    setEditEntries(entries);
+    setEditReason('');
+    setShowAdminEditModal(true);
+  };
 
-    const config = eventMap[revision.action];
-    if (!config) {
-      console.warn(`Unknown revision action: ${revision.action}`);
-      return null;
+  const addEditEntry = () => {
+    setEditEntries([...editEntries, { date: '', hours: '', description: '' }]);
+  };
+
+  const removeEditEntry = (index) => {
+    if (editEntries.length === 1) {
+      alert('At least one entry is required');
+      return;
     }
+    setEditEntries(editEntries.filter((_, i) => i !== index));
+  };
 
-    const event = {
-      type: revision.action,
-      label: config.label,
-      actor: revision.reviser?.name || 'System',
-      actorRole: revision.reviser?.role?.name,  // ✅ CORRECTED: role.name exists
-      actorAccessLevel: revision.reviser?.accessLevel, // ✅ CORRECTED: accessLevel is on User
-      date: revision.createdAt,
-      comment: revision.comment,
-      changes: revision.changes,
-      icon: config.icon,
-      color: config.color,
-      showChanges: config.showChanges,
-      showOriginalData: config.showOriginalData
-    };
+  const updateEditEntry = (index, field, value) => {
+    const newEntries = [...editEntries];
+    newEntries[index][field] = value;
+    setEditEntries(newEntries);
+  };
 
-    return event;
+  const calculateEditTotal = () => {
+    return editEntries.reduce((sum, entry) => {
+      const hours = parseFloat(entry.hours) || 0;
+      return sum + hours;
+    }, 0);
   };
 
   const TimelineEvent = ({ event, isLast }) => {
@@ -480,55 +444,10 @@ export default function OvertimeDetail() {
     );
   }
 
-  const ApprovalStep = ({ label, name, status, comment, date }) => (
-      <div className="relative pl-8">
-        {/* Status Indicator Dot */}
-        <div className={`absolute left-0 top-1.5 w-4 h-4 rounded-full border-2 border-white shadow-sm z-10 ${
-          status === 'APPROVED' ? 'bg-green-500' :
-          status === 'REJECTED' ? 'bg-red-500' : 'bg-gray-400'
-        }`} />
-        
-        <div className="flex justify-between items-start mb-2">
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">{label}</p>
-            <p className="text-sm font-bold text-gray-900">{name}</p>
-          </div>
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-tighter ${
-            status === 'APPROVED' ? 'bg-green-50 text-green-700' :
-            status === 'REJECTED' ? 'bg-red-50 text-red-700' : 'bg-gray-50 text-gray-600'
-          }`}>
-            {status}
-          </span>
-        </div>
-
-        {comment && (
-          <div className="bg-gray-50/70 rounded-lg p-3 border border-gray-100">
-            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-              {comment}
-            </p>
-            {date && (
-              <p className="mt-2 text-[10px] text-gray-400 font-medium italic">
-                {format(new Date(date), 'MMM dd, yyyy • HH:mm')}
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-    );
-
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Header - Mobile Optimized */}
+      {/* Header */}
       <div className="mb-4 sm:mb-6">
-        {/* <Link
-          to="/overtime/history"
-          className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-3 sm:mb-4"
-        >
-          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-          </svg>
-          {t('overtime.backToHistory')}
-        </Link> */}
         <button 
           onClick={() => navigate(-1)} 
           className="flex items-center text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-blue-600 transition-colors mb-4"
@@ -701,11 +620,11 @@ export default function OvertimeDetail() {
               <div className="relative pl-8">
                 <div className="space-y-8">
                   {/* Build timeline events dynamically */}
-                  {buildTimelineEvents(request).map((event, index) => (
+                  {timelineEvents.map((event, index) => (
                     <TimelineEvent 
                       key={index} 
                       event={event} 
-                      isLast={index === buildTimelineEvents(request).length - 1} 
+                      isLast={index === timelineEvents.length - 1} 
                     />
                   ))}
 
@@ -732,10 +651,9 @@ export default function OvertimeDetail() {
                 </div>
               </div>
             </div>
-
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
       {isAdmin && request.status === 'APPROVED' && !request.isRecapped && (
         <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl">
           <div className="flex items-start space-x-3 mb-3">
@@ -760,136 +678,338 @@ export default function OvertimeDetail() {
           </button>
         </div>
       )}
+      {isAdmin && (request.status === 'APPROVED' || request.status === 'REJECTED') && !request.isRecapped && (
+        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+          <div className="flex items-start space-x-3 mb-3">
+            <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+              <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
+            </svg>
+            <div className="flex-1">
+              <h4 className="text-sm font-bold text-blue-800">Admin Edit</h4>
+              <p className="text-xs text-blue-700 mt-1">
+                {request.status === 'APPROVED' 
+                  ? 'Edit this approved overtime. Balance will be automatically adjusted.'
+                  : 'Edit and resubmit this rejected overtime for approval.'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={openAdminEditModal}
+            className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold text-sm transition-colors flex items-center justify-center space-x-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            <span>Edit Overtime</span>
+          </button>
+        </div>
+      )}
       {/* Admin Reject Modal */}
-{showAdminRejectModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
-      {/* Header */}
-      <div className="flex items-start mb-4">
-        <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
-          <svg className="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>
-        </div>
-        <div className="flex-1">
-          <h3 className="text-lg font-black text-gray-900 mb-1">
-            Admin Reject Approved Overtime?
-          </h3>
-          <p className="text-sm text-gray-600">
-            This will override the supervisor's approval decision.
-          </p>
-        </div>
-      </div>
+      {showAdminRejectModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-start mb-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                <svg className="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-black text-gray-900 mb-1">
+                  Admin Reject Approved Overtime?
+                </h3>
+                <p className="text-sm text-gray-600">
+                  This will override the supervisor's approval decision.
+                </p>
+              </div>
+            </div>
 
-      {/* Overtime Details Summary */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
-        <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Overtime Details</h4>
-        <div className="space-y-1 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-600">Employee:</span>
-            <span className="font-bold text-gray-900">{request.employee?.name}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Hours:</span>
-            <span className="font-bold text-gray-900">{request.totalHours} hours</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Amount:</span>
-            <span className="font-bold text-gray-900">
-              Rp {request.totalAmount?.toLocaleString('id-ID')}
-            </span>
+            {/* Overtime Details Summary */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+              <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Overtime Details</h4>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Employee:</span>
+                  <span className="font-bold text-gray-900">{request.employee?.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Hours:</span>
+                  <span className="font-bold text-gray-900">{request.totalHours} hours</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Amount:</span>
+                  <span className="font-bold text-gray-900">
+                    Rp {request.totalAmount?.toLocaleString('id-ID')}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Warning Box */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+              <h4 className="text-sm font-bold text-yellow-800 mb-2">
+                ⚠️ What Will Happen:
+              </h4>
+              <ul className="text-sm text-yellow-700 space-y-1.5 ml-4 list-disc">
+                <li>Status will change to <strong>REJECTED</strong></li>
+                <li>Employee's overtime balance will be <strong>deducted ({request.totalHours} hours)</strong></li>
+                <li>Notifications will be sent to employee, supervisor, and HR</li>
+                <li>This action will be logged in the system</li>
+                <li>This overtime <strong>will not</strong> be included in payroll</li>
+              </ul>
+            </div>
+            
+            {/* Rejection Reason */}
+            <div className="mb-4">
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                Rejection Reason <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={adminComment}
+                onChange={(e) => setAdminComment(e.target.value)}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                placeholder="Explain in detail why this approved overtime is being rejected..."
+                disabled={rejecting}
+              />
+              <div className="flex justify-between items-center mt-1">
+                <p className="text-xs text-gray-500">
+                  Minimum 20 characters required
+                </p>
+                <p className={`text-xs font-bold ${adminComment.length >= 20 ? 'text-green-600' : 'text-red-600'}`}>
+                  {adminComment.length}/20
+                </p>
+              </div>
+            </div>
+
+            {/* Confirmation Checkbox */}
+            <div className="mb-6">
+              <label className="flex items-start space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={confirmReject}
+                  onChange={(e) => setConfirmReject(e.target.checked)}
+                  disabled={rejecting}
+                  className="mt-1 w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                />
+                <span className="text-sm text-gray-700">
+                  I confirm that this overtime rejection is necessary and I understand the consequences.
+                </span>
+              </label>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowAdminRejectModal(false);
+                  setAdminComment('');
+                  setConfirmReject(false);
+                }}
+                disabled={rejecting}
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 font-bold text-sm disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAdminReject}
+                disabled={rejecting || adminComment.trim().length < 20 || !confirmReject}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-bold text-sm disabled:opacity-50 flex items-center justify-center"
+              >
+                {rejecting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Rejecting...
+                  </>
+                ) : (
+                  'Confirm Rejection'
+                )}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Warning Box */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-        <h4 className="text-sm font-bold text-yellow-800 mb-2">
-          ⚠️ What Will Happen:
-        </h4>
-        <ul className="text-sm text-yellow-700 space-y-1.5 ml-4 list-disc">
-          <li>Status will change to <strong>REJECTED</strong></li>
-          <li>Employee's overtime balance will be <strong>deducted ({request.totalHours} hours)</strong></li>
-          <li>Notifications will be sent to employee, supervisor, and HR</li>
-          <li>This action will be logged in the system</li>
-          <li>This overtime <strong>will not</strong> be included in payroll</li>
-        </ul>
-      </div>
-      
-      {/* Rejection Reason */}
-      <div className="mb-4">
-        <label className="block text-sm font-bold text-gray-700 mb-2">
-          Rejection Reason <span className="text-red-500">*</span>
-        </label>
-        <textarea
-          value={adminComment}
-          onChange={(e) => setAdminComment(e.target.value)}
-          rows={4}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-          placeholder="Explain in detail why this approved overtime is being rejected..."
-          disabled={rejecting}
-        />
-        <div className="flex justify-between items-center mt-1">
-          <p className="text-xs text-gray-500">
-            Minimum 20 characters required
-          </p>
-          <p className={`text-xs font-bold ${adminComment.length >= 20 ? 'text-green-600' : 'text-red-600'}`}>
-            {adminComment.length}/20
-          </p>
+      {/* Admin Edit Modal */}
+      {showAdminEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-start mb-6">
+              <div className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-black text-gray-900 mb-1">
+                  Admin Edit Overtime
+                </h3>
+                <p className="text-sm text-gray-600">
+                  {request.status === 'APPROVED' 
+                    ? 'Editing approved overtime. Balance will be automatically adjusted.'
+                    : 'Editing rejected overtime. Status will change to PENDING for reapproval.'}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAdminEditModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Current vs New Summary */}
+            <div className="grid grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-xl">
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase mb-1">Current</p>
+                <p className="text-2xl font-bold text-gray-900">{request.totalHours} hrs</p>
+                <p className="text-sm text-gray-600">Rp {request.totalAmount?.toLocaleString('id-ID')}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-blue-500 uppercase mb-1">New</p>
+                <p className="text-2xl font-bold text-blue-600">{calculateEditTotal()} hrs</p>
+                <p className="text-sm text-blue-600">
+                  {calculateEditTotal() > request.totalHours ? '+' : ''}
+                  {(calculateEditTotal() - request.totalHours).toFixed(1)} hrs
+                </p>
+              </div>
+            </div>
+
+            {/* Entries Editor */}
+            <div className="mb-6">
+              <h4 className="text-sm font-bold text-gray-700 mb-3">Overtime Entries</h4>
+              <div className="space-y-3">
+                {editEntries.map((entry, index) => (
+                  <div key={index} className="grid grid-cols-12 gap-2 p-3 bg-gray-50 rounded-lg">
+                    <div className="col-span-3">
+                      <label className="block text-xs font-bold text-gray-600 mb-1">Date</label>
+                      <input
+                        type="date"
+                        value={entry.date}
+                        onChange={(e) => updateEditEntry(index, 'date', e.target.value)}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                        disabled={editing}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs font-bold text-gray-600 mb-1">Hours</label>
+                      <input
+                        type="number"
+                        step="0.5"
+                        min="0.5"
+                        max="12"
+                        value={entry.hours}
+                        onChange={(e) => updateEditEntry(index, 'hours', e.target.value)}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                        disabled={editing}
+                      />
+                    </div>
+                    <div className="col-span-6">
+                      <label className="block text-xs font-bold text-gray-600 mb-1">Description</label>
+                      <input
+                        type="text"
+                        value={entry.description}
+                        onChange={(e) => updateEditEntry(index, 'description', e.target.value)}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                        placeholder="Task description..."
+                        disabled={editing}
+                      />
+                    </div>
+                    <div className="col-span-1 flex items-end">
+                      <button
+                        onClick={() => removeEditEntry(index)}
+                        disabled={editing || editEntries.length === 1}
+                        className="w-full px-2 py-1.5 bg-red-100 text-red-600 rounded hover:bg-red-200 disabled:opacity-50 text-sm"
+                      >
+                        <svg className="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <button
+                onClick={addEditEntry}
+                disabled={editing}
+                className="mt-3 w-full px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-400 hover:text-blue-600 font-medium text-sm disabled:opacity-50"
+              >
+                + Add Entry
+              </button>
+            </div>
+
+            {/* Edit Reason */}
+            <div className="mb-6">
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                Edit Reason <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={editReason}
+                onChange={(e) => setEditReason(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                placeholder="Explain why you're editing this overtime (min 20 characters)..."
+                disabled={editing}
+              />
+              <div className="flex justify-between items-center mt-1">
+                <p className="text-xs text-gray-500">
+                  Minimum 20 characters required
+                </p>
+                <p className={`text-xs font-bold ${editReason.length >= 20 ? 'text-green-600' : 'text-red-600'}`}>
+                  {editReason.length}/20
+                </p>
+              </div>
+            </div>
+
+            {/* Status Change Notice */}
+            {request.status === 'REJECTED' && (
+              <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm font-bold text-yellow-800 mb-1">⚠️ Status Change</p>
+                <p className="text-xs text-yellow-700">
+                  This overtime will change from REJECTED to PENDING and will be reassigned to the employee's current supervisor for reapproval.
+                </p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowAdminEditModal(false)}
+                disabled={editing}
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 font-bold text-sm disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAdminEdit}
+                disabled={editing || editReason.trim().length < 20 || calculateEditTotal() === 0}
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold text-sm disabled:opacity-50 flex items-center justify-center"
+              >
+                {editing ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-
-      {/* Confirmation Checkbox */}
-      <div className="mb-6">
-        <label className="flex items-start space-x-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={confirmReject}
-            onChange={(e) => setConfirmReject(e.target.checked)}
-            disabled={rejecting}
-            className="mt-1 w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-          />
-          <span className="text-sm text-gray-700">
-            I confirm that this overtime rejection is necessary and I understand the consequences.
-          </span>
-        </label>
-      </div>
-      
-      {/* Action Buttons */}
-      <div className="flex gap-3">
-        <button
-          onClick={() => {
-            setShowAdminRejectModal(false);
-            setAdminComment('');
-            setConfirmReject(false);
-          }}
-          disabled={rejecting}
-          className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 font-bold text-sm disabled:opacity-50"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleAdminReject}
-          disabled={rejecting || adminComment.trim().length < 20 || !confirmReject}
-          className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-bold text-sm disabled:opacity-50 flex items-center justify-center"
-        >
-          {rejecting ? (
-            <>
-              <svg className="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Rejecting...
-            </>
-          ) : (
-            'Confirm Rejection'
-          )}
-        </button>
-      </div>
+      )}
     </div>
-  </div>
-)}
-    </div>
-    
   );
 }
