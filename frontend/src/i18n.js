@@ -585,6 +585,15 @@ const resources = {
         marriageLeave: 'Marriage Leave',
         unpaidLeave: 'Unpaid Leave',
         employeeInformation: 'Employee Information',
+
+        sortBy: "Sort By",
+        sortField: "Field",
+        sortOrder: "Order",
+        requestDate: "Request Date",
+        leaveDate: "Leave Date",
+        employeeName: "Employee Name",
+        newest: "Newest First",
+        oldest: "Oldest First"
       },
 
       // Payslips
