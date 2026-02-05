@@ -163,21 +163,22 @@ export const validateLeaveRequest = async (employeeId, leaveType, startDate, end
     }
   }
   
-  // Check if dates are in the past (except menstrual leave)
+  // Check if dates are in the past
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  if (leaveType !== 'MENSTRUAL_LEAVE' && start < today) {
-    errors.push('Cannot request leave for past dates');
-  }
-  
-  // For menstrual leave, allow today + up to 2 days forward
-  if (leaveType === 'MENSTRUAL_LEAVE') {
-    const twoDaysForward = new Date(today);
-    twoDaysForward.setDate(twoDaysForward.getDate() + 2);
+  // SICK_LEAVE, MENSTRUAL_LEAVE, and BEREAVEMENT_LEAVE: allow 2 days backdating
+  if (leaveType === 'SICK_LEAVE' || leaveType === 'MENSTRUAL_LEAVE' || leaveType === 'BEREAVEMENT_LEAVE') {
+    const twoDaysBack = new Date(today);
+    twoDaysBack.setDate(twoDaysBack.getDate() - 2);
     
-    if (start > twoDaysForward) {
-      errors.push('Menstrual leave can only be requested for today or up to 2 days forward');
+    if (start < twoDaysBack) {
+      errors.push('Sick leave, menstrual leave, and bereavement leave can only be requested up to 2 days in the past');
+    }
+  } else {
+    // Other leave types: no backdating allowed
+    if (start < today) {
+      errors.push('Cannot request leave for past dates');
     }
   }
   
@@ -278,10 +279,27 @@ export const validateLeaveRequest = async (employeeId, leaveType, startDate, end
     }
   }
   
-  // Menstrual leave validation (only 1 day)
+  // Menstrual leave validation (1-2 days)
   if (leaveType === 'MENSTRUAL_LEAVE') {
-    if (workingDays !== 1) {
-      errors.push('Menstrual leave can only be 1 day');
+    if (workingDays < 1 || workingDays > 2) {
+      errors.push('Menstrual leave can be 1 or 2 days');
+    }
+  }
+  
+  // Paternity leave validation (max 3 days, male only)
+  if (leaveType === 'PATERNITY_LEAVE') {
+    if (employee.gender !== 'Male') {
+      errors.push('Paternity leave is only available for male employees');
+    }
+    if (workingDays > 3) {
+      errors.push('Paternity leave cannot exceed 3 working days');
+    }
+  }
+  
+  // Bereavement leave validation (max 2 days)
+  if (leaveType === 'BEREAVEMENT_LEAVE') {
+    if (workingDays > 2) {
+      errors.push('Bereavement leave cannot exceed 2 working days');
     }
   }
   
@@ -339,7 +357,9 @@ export const createLeaveRequest = async (data) => {
     'SICK_LEAVE',
     'MATERNITY_LEAVE',
     'MENSTRUAL_LEAVE',
-    'MARRIAGE_LEAVE'
+    'MARRIAGE_LEAVE',
+    'PATERNITY_LEAVE',
+    'BEREAVEMENT_LEAVE'
   ];
   const isPaid = paidLeaveTypes.includes(leaveType);
   

@@ -387,8 +387,19 @@ const resources = {
         note1: 'Weekends (Saturday & Sunday) are excluded from leave calculations',
         note2: 'Maximum 5 working days per leave request (except maternity leave)',
         note3: 'Maximum 5 working days per month',
-        note4: 'Menstrual leave can only be requested for today or previous dates',
+        note4: 'Menstrual leave can only be requested for today or 2 previous dates from today',
         note5: 'Maternity leave is automatically calculated as 90 days from start date',
+        note6: 'Paternity leave: Maximum 3 paid days (2 days standard, 3rd day requires approval)',
+        note7: 'Bereavement leave: 2 days for immediate family, 1 day for other relatives',
+        note8: 'Menstrual leave: Can request 1-2 days',
+        note9: 'Sick and menstrual leave: Can be requested up to 2 days in the past',
+        note10: 'Bereavement leave: Can be requested up to 2 days in the past',
+
+        paternityNote: 'Paternity leave grants 2 paid days, extendable to 3 days with supervisor approval to accompany spouse after childbirth',
+        bereavementNote: 'Criteria: 2 days for father/mother/siblings/spouse death, 1 day for other family members',
+        showAllNotes: "Show all notes",
+        showLess: "Show less",
+
         
         // Balance labels
         annualUsed: 'Annual Used',
@@ -448,6 +459,8 @@ const resources = {
         menstrualLeave: 'Menstrual Leave',
         marriageLeave: 'Marriage Leave',
         unpaidLeave: 'Unpaid Leave',
+        paternityLeave: 'Paternity Leave',
+        bereavementLeave: 'Bereavement Leave',
         
         // Form fields
         type: 'Leave Type',
@@ -1085,8 +1098,18 @@ const resources = {
         note1: 'Akhir pekan (Sabtu & Minggu) tidak dihitung dalam perhitungan cuti',
         note2: 'Maksimal 5 hari kerja per permintaan cuti (kecuali cuti melahirkan)',
         note3: 'Maksimal 5 hari kerja per bulan',
-        note4: 'Cuti haid hanya dapat diajukan untuk hari ini atau tanggal sebelumnya',
+        note4: 'Cuti haid hanya dapat diajukan untuk hari ini atau 2 hari sebelumnya',
         note5: 'Cuti melahirkan otomatis dihitung 90 hari dari tanggal mulai',
+        note6: 'Cuti ayah: Maksimal 3 hari berbayar (2 hari standar, hari ke-3 perlu persetujuan)',
+        note7: 'Cuti duka: 2 hari untuk keluarga inti, 1 hari untuk keluarga lainnya',
+        note8: 'Cuti haid: Dapat mengajukan 1-2 hari',
+        note9: 'Cuti sakit dan haid: Dapat diajukan hingga 2 hari ke belakang',
+        note10: 'Cuti duka: Dapat diajukan hingga 2 hari ke belakang',
+
+        paternityNote: 'Cuti ayah diberikan 2 hari berbayar, dapat diperpanjang hingga 3 hari dengan persetujuan atasan untuk mendampingi istri yang baru melahirkan',
+        bereavementNote: 'Kriteria: 2 hari untuk ayah/ibu/saudara kandung/pasangan meninggal, 1 hari untuk anggota keluarga lainnya',
+        showAllNotes: "Lihat semua catatan",
+        showLess: "Lihat lebih sedikit",
 
         // Label saldo
         annualUsed: 'Cuti Tahunan Terpakai',
@@ -1146,6 +1169,8 @@ const resources = {
         menstrualLeave: 'Cuti Haid',
         marriageLeave: 'Cuti Menikah',
         unpaidLeave: 'Cuti Tidak Berbayar',
+        paternityLeave: 'Cuti Ayah',
+        bereavementLeave: 'Cuti Duka',
         
         // Form fields
         type: 'Jenis Cuti',

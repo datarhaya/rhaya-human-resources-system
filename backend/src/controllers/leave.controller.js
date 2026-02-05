@@ -24,7 +24,7 @@ export const submitLeaveRequest = async (req, res) => {
       });
     }
 
-    // ✅ NEW: Validate attachment for sick leave > 2 days
+    // Validate attachment for sick leave > 2 days
     if (leaveType === 'SICK_LEAVE' && totalDays > 2 && !attachment) {
       return res.status(400).json({
         success: false,

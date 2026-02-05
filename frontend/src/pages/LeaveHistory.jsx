@@ -57,21 +57,27 @@ export default function LeaveHistory() {
     attachment: null
   });
 
+  // Notes display state
+  const [showAllNotes, setShowAllNotes] = useState(false);
+
   // Get available leave types based on gender
   const getAvailableLeaveTypes = () => {
     const allLeaveTypes = [
       { value: 'ANNUAL_LEAVE', labelKey: 'annualLeave', isPaid: true, requiresAttachment: false },
-      // { value: 'SICK_LEAVE', labelKey: 'sickLeave', isPaid: true, requiresAttachment: true, noteKey: 'attachmentNote' },
       { value: 'SICK_LEAVE', labelKey: 'sickLeave', isPaid: true, requiresAttachment: 'conditional', noteKey: 'attachmentNote' },
       { value: 'MATERNITY_LEAVE', labelKey: 'maternityLeave', isPaid: true, requiresAttachment: false, femaleOnly: true },
       { value: 'MENSTRUAL_LEAVE', labelKey: 'menstrualLeave', isPaid: true, requiresAttachment: false, femaleOnly: true },
+      { value: 'PATERNITY_LEAVE', labelKey: 'paternityLeave', isPaid: true, requiresAttachment: false, maleOnly: true, noteKey: 'paternityNote' },
       { value: 'MARRIAGE_LEAVE', labelKey: 'marriageLeave', isPaid: true, requiresAttachment: false },
+      { value: 'BEREAVEMENT_LEAVE', labelKey: 'bereavementLeave', isPaid: true, requiresAttachment: false, noteKey: 'bereavementNote' },
       { value: 'UNPAID_LEAVE', labelKey: 'unpaidLeave', isPaid: false, requiresAttachment: false, noteKey: 'unpaidNote' }
     ];
 
     // Filter based on gender
     if (user?.gender === 'Male') {
       return allLeaveTypes.filter(type => !type.femaleOnly);
+    } else if (user?.gender === 'Female') {
+      return allLeaveTypes.filter(type => !type.maleOnly);
     }
     
     return allLeaveTypes;
@@ -125,11 +131,14 @@ export default function LeaveHistory() {
       // Maternity leave is 90 calendar days (3 months)
       const endDate = addDays(formData.startDate, 89); // 89 because we include start day
       setFormData(prev => ({ ...prev, endDate }));
-    } else if (formData.leaveType === 'MENSTRUAL_LEAVE' && formData.startDate) {
-      // Menstrual leave is always 1 day
-      setFormData(prev => ({ ...prev, endDate: formData.startDate }));
     }
+    // Menstrual leave allows 1-2 days, so no auto-set for endDate
   }, [formData.leaveType, formData.startDate]);
+
+  // Reset showAllNotes when leave type changes
+  useEffect(() => {
+    setShowAllNotes(false);
+  }, [formData.leaveType]);
 
   const fetchLeaveData = async () => {
     try {
@@ -538,7 +547,7 @@ export default function LeaveHistory() {
           {activeTab === 'submit' ? (
             /* Submit Form - Mobile Optimized */
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-              {/* Important Notes - Mobile Optimized */}
+              {/* Important Notes - Mobile Optimized with Contextual Display */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
                 <div className="flex items-start space-x-2 sm:space-x-3">
                   <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -547,11 +556,53 @@ export default function LeaveHistory() {
                   <div className="flex-1 min-w-0">
                     <h3 className="text-xs sm:text-sm font-medium text-blue-900">{t('leave.importantNotes')}</h3>
                     <ul className="mt-1 text-xs sm:text-sm text-blue-800 list-disc list-inside space-y-1">
-                      <li>{t('leave.note1')}</li>
-                      <li>{t('leave.note2')}</li>
-                      <li>{t('leave.note3')}</li>
-                      <li>{t('leave.note4')}</li>
-                      <li>{t('leave.note5')}</li>
+                      {(() => {
+                        // Define relevant notes for each leave type
+                        const relevantNotes = {
+                          ANNUAL_LEAVE: ['note1', 'note2', 'note3'],
+                          SICK_LEAVE: ['note1', 'note9'],
+                          MENSTRUAL_LEAVE: ['note1', 'note4', 'note8', 'note9'],
+                          PATERNITY_LEAVE: ['note1', 'note6'],
+                          BEREAVEMENT_LEAVE: ['note1', 'note7', 'note10'],
+                          MATERNITY_LEAVE: ['note1', 'note5'],
+                          MARRIAGE_LEAVE: ['note1', 'note2'],
+                          UNPAID_LEAVE: ['note1', 'note2']
+                        };
+
+                        const allNotes = ['note1', 'note2', 'note3', 'note4', 'note5', 'note6', 'note7', 'note8', 'note9', 'note10'];
+                        const currentNotes = relevantNotes[formData.leaveType] || ['note1'];
+                        const notesToDisplay = showAllNotes ? allNotes : currentNotes;
+
+                        return (
+                          <>
+                            {notesToDisplay.map((noteKey) => (
+                              <li key={noteKey}>{t(`leave.${noteKey}`)}</li>
+                            ))}
+                            {!showAllNotes && currentNotes.length < allNotes.length && (
+                              <li className="list-none mt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setShowAllNotes(true)}
+                                  className="text-blue-600 hover:text-blue-800 font-medium underline text-xs"
+                                >
+                                  {t('leave.showAllNotes') || 'Show all notes'}
+                                </button>
+                              </li>
+                            )}
+                            {showAllNotes && (
+                              <li className="list-none mt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setShowAllNotes(false)}
+                                  className="text-blue-600 hover:text-blue-800 font-medium underline text-xs"
+                                >
+                                  {t('leave.showLess') || 'Show less'}
+                                </button>
+                              </li>
+                            )}
+                          </>
+                        );
+                      })()}
                     </ul>
                   </div>
                 </div>
@@ -591,13 +642,18 @@ export default function LeaveHistory() {
                   <DatePicker
                     selected={formData.startDate}
                     onChange={(date) => setFormData({ ...formData, startDate: date })}
-                    minDate={new Date()}
+                    minDate={
+                      formData.leaveType === 'SICK_LEAVE' || 
+                      formData.leaveType === 'MENSTRUAL_LEAVE' || 
+                      formData.leaveType === 'BEREAVEMENT_LEAVE'
+                        ? addDays(new Date(), -2)  // Allow 2 days backdating
+                        : new Date()                // Today for other leave types
+                    }
                     locale={i18n.language}
                     dateFormat="dd MMM yyyy"
                     className="w-full px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                     placeholderText={t('leave.selectStartDate')}
                     required
-                    disabled={formData.leaveType === 'MENSTRUAL_LEAVE'}
                   />
                 </div>
                 <div>
@@ -613,7 +669,7 @@ export default function LeaveHistory() {
                     className="w-full px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                     placeholderText={t('leave.selectEndDate')}
                     required
-                    disabled={formData.leaveType === 'MATERNITY_LEAVE' || formData.leaveType === 'MENSTRUAL_LEAVE'}
+                    disabled={formData.leaveType === 'MATERNITY_LEAVE'}
                   />
                 </div>
               </div>
