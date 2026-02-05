@@ -213,11 +213,30 @@ export default function Layout({ children }) {
     }
 
     // Leave Approval - Level 1-3 only (NOT Level 4)
-    if (user?.accessLevel >= 1 && user?.accessLevel <= 3) {
-      approvalChildren.push({
-        path: '/leave/approval',
-        label: t('nav.leaveApproval')
-      });
+    // if (user?.accessLevel >= 1 && user?.accessLevel <= 3) {
+    //   approvalChildren.push({
+    //     path: '/leave/approval',
+    //     label: t('nav.leaveApproval')
+    //   });
+    // }
+
+    // Leave Approval - Level 1-4
+    if (user?.accessLevel >= 1 && user?.accessLevel <= 4) {
+      // For Level 4 (Staff), only show if they have subordinates
+      if (user?.accessLevel === 4) {
+        if (hasSubordinates) {
+          approvalChildren.push({
+            path: '/leave/approval',
+          label: t('nav.leaveApproval')
+        });
+        }
+      } else {
+        // Level 1-3 always have leave approval
+        approvalChildren.push({
+          path: '/leave/approval',
+          label: t('nav.leaveApproval')
+        });
+      }
     }
 
     // ADMIN/HR MENUS (Level 1, 2)
