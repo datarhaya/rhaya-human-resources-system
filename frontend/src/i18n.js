@@ -1100,13 +1100,13 @@ const resources = {
         note3: 'Maksimal 5 hari kerja per bulan',
         note4: 'Cuti haid hanya dapat diajukan untuk hari ini atau 2 hari sebelumnya',
         note5: 'Cuti melahirkan otomatis dihitung 90 hari dari tanggal mulai',
-        note6: 'Cuti ayah: Maksimal 3 hari berbayar (2 hari standar, hari ke-3 perlu persetujuan)',
-        note7: 'Cuti duka: 2 hari untuk keluarga inti, 1 hari untuk keluarga lainnya',
+        note6: 'Cuti Menemani Istri Melahirkan: Maksimal 3 hari berbayar (2 hari standar, hari ke-3 perlu persetujuan)',
+        note7: 'Cuti Duka Cita: 2 hari untuk keluarga inti, 1 hari untuk keluarga lainnya',
         note8: 'Cuti haid: Dapat mengajukan 1-2 hari',
         note9: 'Cuti sakit dan haid: Dapat diajukan hingga 2 hari ke belakang',
-        note10: 'Cuti duka: Dapat diajukan hingga 2 hari ke belakang',
+        note10: 'Cuti Duka Cita: Dapat diajukan hingga 2 hari ke belakang',
 
-        paternityNote: 'Cuti ayah diberikan 2 hari berbayar, dapat diperpanjang hingga 3 hari dengan persetujuan atasan untuk mendampingi istri yang baru melahirkan',
+        paternityNote: 'Cuti Menemani Istri Melahirkan diberikan 2 hari berbayar, dapat diperpanjang hingga 3 hari dengan persetujuan atasan untuk mendampingi istri yang baru melahirkan',
         bereavementNote: 'Kriteria: 2 hari untuk ayah/ibu/saudara kandung/pasangan meninggal, 1 hari untuk anggota keluarga lainnya',
         showAllNotes: "Lihat semua catatan",
         showLess: "Lihat lebih sedikit",
@@ -1165,12 +1165,12 @@ const resources = {
         // Leave types
         annualLeave: 'Cuti Tahunan',
         sickLeave: 'Cuti Sakit',
-        maternityLeave: 'Cuti Hamil',
+        maternityLeave: 'Cuti Hamil dan Melahirkan',
         menstrualLeave: 'Cuti Haid',
         marriageLeave: 'Cuti Menikah',
         unpaidLeave: 'Cuti Tidak Berbayar',
-        paternityLeave: 'Cuti Ayah',
-        bereavementLeave: 'Cuti Duka',
+        paternityLeave: 'Cuti Menemani Istri Melahirkan',
+        bereavementLeave: 'Cuti Duka Cita',
         
         // Form fields
         type: 'Jenis Cuti',
