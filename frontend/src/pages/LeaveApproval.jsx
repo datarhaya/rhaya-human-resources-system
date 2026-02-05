@@ -25,14 +25,16 @@ export default function LeaveApproval() {
   // Filter state
   const [filters, setFilters] = useState({
     leaveType: '',
-    requestDateFrom: '',
-    requestDateTo: '',
     leaveDateFrom: '',
     leaveDateTo: '',
     divisionId: '',
     search: ''
   });
   const [showFilters, setShowFilters] = useState(false);
+
+  // Sorting state
+  const [sortBy, setSortBy] = useState('requestDate'); // requestDate, leaveDate, name
+  const [sortOrder, setSortOrder] = useState('desc'); // desc = newest/latest first, asc = oldest/earliest first
 
   const isAdmin = user?.accessLevel === 1;
 
@@ -56,7 +58,7 @@ export default function LeaveApproval() {
   // Apply filters when filters change
   useEffect(() => {
     applyFilters();
-  }, [filters, allRequests]);
+  }, [filters, allRequests, sortBy, sortOrder]);
 
   const fetchDivisions = async () => {
     try {
@@ -75,9 +77,20 @@ export default function LeaveApproval() {
         response = await apiClient.get('/leave/pending-approval/list');
         // If we are on the pending tab, we know exactly how many there are
         setPendingCount(response.data.data?.length || 0);
-      } else if (isAdmin) {
+      } else {
+        // Both admin and supervisors can now access approved/rejected tabs
         const status = activeTab === 'all' ? '' : activeTab.toUpperCase();
-        response = await apiClient.get(`/leave/admin/all-requests${status ? `?status=${status}` : ''}`);
+        
+        if (isAdmin) {
+          // Admin sees all requests
+          response = await apiClient.get(`/leave/admin/all-requests${status ? `?status=${status}` : ''}`);
+        } else {
+          // Supervisors see only their approved/rejected requests
+          response = await apiClient.get('/leave/pending-approval/list');
+          // Filter by status on frontend
+          const allData = response.data.data || [];
+          response.data.data = status ? allData.filter(r => r.status === status) : allData;
+        }
         
         // If we are on the 'ALL' tab, update the pending count specifically
         if (activeTab === 'all') {
@@ -118,18 +131,6 @@ export default function LeaveApproval() {
       );
     }
 
-    // Filter by request date range
-    if (filters.requestDateFrom) {
-      filtered = filtered.filter(req => 
-        new Date(req.createdAt) >= new Date(filters.requestDateFrom)
-      );
-    }
-    if (filters.requestDateTo) {
-      filtered = filtered.filter(req => 
-        new Date(req.createdAt) <= new Date(filters.requestDateTo + 'T23:59:59')
-      );
-    }
-
     // Filter by leave date range
     if (filters.leaveDateFrom) {
       filtered = filtered.filter(req => 
@@ -142,14 +143,40 @@ export default function LeaveApproval() {
       );
     }
 
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue, bValue;
+
+      switch (sortBy) {
+        case 'requestDate':
+          aValue = new Date(a.createdAt);
+          bValue = new Date(b.createdAt);
+          break;
+        case 'leaveDate':
+          aValue = new Date(a.startDate);
+          bValue = new Date(b.startDate);
+          break;
+        case 'name':
+          aValue = a.employee?.name?.toLowerCase() || '';
+          bValue = b.employee?.name?.toLowerCase() || '';
+          break;
+        default:
+          return 0;
+      }
+
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+      } else {
+        return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
+      }
+    });
+
     setRequests(filtered);
   };
 
   const clearFilters = () => {
     setFilters({
       leaveType: '',
-      requestDateFrom: '',
-      requestDateTo: '',
       leaveDateFrom: '',
       leaveDateTo: '',
       divisionId: '',
@@ -262,39 +289,37 @@ export default function LeaveApproval() {
                 </span>
               )}
             </button>
+            <button
+              onClick={() => setActiveTab('approved')}
+              className={`flex-shrink-0 px-3 py-3 border-b-2 font-medium text-xs whitespace-nowrap ${
+                activeTab === 'approved'
+                  ? 'border-green-500 text-green-600'
+                  : 'border-transparent text-gray-500'
+              }`}
+            >
+              {t('leave.approved')}
+            </button>
+            <button
+              onClick={() => setActiveTab('rejected')}
+              className={`flex-shrink-0 px-3 py-3 border-b-2 font-medium text-xs whitespace-nowrap ${
+                activeTab === 'rejected'
+                  ? 'border-red-500 text-red-600'
+                  : 'border-transparent text-gray-500'
+              }`}
+            >
+              {t('leave.rejected')}
+            </button>
             {isAdmin && (
-              <>
-                <button
-                  onClick={() => setActiveTab('all')}
-                  className={`flex-shrink-0 px-3 py-3 border-b-2 font-medium text-xs whitespace-nowrap ${
-                    activeTab === 'all'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500'
-                  }`}
-                >
-                  {t('leave.allRequests')}
-                </button>
-                <button
-                  onClick={() => setActiveTab('approved')}
-                  className={`flex-shrink-0 px-3 py-3 border-b-2 font-medium text-xs whitespace-nowrap ${
-                    activeTab === 'approved'
-                      ? 'border-green-500 text-green-600'
-                      : 'border-transparent text-gray-500'
-                  }`}
-                >
-                  {t('leave.approved')}
-                </button>
-                <button
-                  onClick={() => setActiveTab('rejected')}
-                  className={`flex-shrink-0 px-3 py-3 border-b-2 font-medium text-xs whitespace-nowrap ${
-                    activeTab === 'rejected'
-                      ? 'border-red-500 text-red-600'
-                      : 'border-transparent text-gray-500'
-                  }`}
-                >
-                  {t('leave.rejected')}
-                </button>
-              </>
+              <button
+                onClick={() => setActiveTab('all')}
+                className={`flex-shrink-0 px-3 py-3 border-b-2 font-medium text-xs whitespace-nowrap ${
+                  activeTab === 'all'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500'
+                }`}
+              >
+                {t('leave.allRequests')}
+              </button>
             )}
           </nav>
 
@@ -315,39 +340,37 @@ export default function LeaveApproval() {
               </span>
             )}
             </button>
+            <button
+              onClick={() => setActiveTab('approved')}
+              className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'approved'
+                  ? 'border-green-500 text-green-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {t('leave.approved')}
+            </button>
+            <button
+              onClick={() => setActiveTab('rejected')}
+              className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'rejected'
+                  ? 'border-red-500 text-red-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {t('leave.rejected')}
+            </button>
             {isAdmin && (
-              <>
-                <button
-                  onClick={() => setActiveTab('all')}
-                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'all'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {t('leave.allRequests')}
-                </button>
-                <button
-                  onClick={() => setActiveTab('approved')}
-                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'approved'
-                      ? 'border-green-500 text-green-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {t('leave.approved')}
-                </button>
-                <button
-                  onClick={() => setActiveTab('rejected')}
-                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'rejected'
-                      ? 'border-red-500 text-red-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {t('leave.rejected')}
-                </button>
-              </>
+              <button
+                onClick={() => setActiveTab('all')}
+                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'all'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {t('leave.allRequests')}
+              </button>
             )}
           </nav>
         </div>
@@ -452,55 +475,57 @@ export default function LeaveApproval() {
                   </div>
                 </div>
 
-                {/* Date Ranges - Mobile: Stack, Desktop: Grid */}
-                <div className="space-y-4 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-4">
-                  {/* Request Date Range */}
-                  <div className="border-l-4 border-blue-500 pl-3 sm:pl-4">
-                    <p className="text-sm font-semibold text-gray-700 mb-2">{t('leave.requestDateRange')}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-xs text-gray-600 mb-1">{t('leave.from')}</label>
-                        <input
-                          type="date"
-                          value={filters.requestDateFrom}
-                          onChange={(e) => setFilters({...filters, requestDateFrom: e.target.value})}
-                          className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-600 mb-1">{t('leave.to')}</label>
-                        <input
-                          type="date"
-                          value={filters.requestDateTo}
-                          onChange={(e) => setFilters({...filters, requestDateTo: e.target.value})}
-                          className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
+                {/* Leave Date Range Only */}
+                <div className="border-l-4 border-green-500 pl-3 sm:pl-4">
+                  <p className="text-sm font-semibold text-gray-700 mb-2">{t('leave.leaveDateRange')}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">{t('leave.from')}</label>
+                      <input
+                        type="date"
+                        value={filters.leaveDateFrom}
+                        onChange={(e) => setFilters({...filters, leaveDateFrom: e.target.value})}
+                        className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">{t('leave.to')}</label>
+                      <input
+                        type="date"
+                        value={filters.leaveDateTo}
+                        onChange={(e) => setFilters({...filters, leaveDateTo: e.target.value})}
+                        className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
                     </div>
                   </div>
+                </div>
 
-                  {/* Leave Date Range */}
-                  <div className="border-l-4 border-green-500 pl-3 sm:pl-4">
-                    <p className="text-sm font-semibold text-gray-700 mb-2">{t('leave.leaveDateRange')}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-xs text-gray-600 mb-1">{t('leave.from')}</label>
-                        <input
-                          type="date"
-                          value={filters.leaveDateFrom}
-                          onChange={(e) => setFilters({...filters, leaveDateFrom: e.target.value})}
-                          className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-600 mb-1">{t('leave.to')}</label>
-                        <input
-                          type="date"
-                          value={filters.leaveDateTo}
-                          onChange={(e) => setFilters({...filters, leaveDateTo: e.target.value})}
-                          className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
+                {/* Sorting Controls */}
+                <div className="border-t pt-4">
+                  <p className="text-sm font-semibold text-gray-700 mb-3">{t('leave.sortBy') || 'Sort By'}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">{t('leave.sortField') || 'Field'}</label>
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      >
+                        <option value="requestDate">{t('leave.requestDate') || 'Request Date'}</option>
+                        <option value="leaveDate">{t('leave.leaveDate') || 'Leave Date'}</option>
+                        <option value="name">{t('leave.employeeName') || 'Employee Name'}</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">{t('leave.sortOrder') || 'Order'}</label>
+                      <select
+                        value={sortOrder}
+                        onChange={(e) => setSortOrder(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      >
+                        <option value="desc">{t('leave.newest') || 'Newest First'}</option>
+                        <option value="asc">{t('leave.oldest') || 'Oldest First'}</option>
+                      </select>
                     </div>
                   </div>
                 </div>

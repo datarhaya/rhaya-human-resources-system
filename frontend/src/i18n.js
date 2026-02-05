@@ -1297,6 +1297,15 @@ const resources = {
         unpaidLeave: 'Cuti Tidak Dibayar',
 
         employeeInformation: 'Informasi Karyawan',
+
+        sortBy: "Urutkan Berdasarkan",
+        sortField: "Field",
+        sortOrder: "Urutan",
+        requestDate: "Tanggal Permintaan",
+        leaveDate: "Tanggal Cuti",
+        employeeName: "Nama Karyawan",
+        newest: "Terbaru Dahulu",
+        oldest: "Terlama Dahulu"
       },
 
       // Payslips
