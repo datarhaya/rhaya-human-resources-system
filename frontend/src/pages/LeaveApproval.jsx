@@ -1,5 +1,4 @@
 // frontend/src/pages/LeaveApproval.jsx
-// MOBILE-RESPONSIVE VERSION - Horizontal tabs, collapsible filters, icon buttons on mobile
 
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -93,7 +92,7 @@ export default function LeaveApproval() {
         }
         
         // If we are on the 'ALL' tab, update the pending count specifically
-        if (activeTab === 'all') {
+        if (activeTab === 'all' || activeTab === 'approved' || activeTab === 'rejected') {
           const count = response.data.data?.filter(r => r.status === 'PENDING').length || 0;
           setPendingCount(count);
         }
@@ -206,11 +205,22 @@ export default function LeaveApproval() {
         comment: comment.trim()  // Always send trimmed comment
       });
 
-      alert(t('leave.actionSuccess'));
       setShowModal(false);
       setSelectedRequest(null);
       setComment('');
-      fetchRequests();
+
+      // Show success message
+      alert(t('leave.actionSuccess'));
+
+      // Switch to appropriate tab to show the result
+      if (actionType === 'approve') {
+        setActiveTab('approved');
+      } else if (actionType === 'reject') {
+        setActiveTab('rejected');
+      }
+
+      // Refresh data (await to ensure it completes)
+      // Note: fetchRequests() will be triggered by activeTab change via useEffect
     } catch (error) {
       console.error('Action error:', error);
       alert(error.response?.data?.error || t('leave.actionFailed'));
