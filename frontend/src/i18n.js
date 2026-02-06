@@ -30,6 +30,7 @@ const resources = {
         no: 'No',
         entry: 'Entry',
         ok: 'OK',
+        done: 'Done',
       },
 
       // Navigation
@@ -576,6 +577,7 @@ const resources = {
         submitSuccess: 'Leave request submitted successfully!',
         selectDates: 'Please select start and end dates',
         invalidDates: 'Invalid date range',
+        errorTitle: 'An Error Occurred',
         
         // Existing translations you might already have
         annualLeave: 'Annual Leave',
@@ -593,7 +595,16 @@ const resources = {
         leaveDate: "Leave Date",
         employeeName: "Employee Name",
         newest: "Newest First",
-        oldest: "Oldest First"
+        oldest: "Oldest First",
+
+        addAttachment: "Add Attachment",
+        uploadAttachment: "Upload Attachment",
+        dragDropFiles: "Drag and drop files here, or",
+        browseFiles: "Browse Files",
+        selectedFiles: "Selected Files",
+        provideUrl: "Provide a URL",
+        urlExample: "Example: Google Drive, OneDrive, or any document link",
+        or: "OR"
       },
 
       // Payslips
@@ -753,6 +764,7 @@ const resources = {
         no: 'Tidak',
         entry: 'Entri',
         ok: 'OK',
+        done: 'Selesai',
       },
 
       // Navigation
@@ -1296,6 +1308,7 @@ const resources = {
         submitSuccess: 'Permintaan cuti berhasil diajukan!',
         selectDates: 'Silakan pilih tanggal mulai dan tanggal selesai',
         invalidDates: 'Rentang tanggal tidak valid',
+        errorTitle: 'Terjadi Kesalahan',
         
         // Existing translations you might already have
         annualLeave: 'Cuti Tahunan',
@@ -1314,7 +1327,16 @@ const resources = {
         leaveDate: "Tanggal Cuti",
         employeeName: "Nama Karyawan",
         newest: "Terbaru Dahulu",
-        oldest: "Terlama Dahulu"
+        oldest: "Terlama Dahulu",
+
+        addAttachment: "Tambah Lampiran",
+        uploadAttachment: "Upload Lampiran",
+        dragDropFiles: "Seret dan lepas file di sini, atau",
+        browseFiles: "Pilih File",
+        selectedFiles: "File Terpilih",
+        provideUrl: "Atau masukkan URL",
+        urlExample: "Contoh: Google Drive, OneDrive, atau link dokumen lainnya",
+        or: "ATAU"
       },
 
       // Payslips

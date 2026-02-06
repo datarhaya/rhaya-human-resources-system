@@ -8,7 +8,7 @@ import path from 'path';
 // Configure R2 Client (S3-compatible)
 const r2Client = new S3Client({
   region: 'auto',
-  endpoint: process.env.R2_ENDPOINT, // https://4561343e4672cd2.r2.cloudflarestorage.com
+  endpoint: process.env.R2_ENDPOINT, 
   credentials: {
     accessKeyId: process.env.R2_ACCESS_KEY_ID,
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,

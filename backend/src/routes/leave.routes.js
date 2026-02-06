@@ -12,8 +12,10 @@ import {
   getLeaveRequestDetails,
   deleteLeaveRequest,
   getLeaveBalanceByYear,
-  cancelLeaveRequest
+  cancelLeaveRequest,
+  getAttachmentDownloadUrl
 } from '../controllers/leave.controller.js';
+import { uploadDocument } from '../config/upload.js';
 
 const router = express.Router();
 
@@ -21,10 +23,11 @@ const router = express.Router();
 router.use(authenticate);
 
 // Employee routes
-router.post('/submit', submitLeaveRequest);
+router.post('/submit', uploadDocument.array('attachmentFiles', 5), submitLeaveRequest);
 router.get('/my-requests', getMyLeaveRequests);
 router.get('/my-balance', getMyLeaveBalance);
 router.get('/:requestId', getLeaveRequestDetails);
+router.get('/:requestId/attachment/:attachmentIndex', getAttachmentDownloadUrl);
 router.delete('/:requestId', deleteLeaveRequest);
 router.post('/:requestId/cancel', cancelLeaveRequest);
 

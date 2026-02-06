@@ -227,21 +227,102 @@ export default function LeaveDetail() {
               <p className="text-sm font-medium text-gray-700 leading-relaxed whitespace-pre-line italic">"{request.reason}"</p>
             </div>
 
-            {/* Attachment if exists */}
-            {request.attachment && (
-              <div className="sm:col-span-2">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Attachment</p>
-                <a
-                  href={request.attachment}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-bold"
-                >
-                  <FileText size={16} className="mr-2" />
-                  View Attachment
-                </a>
-              </div>
-            )}
+            {/* Attachments if exist */}
+            {request.attachment && (() => {
+              try {
+                const attachments = JSON.parse(request.attachment);
+                
+                return (
+                  <div className="sm:col-span-2">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Attachments ({attachments.length})</p>
+                    <div className="space-y-2">
+                      {attachments.map((attachment, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50/50 rounded-xl border border-gray-100 hover:bg-gray-100/50 transition-colors">
+                          {attachment.type === 'FILE' ? (
+                            <>
+                              <div className="flex items-center space-x-3 flex-1 min-w-0">
+                                <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                  {attachment.mimeType?.includes('pdf') ? (
+                                    <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                                    </svg>
+                                  ) : (
+                                    <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                                    </svg>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-bold text-gray-900 truncate">{attachment.filename}</p>
+                                  <p className="text-xs text-gray-500">{(attachment.size / 1024).toFixed(1)} KB</p>
+                                </div>
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const response = await apiClient.get(`/leave/${requestId}/attachment/${index}`);
+                                    window.open(response.data.url, '_blank');
+                                  } catch (error) {
+                                    alert('Failed to download file');
+                                  }
+                                }}
+                                className="ml-3 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-bold flex items-center space-x-1 flex-shrink-0"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                <span>Download</span>
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex items-center space-x-3 flex-1 min-w-0">
+                                <div className="flex-shrink-0 w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                  </svg>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-bold text-gray-900 truncate">External Link</p>
+                                  <p className="text-xs text-gray-500 truncate">{attachment.url}</p>
+                                </div>
+                              </div>
+                              <a
+                                href={attachment.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ml-3 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs font-bold flex items-center space-x-1 flex-shrink-0"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                                <span>Open</span>
+                              </a>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              } catch (e) {
+                // Fallback for old format (plain string)
+                return (
+                  <div className="sm:col-span-2">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Attachment</p>
+                    <a
+                      href={request.attachment}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-bold"
+                    >
+                      <FileText size={16} className="mr-2" />
+                      View Attachment
+                    </a>
+                  </div>
+                );
+              }
+            })()}
           </div>
         </div>
       </section>
@@ -332,7 +413,7 @@ export default function LeaveDetail() {
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
               <p className="text-sm text-blue-800 font-bold mb-2">
-                ℹ️ Yang akan terjadi:
+                Yang akan terjadi:
               </p>
               <ul className="text-sm text-blue-700 space-y-1 ml-4 list-disc">
                 <li>Status cuti berubah menjadi "Dibatalkan"</li>

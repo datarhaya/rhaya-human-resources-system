@@ -633,19 +633,44 @@ export default function LeaveApproval() {
                         </div>
 
                         {/* Attachment */}
-                        {request.attachment && (
-                          <div className="mb-3">
-                            <p className="text-xs sm:text-sm text-gray-500 mb-1">{t('leave.attachment')}:</p>
-                            <a 
-                              href={request.attachment} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-xs sm:text-sm text-blue-600 hover:underline"
-                            >
-                              {t('leave.viewDocument')} →
-                            </a>
-                          </div>
-                        )}
+                        {request.attachment && (() => {
+                          try {
+                            const attachments = JSON.parse(request.attachment);
+                            const fileCount = attachments.filter(a => a.type === 'FILE').length;
+                            const urlCount = attachments.filter(a => a.type === 'URL').length;
+                            
+                            return (
+                              <div className="mb-3">
+                                <p className="text-xs sm:text-sm text-gray-500 mb-1">{t('leave.attachment')}:</p>
+                                <div className="flex items-center space-x-2">
+                                  <span className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
+                                    {fileCount} file(s)
+                                  </span>
+                                  {urlCount > 0 && (
+                                    <span className="inline-flex items-center px-2 py-1 bg-green-50 text-green-700 rounded text-xs font-medium">
+                                      {urlCount} link(s)
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          } catch (e) {
+                            // Fallback for old format (plain string)
+                            return (
+                              <div className="mb-3">
+                                <p className="text-xs sm:text-sm text-gray-500 mb-1">{t('leave.attachment')}:</p>
+                                <a 
+                                  href={request.attachment} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-xs sm:text-sm text-blue-600 hover:underline"
+                                >
+                                  {t('leave.viewDocument')} →
+                                </a>
+                              </div>
+                            );
+                          }
+                        })()}
 
                         {/* Approval Info */}
                         {request.status !== 'PENDING' && (

@@ -20,7 +20,7 @@ export default function LeaveHistory() {
   const [activeTab, setActiveTab] = useState('submit');
   const [loading, setLoading] = useState(false);
   const [requests, setRequests] = useState([]);
-  const [allRequests, setAllRequests] = useState([]); // Store unfiltered data
+  const [allRequests, setAllRequests] = useState([]);
   const [balance, setBalance] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [leaveBalance, setLeaveBalance] = useState(null);
@@ -54,8 +54,60 @@ export default function LeaveHistory() {
     startDate: null,
     endDate: null,
     reason: '',
-    attachment: null
+    attachmentFiles: [],
+    attachmentUrl: '',
   });
+
+  const [showAttachmentModal, setShowAttachmentModal] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleFileDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    const validFiles = files.filter(file => {
+      const isValid = file.type === 'application/pdf' || 
+                    file.type.startsWith('image/');
+      return isValid && file.size <= 10 * 1024 * 1024; // 10MB
+    });
+    
+    setFormData(prev => ({
+      ...prev,
+      attachmentFiles: [...prev.attachmentFiles, ...validFiles]
+    }));
+  };
+
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files);
+    setFormData(prev => ({
+      ...prev,
+      attachmentFiles: [...prev.attachmentFiles, ...files]
+    }));
+  };
+
+  const removeFile = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      attachmentFiles: prev.attachmentFiles.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
 
   // Notes display state
   const [showAllNotes, setShowAllNotes] = useState(false);
@@ -258,27 +310,41 @@ export default function LeaveHistory() {
         return;
       }
 
-      if (formData.leaveType === 'MENSTRUAL_LEAVE' && totalDays !== 1) {
+      // Updated validation: Menstrual leave can be 1-2 days
+      if (formData.leaveType === 'MENSTRUAL_LEAVE' && (totalDays < 1 || totalDays > 2)) {
         setErrorDialog({
           show: true,
           title: t('leave.errorTitle') || 'Error',
-          messages: ['Menstrual leave can only be 1 day'],
+          messages: ['Menstrual leave can be 1 or 2 days'],
           isSuccess: false
         });
         setLoading(false);
         return;
       }
 
-      const submitData = {
-        leaveType: formData.leaveType,
-        startDate: format(formData.startDate, 'yyyy-MM-dd'),
-        endDate: format(formData.endDate, 'yyyy-MM-dd'),
-        totalDays,
-        reason: formData.reason,
-        attachment: formData.attachment || null
-      };
+      // Create FormData for file upload
+      const formDataToSend = new FormData();
+      formDataToSend.append('leaveType', formData.leaveType);
+      formDataToSend.append('startDate', format(formData.startDate, 'yyyy-MM-dd'));
+      formDataToSend.append('endDate', format(formData.endDate, 'yyyy-MM-dd'));
+      formDataToSend.append('totalDays', totalDays);
+      formDataToSend.append('reason', formData.reason);
+      
+      // Append files
+      formData.attachmentFiles.forEach((file) => {
+        formDataToSend.append('attachmentFiles', file);
+      });
+      
+      // Append URL if provided
+      if (formData.attachmentUrl) {
+        formDataToSend.append('attachmentUrl', formData.attachmentUrl);
+      }
 
-      await apiClient.post('/leave/submit', submitData);
+      await apiClient.post('/leave/submit', formDataToSend, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
 
       setErrorDialog({
         show: true,
@@ -287,14 +353,16 @@ export default function LeaveHistory() {
         isSuccess: true
       });
 
-      // Reset form after delay
+      // Reset form after delay to match new state structure
       setTimeout(() => {
         setFormData({
           leaveType: 'ANNUAL_LEAVE',
           startDate: null,
           endDate: null,
           reason: '',
-          attachment: null
+          attachment: null,
+          attachmentFiles: [],
+          attachmentUrl: ''
         });
 
         // Refresh data
@@ -708,40 +776,49 @@ export default function LeaveHistory() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       {t('leave.attachment')} <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="file"
-                      onChange={(e) => setFormData({ ...formData, attachment: e.target.files[0] })}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                      required
-                    />
-                    {/* Info box for short sick leave */}
-                    {formData.leaveType === 'SICK_LEAVE' && formData.startDate && formData.endDate && (() => {
-                      const totalDays = calculateWorkingDays(formData.startDate, formData.endDate);
-                      if (totalDays > 0 && totalDays <= 2) {
-                        return (
-                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                            <p className="text-sm text-blue-800">
-                              Cuti sakit {totalDays} hari tidak memerlukan surat keterangan dokter
-                            </p>
+                    
+                    {/* Button to open attachment modal */}
+                    <button
+                      type="button"
+                      onClick={() => setShowAttachmentModal(true)}
+                      className="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 transition-colors flex items-center justify-center space-x-2 text-gray-600 hover:text-blue-600"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span className="text-sm font-medium">
+                        {formData.attachmentFiles.length > 0 || formData.attachmentUrl 
+                          ? `${formData.attachmentFiles.length} file(s) + ${formData.attachmentUrl ? '1 URL' : '0 URL'}`
+                          : t('leave.addAttachment') || 'Add Attachment'}
+                      </span>
+                    </button>
+
+                    {/* Show attached items */}
+                    {formData.attachmentFiles.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {formData.attachmentFiles.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded text-sm">
+                            <span className="truncate flex-1">{file.name} ({formatFileSize(file.size)})</span>
+                            <button
+                              type="button"
+                              onClick={() => removeFile(index)}
+                              className="ml-2 text-red-500 hover:text-red-700"
+                            >
+                              ×
+                            </button>
                           </div>
-                        );
-                      }
-                      if (totalDays > 2) {
-                        return (
-                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                            <p className="text-sm text-yellow-800">
-                              Cuti sakit {totalDays} hari memerlukan surat keterangan dokter
-                            </p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
+                        ))}
+                      </div>
+                    )}
+                    
+                    {formData.attachmentUrl && (
+                      <div className="mt-2 px-3 py-2 bg-blue-50 rounded text-sm">
+                        <span className="text-blue-700">{formData.attachmentUrl}</span>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
-
               {/* Submit Button - Mobile Optimized */}
               <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
                 <button
@@ -1001,6 +1078,143 @@ export default function LeaveHistory() {
 
       {/* Error/Success Dialog */}
       <ErrorDialog />
+
+      {/* Attachment Upload Modal */}
+      {showAttachmentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {t('leave.uploadAttachment') || 'Upload Attachment'}
+              </h3>
+              <button
+                onClick={() => setShowAttachmentModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="px-6 py-4 space-y-4">
+              {/* Drag & Drop Zone */}
+              <div
+                onDrop={handleFileDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  isDragging 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <p className="mt-2 text-sm text-gray-600">
+                  {t('leave.dragDropFiles') || 'Drag and drop files here, or'}
+                </p>
+                <label className="mt-2 inline-block">
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <span className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer inline-block text-sm">
+                    {t('leave.browseFiles') || 'Browse Files'}
+                  </span>
+                </label>
+                <p className="mt-2 text-xs text-gray-500">
+                  PDF, PNG, JPEG (Max 10MB per file)
+                </p>
+              </div>
+
+              {/* Selected Files List */}
+              {formData.attachmentFiles.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-700">
+                    {t('leave.selectedFiles') || 'Selected Files'} ({formData.attachmentFiles.length})
+                  </p>
+                  {formData.attachmentFiles.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-3 flex-1 min-w-0">
+                        <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                        </svg>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
+                          <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(index)}
+                        className="ml-3 text-red-500 hover:text-red-700 flex-shrink-0"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* OR Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">
+                    {t('leave.or') || 'OR'}
+                  </span>
+                </div>
+              </div>
+
+              {/* URL Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {t('leave.provideUrl') || 'Provide a URL'}
+                </label>
+                <input
+                  type="url"
+                  value={formData.attachmentUrl}
+                  onChange={(e) => setFormData(prev => ({ ...prev, attachmentUrl: e.target.value }))}
+                  placeholder="https://drive.google.com/..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  {t('leave.urlExample') || 'Example: Google Drive, OneDrive, or any document link'}
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setShowAttachmentModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm"
+              >
+                {t('common.cancel') || 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAttachmentModal(false)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+              >
+                {t('common.done') || 'Done'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

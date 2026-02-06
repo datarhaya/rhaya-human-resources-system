@@ -7,6 +7,7 @@ import {
   sendLeaveRejectedEmail,
   sendLeaveCancellationEmail
 } from '../services/email.service.js';
+import { uploadDocument as uploadToR2Storage } from '../config/storage.js';
 
 /**
  * Submit leave request
@@ -15,25 +16,89 @@ import {
 export const submitLeaveRequest = async (req, res) => {
   try {
     const employeeId = req.user.id;
-    const { leaveType, startDate, endDate, totalDays, reason, attachment } = req.body;
+    const { leaveType, startDate, endDate, totalDays, reason, attachmentUrl } = req.body;
+    const files = req.files; // Array of uploaded files from multer
+
+    // Parse totalDays to number (comes as string from FormData)
+    const totalDaysNumber = parseFloat(totalDays);
 
     // Validate required fields
-    if (!leaveType || !startDate || !endDate || !totalDays || !reason) {
+    if (!leaveType ) {
       return res.status(400).json({
-        error: 'Missing required fields: leaveType, startDate, endDate, totalDays, reason'
+        error: 'Missing required leaveType field'
+      });
+    }
+    if (!startDate) {
+      return res.status(400).json({
+        error: 'Missing required startDate field'
+      });
+    }
+    if (!endDate) {
+      return res.status(400).json({
+        error: 'Missing required endDate field'
+      });
+    }
+    if (!totalDays || isNaN(totalDaysNumber)) {
+      return res.status(400).json({
+        error: 'Missing required totalDays field'
+      });
+    }
+    if (!reason) {
+      return res.status(400).json({
+        error: 'Missing required reason field'
       });
     }
 
     // Validate attachment for sick leave > 2 days
-    if (leaveType === 'SICK_LEAVE' && totalDays > 2 && !attachment) {
-      return res.status(400).json({
-        success: false,
-        error: 'Surat keterangan dokter diperlukan untuk cuti sakit lebih dari 2 hari',
-        details: ['Surat keterangan dokter diperlukan untuk cuti sakit lebih dari 2 hari']
+    if (leaveType === 'SICK_LEAVE' && totalDaysNumber > 2) {
+      if (!files?.length && !attachmentUrl) {
+        return res.status(400).json({
+          success: false,
+          error: 'Surat keterangan dokter diperlukan untuk cuti sakit lebih dari 2 hari',
+          details: ['Surat keterangan dokter diperlukan untuk cuti sakit lebih dari 2 hari']
+        });
+      }
+    }
+
+    // Upload files to R2 if provided
+    const attachmentData = [];
+    
+    if (files && files.length > 0) {
+      for (const file of files) {
+        try {
+          const r2Key = await uploadToR2Storage(
+            file.buffer,
+            employeeId,
+            'sick-leave',
+            `sick_leave_${Date.now()}`,
+            file.originalname
+          );
+          
+          attachmentData.push({
+            type: 'FILE',
+            path: r2Key,
+            filename: file.originalname,
+            size: file.size,
+            mimeType: file.mimetype
+          });
+        } catch (uploadError) {
+          console.error('File upload error:', uploadError);
+          return res.status(500).json({
+            error: 'Failed to upload attachment'
+          });
+        }
+      }
+    }
+    
+    // Add URL if provided
+    if (attachmentUrl) {
+      attachmentData.push({
+        type: 'URL',
+        url: attachmentUrl
       });
     }
 
-    // Get employee with relationships
+    // Get employee
     const employee = await prisma.user.findUnique({
       where: { id: employeeId },
       include: {
@@ -48,16 +113,14 @@ export const submitLeaveRequest = async (req, res) => {
       leaveType,
       startDate,
       endDate,
-      totalDays
+      totalDaysNumber  // Use parsed number
     );
 
-    // IMPORTANT: Return errors in correct format with details array
     if (errors.length > 0) {
       console.log('Validation errors:', errors);
       return res.status(400).json({
         success: false,
         error: 'Validation failed',
-        message: 'Validation failed',
         details: errors
       });
     }
@@ -65,20 +128,20 @@ export const submitLeaveRequest = async (req, res) => {
     // Determine approver
     const approverId = await leaveService.determineLeaveApprover(employee);
 
-    // Create leave request
+    // Create leave request with attachments
     const leaveRequest = await leaveService.createLeaveRequest({
       employeeId,
       leaveType,
       startDate,
       endDate,
-      totalDays,
+      totalDays: totalDaysNumber,  // Use parsed number
       reason,
-      attachment,
+      attachment: JSON.stringify(attachmentData), // Store as JSON
       approverId,
       supervisorId: employee.supervisorId
     });
 
-    // Send email notification to approver
+    // Send email notification
     try {
       const approver = await prisma.user.findUnique({
         where: { id: approverId },
@@ -98,7 +161,7 @@ export const submitLeaveRequest = async (req, res) => {
         console.log('✅ Leave request notification sent to:', approver.email);
       }
     } catch (emailError) {
-      console.error('⚠️ Leave request email notification failed:', emailError.message);
+      console.error('⚠️ Email notification failed:', emailError.message);
     }
 
     return res.status(201).json({
@@ -815,5 +878,98 @@ export const deleteLeaveRequest = async (req, res) => {
   } catch (error) {
     console.error('Delete leave request error:', error);
     return res.status(500).json({ error: 'Failed to delete leave request' });
+  }
+};
+
+/**
+ * Get attachment download URL
+ * GET /api/leave/:requestId/attachment/:attachmentIndex
+ */
+export const getAttachmentDownloadUrl = async (req, res) => {
+  try {
+    const { requestId, attachmentIndex } = req.params;
+    const userId = req.user.id;
+
+    // Get leave request
+    const request = await prisma.leaveRequest.findUnique({
+      where: { id: requestId },
+      select: {
+        id: true,
+        employeeId: true,
+        currentApproverId: true,
+        supervisorId: true,
+        attachment: true
+      }
+    });
+
+    if (!request) {
+      return res.status(404).json({ error: 'Leave request not found' });
+    }
+
+    // Authorization: Only employee, approver, or supervisor can download
+    const isAuthorized = 
+      request.employeeId === userId ||
+      request.currentApproverId === userId ||
+      request.supervisorId === userId ||
+      req.user.accessLevel <= 2; // HR/Admin
+
+    if (!isAuthorized) {
+      return res.status(403).json({ error: 'Not authorized to access this attachment' });
+    }
+
+    // Parse attachments
+    if (!request.attachment) {
+      return res.status(404).json({ error: 'No attachments found' });
+    }
+
+    let attachments;
+    try {
+      attachments = JSON.parse(request.attachment);
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid attachment data' });
+    }
+
+    const index = parseInt(attachmentIndex);
+    if (isNaN(index) || index < 0 || index >= attachments.length) {
+      return res.status(404).json({ error: 'Attachment not found' });
+    }
+
+    const attachment = attachments[index];
+
+    // If it's a URL, just return it
+    if (attachment.type === 'URL') {
+      return res.json({
+        success: true,
+        type: 'URL',
+        url: attachment.url
+      });
+    }
+
+    // If it's a file, generate R2 signed URL
+    if (attachment.type === 'FILE') {
+      const { getR2DownloadUrl } = await import('../config/storage.js');
+      
+      try {
+        const signedUrl = await getR2DownloadUrl(attachment.path, 3600); // 1 hour expiry
+        
+        return res.json({
+          success: true,
+          type: 'FILE',
+          url: signedUrl,
+          filename: attachment.filename,
+          size: attachment.size,
+          mimeType: attachment.mimeType
+        });
+      } catch (r2Error) {
+        console.error('R2 download URL error:', r2Error);
+        return res.status(500).json({ error: 'Failed to generate download URL' });
+      }
+    }
+
+    return res.status(400).json({ error: 'Unknown attachment type' });
+
+  } catch (error) {
+    console.error('Get attachment download URL error:', error);
+    return res.status(500).json({ error: 'Failed to get attachment' });
   }
 };
