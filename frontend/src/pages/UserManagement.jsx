@@ -17,6 +17,9 @@ export default function UserManagement() {
   const [potentialSupervisors, setPotentialSupervisors] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
   
+  // Loading states
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   // Modal state
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('create'); // 'create', 'edit', 'view', 'balance'
@@ -433,6 +436,10 @@ export default function UserManagement() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    if (isSubmitting) return; // Prevent double submission
+    
+    setIsSubmitting(true);
+    
     try {
       const dataToSubmit = {
         ...formData,
@@ -454,7 +461,7 @@ export default function UserManagement() {
 
       if (modalMode === 'create') {
         await apiClient.post('/users/create', dataToSubmit);
-        alert('User created successfully!');
+        alert('User created successfully!' + (formData.sendActivationEmail ? ' Activation email sent.' : ''));
       } else {
         await apiClient.put(`/users/${selectedUser.id}`, dataToSubmit);
         alert('User updated successfully!');
@@ -492,6 +499,8 @@ export default function UserManagement() {
     } catch (error) {
       console.error('Submit error:', error);
       alert(error.response?.data?.error || 'Failed to save user');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1850,7 +1859,7 @@ export default function UserManagement() {
                           noOptionsMessage={() => "No supervisors found"}
                         />
                         <p className="text-xs text-gray-500 mt-1">
-                          Type to search by name, NIP, or role
+                          💡 Type to search by name, NIP, or role
                         </p>
                       </div>
 
@@ -1986,16 +1995,28 @@ export default function UserManagement() {
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 bg-white"
+                    disabled={isSubmitting}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     form="userForm"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    disabled={isSubmitting}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   >
-                    {modalMode === 'create' ? 'Create User' : 'Update User'}
+                    {isSubmitting ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        {modalMode === 'create' ? 'Creating...' : 'Updating...'}
+                      </>
+                    ) : (
+                      modalMode === 'create' ? 'Create User' : 'Update User'
+                    )}
                   </button>
                 </div>
               </div>
