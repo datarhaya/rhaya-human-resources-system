@@ -151,7 +151,7 @@ async function sendReminderForLeave(leave) {
       }
     });
 
-    if (supervisor && supervisor.email && supervisor.employeeStatus !== 'Inactive') {
+    if (supervisor && supervisor.email && supervisor.employeeStatus !== 'INACTIVE') {
       toRecipient = supervisor;
       toRecipientType = 'Supervisor';
       console.log(`[Leave Reminder] TO: Supervisor (${supervisor.email})`);
@@ -180,7 +180,7 @@ async function sendReminderForLeave(leave) {
         }
       });
 
-      if (divisionHead && divisionHead.email && divisionHead.employeeStatus !== 'Inactive') {
+      if (divisionHead && divisionHead.email && divisionHead.employeeStatus !== 'INACTIVE') {
         toRecipient = divisionHead;
         toRecipientType = 'Division Head';
         console.log(`[Leave Reminder] TO: Division Head (${divisionHead.email})`);
@@ -208,7 +208,7 @@ async function sendReminderForLeave(leave) {
     const divisionMembers = await prisma.user.findMany({
       where: {
         divisionId: divisionId,
-        employeeStatus: { not: 'Inactive' },
+        employeeStatus: { not: 'INACTIVE' },
         id: { not: employee.id } // Exclude employee taking leave
       },
       select: {
@@ -246,7 +246,7 @@ async function sendReminderForLeave(leave) {
     const divisionHeads = await prisma.user.findMany({
       where: {
         id: { in: divisionHeadIds },
-        employeeStatus: { not: 'Inactive' }
+        employeeStatus: { not: 'INACTIVE' }
       },
       select: {
         id: true,
