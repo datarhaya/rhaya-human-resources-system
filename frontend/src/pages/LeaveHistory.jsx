@@ -60,6 +60,8 @@ export default function LeaveHistory() {
 
   const [showAttachmentModal, setShowAttachmentModal] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const handleFileDrop = (e) => {
     e.preventDefault();
@@ -335,6 +337,9 @@ export default function LeaveHistory() {
       }
 
       // Create FormData for file upload
+      setIsUploading(true);
+      setUploadProgress(0);
+      
       const formDataToSend = new FormData();
       formDataToSend.append('leaveType', formData.leaveType);
       formDataToSend.append('startDate', format(formData.startDate, 'yyyy-MM-dd'));
@@ -352,11 +357,20 @@ export default function LeaveHistory() {
         formDataToSend.append('attachmentUrl', formData.attachmentUrl);
       }
 
+      setUploadProgress(30); // Show initial progress
+
       await apiClient.post('/leave/submit', formDataToSend, {
         headers: {
           'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(30 + (percentCompleted * 0.7)); // 30% to 100%
         }
       });
+
+      setUploadProgress(100);
+      setIsUploading(false);
 
       setErrorDialog({
         show: true,
@@ -386,6 +400,8 @@ export default function LeaveHistory() {
 
     } catch (error) {
       console.error('Submit error:', error.message || error);
+      setIsUploading(false);
+      setUploadProgress(0);
       const errorMessage = error.response?.data?.error || t('leave.submitError');
       setErrorDialog({
         show: true,
@@ -395,6 +411,8 @@ export default function LeaveHistory() {
       });
     } finally {
       setLoading(false);
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -721,7 +739,14 @@ export default function LeaveHistory() {
                   </label>
                   <DatePicker
                     selected={formData.startDate}
-                    onChange={(date) => setFormData({ ...formData, startDate: date })}
+                    onChange={(date) => {
+                      // For menstrual leave, reset end date when start date changes
+                      if (formData.leaveType === 'MENSTRUAL_LEAVE') {
+                        setFormData({ ...formData, startDate: date, endDate: null });
+                      } else {
+                        setFormData({ ...formData, startDate: date });
+                      }
+                    }}
                     minDate={
                       formData.leaveType === 'SICK_LEAVE' || 
                       formData.leaveType === 'MENSTRUAL_LEAVE' || 
@@ -744,6 +769,11 @@ export default function LeaveHistory() {
                     selected={formData.endDate}
                     onChange={(date) => setFormData({ ...formData, endDate: date })}
                     minDate={formData.startDate || new Date()}
+                    maxDate={
+                      formData.leaveType === 'MENSTRUAL_LEAVE' && formData.startDate
+                        ? addDays(formData.startDate, 1)  // Max 2 days after start
+                        : undefined
+                    }
                     locale={i18n.language}
                     dateFormat="dd MMM yyyy"
                     className="w-full px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
@@ -751,6 +781,11 @@ export default function LeaveHistory() {
                     required
                     disabled={formData.leaveType === 'MATERNITY_LEAVE'}
                   />
+                  {formData.leaveType === 'MENSTRUAL_LEAVE' && formData.startDate && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Maximum 2 days from start date
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -848,11 +883,11 @@ export default function LeaveHistory() {
                         }`}>
                           {attachmentRequired ? (
                             <>
-                              Cuti sakit {totalDays} hari <strong>memerlukan</strong> surat keterangan dokter
+                              ⚠️ Cuti sakit {totalDays} hari <strong>memerlukan</strong> surat keterangan dokter
                             </>
                           ) : (
                             <>
-                              Cuti sakit {totalDays} hari <strong>tidak memerlukan</strong> surat keterangan dokter (opsional)
+                              ℹ️ Cuti sakit {totalDays} hari <strong>tidak memerlukan</strong> surat keterangan dokter (opsional)
                             </>
                           )}
                         </p>
@@ -861,15 +896,49 @@ export default function LeaveHistory() {
                   </div>
                 );
               })()}
-              {/* Submit Button - Mobile Optimized */}
-              <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 font-medium transition-colors text-sm sm:text-base"
-                >
-                  {loading ? t('leave.submitting') : t('leave.submitRequest')}
-                </button>
+              {/* Submit Button - Mobile Optimized with Upload Progress */}
+              <div className="flex flex-col gap-3">
+                {/* Upload Progress Bar */}
+                {isUploading && (
+                  <div className="w-full">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-gray-600">
+                        {uploadProgress < 100 ? 'Uploading attachments...' : 'Processing...'}
+                      </span>
+                      <span className="text-sm font-medium text-blue-600">{Math.round(uploadProgress)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                      <div 
+                        className="bg-blue-600 h-full rounded-full transition-all duration-300 ease-out"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Submit Button */}
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={loading || isUploading}
+                    className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium transition-colors text-sm sm:text-base flex items-center justify-center space-x-2"
+                  >
+                    {(loading || isUploading) && (
+                      <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    )}
+                    <span>
+                      {isUploading 
+                        ? 'Uploading...' 
+                        : loading 
+                          ? t('leave.submitting') 
+                          : t('leave.submitRequest')
+                      }
+                    </span>
+                  </button>
+                </div>
               </div>
             </form>
           ) : (
