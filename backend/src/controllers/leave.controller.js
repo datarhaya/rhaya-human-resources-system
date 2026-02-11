@@ -49,7 +49,7 @@ export const submitLeaveRequest = async (req, res) => {
       });
     }
 
-    // Validate attachment for sick leave > 2 days
+    // Validate attachment for sick leave > 2 days (optional for ≤2 days)
     if (leaveType === 'SICK_LEAVE' && totalDaysNumber > 2) {
       if (!files?.length && !attachmentUrl) {
         return res.status(400).json({
@@ -158,10 +158,10 @@ export const submitLeaveRequest = async (req, res) => {
         });
 
         await sendLeaveRequestNotification(approver, leaveRequest, employeeWithRole);
-        console.log('✅ Leave request notification sent to:', approver.email);
+        console.log('Leave request notification sent to:', approver.email);
       }
     } catch (emailError) {
-      console.error('⚠️ Email notification failed:', emailError.message);
+      console.error('Email notification failed:', emailError.message);
     }
 
     return res.status(201).json({
@@ -257,7 +257,7 @@ export const cancelLeaveRequest = async (req, res) => {
       });
     }
 
-    // ✅ Check 1: Only employee can cancel their own leave
+    // Check 1: Only employee can cancel their own leave
     if (leaveRequest.employeeId !== userId) {
       return res.status(403).json({ 
         success: false,
@@ -265,7 +265,7 @@ export const cancelLeaveRequest = async (req, res) => {
       });
     }
 
-    // ✅ Check 2: Only APPROVED leaves can be cancelled
+    // Check 2: Only APPROVED leaves can be cancelled
     if (leaveRequest.status !== 'APPROVED') {
       return res.status(400).json({ 
         success: false,
@@ -274,7 +274,7 @@ export const cancelLeaveRequest = async (req, res) => {
       });
     }
 
-    // ✅ Check 3: Cannot cancel leave that has already started
+    // Check 3: Cannot cancel leave that has already started
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Start of today
     
@@ -289,7 +289,7 @@ export const cancelLeaveRequest = async (req, res) => {
       });
     }
 
-    console.log(`✅ All validations passed. Cancelling leave...`);
+    console.log(`All validations passed. Cancelling leave...`);
 
     // Update leave status to CANCELLED
     const updatedLeave = await prisma.leaveRequest.update({
@@ -309,9 +309,9 @@ export const cancelLeaveRequest = async (req, res) => {
       }
     });
 
-    console.log(`✅ Leave status updated to CANCELLED`);
+    console.log(`Leave status updated to CANCELLED`);
 
-    // ✅ Restore leave balance (only for paid leave types)
+    // Restore leave balance (only for paid leave types)
     if (leaveRequest.leaveType === 'ANNUAL_LEAVE') {
       try {
         await leaveService.restoreLeaveBalance(
@@ -319,14 +319,14 @@ export const cancelLeaveRequest = async (req, res) => {
           leaveRequest.totalDays,
           new Date(leaveRequest.startDate).getFullYear()
         );
-        console.log(`✅ Leave balance restored: ${leaveRequest.totalDays} days`);
+        console.log(`Leave balance restored: ${leaveRequest.totalDays} days`);
       } catch (balanceError) {
-        console.error('⚠️ Failed to restore leave balance:', balanceError);
+        console.error('Failed to restore leave balance:', balanceError);
         // Don't fail the cancellation if balance restoration fails
       }
     }
 
-    // ✅ Send cancellation notification emails
+    // Send cancellation notification emails
     try {
       await sendLeaveCancellationEmail(
         leaveRequest.employee,
@@ -338,9 +338,9 @@ export const cancelLeaveRequest = async (req, res) => {
           leaveRequest.divisionHead?.email
         ].filter(email => email) // Remove null/undefined emails
       );
-      console.log(`✅ Cancellation notification emails sent`);
+      console.log(`Cancellation notification emails sent`);
     } catch (emailError) {
-      console.error('⚠️ Failed to send cancellation emails:', emailError);
+      console.error('Failed to send cancellation emails:', emailError);
       // Don't fail the cancellation if email fails
     }
 
@@ -351,7 +351,7 @@ export const cancelLeaveRequest = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Cancel leave error:', error);
+    console.error('Cancel leave error:', error);
     return res.status(500).json({ 
       success: false,
       error: 'Failed to cancel leave request',
@@ -602,17 +602,17 @@ export const approveLeaveRequest = async (req, res) => {
 
         if (employee && employee.email) {
           await sendLeaveApprovedEmail(employee, updatedRequest, approver.name);
-          console.log('✅ Leave approval email sent to:', employee.email);
+          console.log('Leave approval email sent to:', employee.email);
         }
       } catch (emailError) {
         // Don't fail the request if email fails
-        console.error('⚠️ Leave approval email failed:', emailError.message);
+        console.error('Leave approval email failed:', emailError.message);
       }
       try {
         const { sendImmediateLeaveReminder } = await import('../services/leaveReminder.service.js');
         await sendImmediateLeaveReminder(updatedRequest.id);
       } catch (reminderError) {
-        console.error('⚠️ Leave reminder failed:', reminderError.message);
+        console.error('Leave reminder failed:', reminderError.message);
       }
 
     }
@@ -717,11 +717,11 @@ export const rejectLeaveRequest = async (req, res) => {
 
       if (employee && employee.email) {
         await sendLeaveRejectedEmail(employee, updatedRequest, comment, approver.name);
-        console.log('✅ Leave rejection email sent to:', employee.email);
+        console.log('Leave rejection email sent to:', employee.email);
       }
     } catch (emailError) {
       // Don't fail the request if email fails
-      console.error('⚠️ Leave rejection email failed:', emailError.message);
+      console.error('Leave rejection email failed:', emailError.message);
     }
 
     return res.json({

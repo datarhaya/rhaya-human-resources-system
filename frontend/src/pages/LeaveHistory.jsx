@@ -165,6 +165,18 @@ export default function LeaveHistory() {
     return leaveTypeConfig.requiresAttachment === true;
   };
 
+  // Check if attachment field should be shown (not necessarily required)
+  const shouldShowAttachmentField = (leaveType) => {
+    // Always show for sick leave (optional for ≤2 days, required for >2 days)
+    if (leaveType === 'SICK_LEAVE') {
+      return true;
+    }
+    
+    // For other types, show only if attachment is required
+    const leaveTypeConfig = leaveTypes.find(lt => lt.value === leaveType);
+    return leaveTypeConfig?.requiresAttachment === true;
+  };
+
   const leaveTypes = getAvailableLeaveTypes();
 
   useEffect(() => {
@@ -327,7 +339,7 @@ export default function LeaveHistory() {
       formDataToSend.append('leaveType', formData.leaveType);
       formDataToSend.append('startDate', format(formData.startDate, 'yyyy-MM-dd'));
       formDataToSend.append('endDate', format(formData.endDate, 'yyyy-MM-dd'));
-      formDataToSend.append('totalDays', totalDays);
+      formDataToSend.append('totalDays', totalDays.toString()); // Send as string, backend will parse
       formDataToSend.append('reason', formData.reason);
       
       // Append files
@@ -766,15 +778,20 @@ export default function LeaveHistory() {
                 />
               </div>
 
-              {/* Attachment - Conditional for Sick Leave */}
+              {/* Attachment - Show for all sick leave, required only if >2 days */}
               {(() => {
                 const totalDays = calculateWorkingDays(formData.startDate, formData.endDate);
+                const showAttachment = shouldShowAttachmentField(formData.leaveType);
                 const attachmentRequired = isAttachmentRequired(formData.leaveType, totalDays);
                 
-                return attachmentRequired && (
+                return showAttachment && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {t('leave.attachment')} <span className="text-red-500">*</span>
+                      {t('leave.attachment')} 
+                      {attachmentRequired && <span className="text-red-500">*</span>}
+                      {!attachmentRequired && formData.leaveType === 'SICK_LEAVE' && (
+                        <span className="text-gray-500 text-xs ml-1">(Optional)</span>
+                      )}
                     </label>
                     
                     {/* Button to open attachment modal */}
@@ -814,6 +831,31 @@ export default function LeaveHistory() {
                     {formData.attachmentUrl && (
                       <div className="mt-2 px-3 py-2 bg-blue-50 rounded text-sm">
                         <span className="text-blue-700">{formData.attachmentUrl}</span>
+                      </div>
+                    )}
+
+                    {/* Info box for sick leave */}
+                    {formData.leaveType === 'SICK_LEAVE' && formData.startDate && formData.endDate && (
+                      <div className={`mt-3 p-3 rounded-lg border ${
+                        attachmentRequired 
+                          ? 'bg-yellow-50 border-yellow-200' 
+                          : 'bg-blue-50 border-blue-200'
+                      }`}>
+                        <p className={`text-sm ${
+                          attachmentRequired 
+                            ? 'text-yellow-800' 
+                            : 'text-blue-800'
+                        }`}>
+                          {attachmentRequired ? (
+                            <>
+                              Cuti sakit {totalDays} hari <strong>memerlukan</strong> surat keterangan dokter
+                            </>
+                          ) : (
+                            <>
+                              Cuti sakit {totalDays} hari <strong>tidak memerlukan</strong> surat keterangan dokter (opsional)
+                            </>
+                          )}
+                        </p>
                       </div>
                     )}
                   </div>

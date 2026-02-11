@@ -577,6 +577,7 @@ const resources = {
         submitSuccess: 'Leave request submitted successfully!',
         selectDates: 'Please select start and end dates',
         invalidDates: 'Invalid date range',
+        successTitle: 'Action Success',
         errorTitle: 'An Error Occurred',
         
         // Existing translations you might already have
@@ -1308,6 +1309,7 @@ const resources = {
         submitSuccess: 'Permintaan cuti berhasil diajukan!',
         selectDates: 'Silakan pilih tanggal mulai dan tanggal selesai',
         invalidDates: 'Rentang tanggal tidak valid',
+        successTitle: 'Permintaan Berhasil Dilakukan',
         errorTitle: 'Terjadi Kesalahan',
         
         // Existing translations you might already have
