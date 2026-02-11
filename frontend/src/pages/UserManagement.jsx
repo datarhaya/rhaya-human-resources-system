@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import apiClient from '../api/client';
+import Select from 'react-select';
 
 export default function UserManagement() {
   const { user, loading } = useAuth();
@@ -20,6 +21,7 @@ export default function UserManagement() {
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('create'); // 'create', 'edit', 'view', 'balance'
   const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedSupervisor, setSelectedSupervisor] = useState(null);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteMode, setDeleteMode] = useState('soft'); // 'soft' or 'hard'
@@ -65,7 +67,8 @@ export default function UserManagement() {
     contractEndDate: '',                
     bpjsHealth: '',
     bpjsEmployment: '',
-    overtimeRate: '300000'
+    overtimeRate: '300000',
+    sendActivationEmail: false
   });
 
   // Balance adjustment state
@@ -77,7 +80,11 @@ export default function UserManagement() {
     // Leave balance
     leaveYear: new Date().getFullYear(),
     annualQuota: '',
-    leaveReason: ''
+    leaveReason: '',
+    // TOIL balance
+    toilDays: '',
+    toilAction: 'add', // 'add' or 'subtract'
+    toilReason: ''
   });
 
   // Search state
@@ -302,6 +309,31 @@ export default function UserManagement() {
     return a.name.localeCompare(b.name);
   });
 
+  // Prepare supervisor options for react-select
+  const supervisorOptions = sortedSupervisors
+    .filter(s => !selectedUser || s.id !== selectedUser.id)
+    .map(supervisor => ({
+      value: supervisor.id,
+      label: `${supervisor.name}${supervisor.nip ? ` (${supervisor.nip})` : ''} - ${supervisor.role?.name || 'N/A'}`,
+      supervisor: supervisor
+    }));
+
+  // Custom styles for react-select
+  const selectStyles = {
+    control: (base) => ({
+      ...base,
+      minHeight: '42px',
+      borderColor: '#d1d5db',
+      '&:hover': {
+        borderColor: '#9ca3af'
+      }
+    }),
+    menu: (base) => ({
+      ...base,
+      zIndex: 9999
+    })
+  };
+
   // Reset form to initial state
   const resetForm = () => {
     setFormData({
@@ -326,9 +358,11 @@ export default function UserManagement() {
       contractEndDate: '',                
       bpjsHealth: '',
       bpjsEmployment: '',
-      overtimeRate: '300000'
+      overtimeRate: '300000',
+      sendActivationEmail: false
     });
     setSelectedUser(null);
+    setSelectedSupervisor(null);
   };
 
   const resetBalanceForm = () => {
@@ -338,7 +372,10 @@ export default function UserManagement() {
       overtimeReason: '',
       leaveYear: new Date().getFullYear(),
       annualQuota: '',
-      leaveReason: ''
+      leaveReason: '',
+      toilDays: '',
+      toilAction: 'add',
+      toilReason: ''
     });
   };
 
@@ -506,6 +543,27 @@ export default function UserManagement() {
         };
       }
 
+      // TOIL balance adjustment
+      if (balanceData.toilDays) {
+        if (!balanceData.toilReason.trim()) {
+          alert('Please provide a reason for TOIL adjustment');
+          return;
+        }
+
+        const days = parseInt(balanceData.toilDays);
+        if (isNaN(days) || days <= 0) {
+          alert('Please enter a valid number of days');
+          return;
+        }
+
+        const amount = balanceData.toilAction === 'add' ? days : -days;
+        
+        adjustments.toil = {
+          amount,
+          reason: balanceData.toilReason
+        };
+      }
+
       if (Object.keys(adjustments).length === 0) {
         alert('Please fill in at least one adjustment');
         return;
@@ -613,6 +671,18 @@ export default function UserManagement() {
       bpjsEmployment: user.bpjsEmployment || '',
       overtimeRate: user.overtimeRate?.toString() || '300000'
     });
+
+    // Set selected supervisor for react-select
+    if (user.supervisor) {
+      setSelectedSupervisor({
+        value: user.supervisor.id,
+        label: `${user.supervisor.name}${user.supervisor.nip ? ` (${user.supervisor.nip})` : ''} - ${user.supervisor.role?.name || 'N/A'}`,
+        supervisor: user.supervisor
+      });
+    } else {
+      setSelectedSupervisor(null);
+    }
+
     setShowModal(true);
   };
 
@@ -1435,6 +1505,50 @@ export default function UserManagement() {
                         />
                       </div>
                     </div>
+
+                    {/* TOIL Balance Adjustment */}
+                    <div className="border-l-4 border-blue-500 pl-4">
+                      <h3 className="font-semibold text-gray-900 mb-3">TOIL Balance Adjustment</h3>
+                      
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Action</label>
+                          <select
+                            value={balanceData.toilAction}
+                            onChange={(e) => setBalanceData({...balanceData, toilAction: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="add">Add Days</option>
+                            <option value="subtract">Subtract Days</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Days</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={balanceData.toilDays}
+                            onChange={(e) => setBalanceData({...balanceData, toilDays: e.target.value})}
+                            placeholder="e.g., 2"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Reason {balanceData.toilDays && <span className="text-red-500">*</span>}
+                        </label>
+                        <textarea
+                          value={balanceData.toilReason}
+                          onChange={(e) => setBalanceData({...balanceData, toilReason: e.target.value})}
+                          rows="2"
+                          placeholder="Why are you adjusting TOIL balance?"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
                   </form>
               )}
 
@@ -1720,20 +1834,24 @@ export default function UserManagement() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Supervisor</label>
-                        <select
-                          value={formData.supervisorId}
-                          onChange={(e) => setFormData({...formData, supervisorId: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="">No Supervisor</option>
-                          {sortedSupervisors
-                            .filter(s => !selectedUser || s.id !== selectedUser.id)
-                            .map(sup => (
-                              <option key={sup.id} value={sup.id}>
-                                {sup.name}
-                              </option>
-                            ))}
-                        </select>
+                        <Select
+                          value={selectedSupervisor}
+                          onChange={(option) => {
+                            setSelectedSupervisor(option);
+                            setFormData({...formData, supervisorId: option?.value || ''});
+                          }}
+                          options={supervisorOptions}
+                          styles={selectStyles}
+                          placeholder="Search supervisor by name or NIP..."
+                          isClearable
+                          isSearchable
+                          className="react-select-container"
+                          classNamePrefix="react-select"
+                          noOptionsMessage={() => "No supervisors found"}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Type to search by name, NIP, or role
+                        </p>
                       </div>
 
                       <div>
@@ -1830,6 +1948,33 @@ export default function UserManagement() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Email Notification (only for create mode) */}
+                  {modalMode === 'create' && (
+                    <div className="border-l-4 border-indigo-500 pl-4">
+                      <h3 className="font-semibold text-gray-900 mb-3">Email Notification</h3>
+                      <div className="flex items-start">
+                        <div className="flex items-center h-5">
+                          <input
+                            id="sendActivationEmail"
+                            type="checkbox"
+                            checked={formData.sendActivationEmail}
+                            onChange={(e) => setFormData({...formData, sendActivationEmail: e.target.checked})}
+                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div className="ml-3">
+                          <label htmlFor="sendActivationEmail" className="font-medium text-gray-700">
+                            Send Activation Email
+                          </label>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Send a welcome email with password setup link to the new user's email address. 
+                            The link will be valid for 24 hours.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </form>
               )}
             </div>

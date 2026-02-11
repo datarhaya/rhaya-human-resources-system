@@ -1,6 +1,8 @@
 // backend/src/controllers/user.controller.js
 import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
+import { sendWelcomeEmailWithSetup } from '../services/welcomeEmail.service.js';
+import { generateResetToken, hashToken, getTokenExpiration } from '../services/passwordResetToken.service.js';
 
 const prisma = new PrismaClient();
 
@@ -195,7 +197,8 @@ export const createUser = async (req, res) => {
       plottingCompany,
       contractStartDate,
       contractEndDate,
-      companyType
+      companyType,
+      sendActivationEmail
     } = req.body;
 
     // Hash password
@@ -305,9 +308,50 @@ export const createUser = async (req, res) => {
       };
     });
 
+    // Send activation email if requested
+    if (sendActivationEmail) {
+      try {
+        console.log(`📧 Sending activation email to ${result.user.email}...`);
+        
+        // Generate password reset token
+        const plainToken = generateResetToken();
+        const hashedToken = await hashToken(plainToken);
+        const expiresAt = getTokenExpiration(24); // 24 hours
+
+        // Create reset token
+        await prisma.passwordReset.create({
+          data: {
+            userId: result.user.id,
+            token: hashedToken,
+            expiresAt: expiresAt,
+            ipAddress: 'system-user-creation'
+          }
+        });
+
+        // Send welcome email
+        const emailResult = await sendWelcomeEmailWithSetup(
+          {
+            name: result.user.name,
+            email: result.user.email,
+            nip: result.user.nip
+          },
+          plainToken
+        );
+
+        if (emailResult.success) {
+          console.log(`✅ Activation email sent to ${result.user.email}`);
+        } else {
+          console.error(`❌ Failed to send activation email: ${emailResult.error}`);
+        }
+      } catch (emailError) {
+        console.error('Error sending activation email:', emailError);
+        // Don't fail the user creation if email fails
+      }
+    }
+
     return res.status(201).json({
       success: true,
-      message: 'User created successfully',
+      message: 'User created successfully' + (sendActivationEmail ? ' and activation email sent' : ''),
       data: result.user
     });
 
@@ -811,7 +855,7 @@ export const permanentDeleteUser = async (req, res) => {
 export const adjustUserBalance = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { overtime, leave } = req.body;
+    const { overtime, leave, toil } = req.body;
 
     // Check user exists
     const currentYear = new Date().getFullYear();
@@ -819,7 +863,7 @@ export const adjustUserBalance = async (req, res) => {
       where: { id: userId },
       include: {
         overtimeBalance: true,
-        leaveBalances: {  // ← Changed to plural!
+        leaveBalances: {
           where: { year: currentYear },
           take: 1
         }
@@ -830,9 +874,9 @@ export const adjustUserBalance = async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Get current year's leave balance (it's an array now)
-    const currentLeaveBalance = user.leaveBalances && user.leaveBalances.length > 0   // ← Changed to plural
-      ? user.leaveBalances[0]   // ← Changed to plural
+    // Get current year's leave balance
+    const currentLeaveBalance = user.leaveBalances && user.leaveBalances.length > 0
+      ? user.leaveBalances[0]
       : null;
 
     const results = {};
@@ -850,7 +894,7 @@ export const adjustUserBalance = async (req, res) => {
         });
       }
 
-      const overtimeBalance = await prisma.overtimeBalance.upsert({
+      await prisma.overtimeBalance.upsert({
         where: { employeeId: userId },
         update: {
           currentBalance: newBalance
@@ -931,6 +975,67 @@ export const adjustUserBalance = async (req, res) => {
         previousQuota: currentLeaveBalance?.annualQuota || 0,
         newQuota: leave.annualQuota,
         remaining: leaveBalance.annualRemaining
+      };
+    }
+
+    // Adjust TOIL balance
+    if (toil && toil.amount !== undefined) {
+      if (!currentLeaveBalance) {
+        return res.status(400).json({ 
+          error: 'Cannot adjust TOIL: No leave balance found for current year',
+          message: 'Please create leave balance first'
+        });
+      }
+
+      if (!toil.reason || !toil.reason.trim()) {
+        return res.status(400).json({ 
+          error: 'Please provide a reason for TOIL adjustment'
+        });
+      }
+
+      const currentToilBalance = currentLeaveBalance.toilBalance || 0;
+      const toilAmount = parseInt(toil.amount);
+      const newToilBalance = currentToilBalance + toilAmount;
+
+      if (newToilBalance < 0) {
+        return res.status(400).json({ 
+          error: 'Cannot reduce TOIL balance below zero',
+          currentBalance: currentToilBalance,
+          requested: toilAmount
+        });
+      }
+
+      const updatedLeaveBalance = await prisma.leaveBalance.update({
+        where: { 
+          employeeId_year: {
+            employeeId: userId,
+            year: currentYear
+          }
+        },
+        data: {
+          toilBalance: newToilBalance
+        }
+      });
+
+      // Log the adjustment
+      await prisma.balanceAdjustmentLog.create({
+        data: {
+          userId,
+          adjustedBy: req.user.id,
+          type: 'TOIL',
+          amount: toilAmount,
+          previousBalance: currentToilBalance,
+          newBalance: newToilBalance,
+          reason: toil.reason,
+          year: currentYear
+        }
+      });
+
+      results.toil = {
+        year: currentYear,
+        previousBalance: currentToilBalance,
+        adjustment: toilAmount,
+        newBalance: newToilBalance
       };
     }
 
