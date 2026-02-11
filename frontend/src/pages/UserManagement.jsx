@@ -14,6 +14,7 @@ export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [divisions, setDivisions] = useState([]);
+  const [plottingCompanies, setPlottingCompanies] = useState([]);
   const [potentialSupervisors, setPotentialSupervisors] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
   
@@ -25,6 +26,7 @@ export default function UserManagement() {
   const [modalMode, setModalMode] = useState('create'); // 'create', 'edit', 'view', 'balance'
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedSupervisor, setSelectedSupervisor] = useState(null);
+  const [selectedPlottingCompany, setSelectedPlottingCompany] = useState(null);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteMode, setDeleteMode] = useState('soft'); // 'soft' or 'hard'
@@ -41,11 +43,14 @@ export default function UserManagement() {
   const [showAccessFilter, setShowAccessFilter] = useState(false);
   const [showStatusFilter, setShowStatusFilter] = useState(false);
 
-  // Create new role/division inline
+  // Create new role/division/plottingCompany inline
   const [isCreatingRole, setIsCreatingRole] = useState(false);
   const [isCreatingDivision, setIsCreatingDivision] = useState(false);
+  const [isCreatingPlottingCompany, setIsCreatingPlottingCompany] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
   const [newDivisionName, setNewDivisionName] = useState('');
+  const [newPlottingCompanyCode, setNewPlottingCompanyCode] = useState('');
+  const [newPlottingCompanyName, setNewPlottingCompanyName] = useState('');
   
   // User form state
   const [formData, setFormData] = useState({
@@ -65,7 +70,7 @@ export default function UserManagement() {
     accessLevel: '4',
     employeeStatus: 'PKWT',        
     joinDate: '',
-    plottingCompany: 'PT Rhayakan Film Indonesia',  
+    plottingCompanyId: '',  
     contractStartDate: '',              
     contractEndDate: '',                
     bpjsHealth: '',
@@ -126,10 +131,11 @@ export default function UserManagement() {
   const fetchData = async () => {
     try {
       setDataLoading(true);
-      const [usersRes, rolesRes, divisionsRes] = await Promise.all([
+      const [usersRes, rolesRes, divisionsRes, plottingCompaniesRes] = await Promise.all([
         apiClient.get('/users'),
         apiClient.get('/roles'),
-        apiClient.get('/divisions')
+        apiClient.get('/divisions'),
+        apiClient.get('/plotting-companies')
       ]);
 
       const allUsers = usersRes.data.data || [];
@@ -147,6 +153,7 @@ export default function UserManagement() {
       setUsers(allUsers);
       setRoles(rolesRes.data.data || []);
       setDivisions(divisionsRes.data.data || []);
+      setPlottingCompanies(plottingCompaniesRes.data.data || []);
       
       // Filter active users who can be supervisors (access level 1-4)
       const supervisors = allUsers.filter(u => 
@@ -321,6 +328,15 @@ export default function UserManagement() {
       supervisor: supervisor
     }));
 
+  // Prepare plotting company options for react-select
+  const plottingCompanyOptions = plottingCompanies
+    .sort((a, b) => a.code.localeCompare(b.code))
+    .map(company => ({
+      value: company.id,
+      label: `${company.code} - ${company.name}`,
+      company: company
+    }));
+
   // Custom styles for react-select
   const selectStyles = {
     control: (base) => ({
@@ -356,7 +372,7 @@ export default function UserManagement() {
       accessLevel: '4',
       employeeStatus: 'PKWT',        
       joinDate: '',
-      plottingCompany: 'PT Rhayakan Film Indonesia',  
+      plottingCompanyId: '',  
       contractStartDate: '',              
       contractEndDate: '',                
       bpjsHealth: '',
@@ -366,6 +382,7 @@ export default function UserManagement() {
     });
     setSelectedUser(null);
     setSelectedSupervisor(null);
+    setSelectedPlottingCompany(null);
   };
 
   const resetBalanceForm = () => {
@@ -432,6 +449,38 @@ export default function UserManagement() {
     }
   };
 
+  // Create new plotting company inline
+  const handleCreatePlottingCompany = async () => {
+    if (!newPlottingCompanyCode.trim() || !newPlottingCompanyName.trim()) {
+      alert('Please enter both code and company name');
+      return;
+    }
+
+    try {
+      const response = await apiClient.post('/plotting-companies/create', { 
+        code: newPlottingCompanyCode.trim().toUpperCase(),
+        name: newPlottingCompanyName.trim() 
+      });
+
+      const newCompany = response.data.data;
+      const updatedCompanies = [...plottingCompanies, newCompany].sort((a, b) => a.code.localeCompare(b.code));
+      setPlottingCompanies(updatedCompanies);
+      setFormData({ ...formData, plottingCompanyId: newCompany.id });
+      setSelectedPlottingCompany({
+        value: newCompany.id,
+        label: `${newCompany.code} - ${newCompany.name}`,
+        company: newCompany
+      });
+      setNewPlottingCompanyCode('');
+      setNewPlottingCompanyName('');
+      setIsCreatingPlottingCompany(false);
+      alert('Plotting Company created successfully!');
+    } catch (error) {
+      console.error('Create plotting company error:', error);
+      alert(error.response?.data?.error || 'Failed to create plotting company');
+    }
+  };
+
   // Submit user (create or update)
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -450,7 +499,7 @@ export default function UserManagement() {
         contractStartDate: formData.contractStartDate || null,  
         contractEndDate: formData.contractEndDate || null,      
         gender: formData.gender || 'Not Specified',
-        plottingCompany: formData.plottingCompany || 'PT Rhayakan Film indonesia',
+        plottingCompanyId: formData.plottingCompanyId || null,
         employeeStatus: formData.employeeStatus || 'PROBATION'
       };
 
@@ -488,7 +537,7 @@ export default function UserManagement() {
         accessLevel: '4',
         employeeStatus: 'PROBATION',
         joinDate: '',
-        plottingCompany: 'PT Rhayakan Film indonesia',
+        plottingCompanyId: '',
         contractStartDate: '',
         contractEndDate: '',
         bpjsHealth: '',
@@ -673,7 +722,7 @@ export default function UserManagement() {
       accessLevel: user.accessLevel?.toString() || '4',
       employeeStatus: user.employeeStatus || 'PROBATION',            
       joinDate: user.joinDate ? new Date(user.joinDate).toISOString().split('T')[0] : '',
-      plottingCompany: user.plottingCompany || 'PT Rhayakan Film indonesia',  
+      plottingCompanyId: user.plottingCompanyId || '',  
       contractStartDate: user.contractStartDate ? new Date(user.contractStartDate).toISOString().split('T')[0] : '',  
       contractEndDate: user.contractEndDate ? new Date(user.contractEndDate).toISOString().split('T')[0] : '',        
       bpjsHealth: user.bpjsHealth || '',
@@ -690,6 +739,17 @@ export default function UserManagement() {
       });
     } else {
       setSelectedSupervisor(null);
+    }
+
+    // Set selected plotting company for react-select
+    if (user.plottingCompany) {
+      setSelectedPlottingCompany({
+        value: user.plottingCompany.id,
+        label: `${user.plottingCompany.code} - ${user.plottingCompany.name}`,
+        company: user.plottingCompany
+      });
+    } else {
+      setSelectedPlottingCompany(null);
     }
 
     setShowModal(true);
@@ -1305,7 +1365,11 @@ export default function UserManagement() {
                         </div>
                         <div>
                           <label className="text-sm font-medium text-gray-500">Plotting Company</label>
-                          <p className="text-gray-900">{selectedUser.plottingCompany || 'N/A'}</p>
+                          <p className="text-gray-900">
+                            {selectedUser.plottingCompany 
+                              ? `${selectedUser.plottingCompany.code} - ${selectedUser.plottingCompany.name}`
+                              : 'N/A'}
+                          </p>
                         </div>
                         <div>
                           <label className="text-sm font-medium text-gray-500">Join Date</label>
@@ -1825,21 +1889,83 @@ export default function UserManagement() {
                       {/* Plotting Company */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Plotting Company
+                          Plotting Company <span className="text-red-500">*</span>
                         </label>
-                        <select
-                          value={formData.plottingCompany}
-                          onChange={(e) => setFormData({...formData, plottingCompany: e.target.value})}
-                          className="w-full px-3 py-2 border rounded-lg"
-                        >
-                          <option value="PT Rhayakan Film indonesia">PT Rhayakan Film indonesia</option>
-                          <option value="PT Lihat Dengar Rhayakan">PT Lihat Dengar Rhayakan</option>
-                          <option value="PT Rhayakan Cerita Indonesia">PT Rhayakan Cerita Indonesia</option>
-                          <option value="PT Dengarkan Ceritakan Rhayakan">PT Dengarkan Ceritakan Rhayakan</option>
-                          <option value="PT Rhayakan Sinema Indonesia">PT Rhayakan Sinema Indonesia</option>
-                          <option value="PT Gambar Besar Bercerita">PT Gambar Besar Bercerita</option>
-                          <option value="Other">Other</option>
-                        </select>
+                        {!isCreatingPlottingCompany ? (
+                          <div className="flex gap-2">
+                            <div className="flex-1">
+                              <Select
+                                value={selectedPlottingCompany}
+                                onChange={(option) => {
+                                  setSelectedPlottingCompany(option);
+                                  setFormData({...formData, plottingCompanyId: option?.value || ''});
+                                }}
+                                options={plottingCompanyOptions}
+                                styles={selectStyles}
+                                placeholder="Select plotting company..."
+                                isClearable
+                                isSearchable
+                                className="react-select-container"
+                                classNamePrefix="react-select"
+                                noOptionsMessage={() => "No companies found"}
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setIsCreatingPlottingCompany(true)}
+                              className="flex-shrink-0 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                              title="Create new plotting company"
+                            >
+                              +
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-medium text-blue-900">Create New Plotting Company</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsCreatingPlottingCompany(false);
+                                  setNewPlottingCompanyCode('');
+                                  setNewPlottingCompanyName('');
+                                }}
+                                className="text-blue-600 hover:text-blue-800 text-sm"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                            <div>
+                              <input
+                                type="text"
+                                value={newPlottingCompanyCode}
+                                onChange={(e) => setNewPlottingCompanyCode(e.target.value.toUpperCase())}
+                                placeholder="Company Code (e.g., RFI, RG)"
+                                maxLength="10"
+                                className="w-full px-3 py-2 border border-blue-300 rounded-lg mb-2"
+                              />
+                            </div>
+                            <div>
+                              <input
+                                type="text"
+                                value={newPlottingCompanyName}
+                                onChange={(e) => setNewPlottingCompanyName(e.target.value)}
+                                placeholder="Company Name (e.g., PT Rhayakan Film Indonesia)"
+                                className="w-full px-3 py-2 border border-blue-300 rounded-lg mb-2"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleCreatePlottingCompany}
+                              className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                            >
+                              Create Company
+                            </button>
+                          </div>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          Select or create a plotting company for the employee
+                        </p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Supervisor</label>

@@ -33,8 +33,8 @@ model User {
   contractEndDate        DateTime?
   contractStartDate      DateTime?
   gender                 String?                @default("Male")
-  plottingCompany        String?                @default("PT Rhayakan Film Indonesia")
   lastPasswordChange     DateTime?
+  plottingCompanyId      String?
   adjustmentsMade        BalanceAdjustmentLog[] @relation("AdjustedBy")
   balanceAdjustments     BalanceAdjustmentLog[]
   leaveBalances          LeaveBalance[]
@@ -58,6 +58,7 @@ model User {
   systemSettingsRecapped SystemSettings[]       @relation("SystemSettingsRecappedBy")
   toilEntries            TimeOffInLieu[]
   division               Division               @relation(fields: [divisionId], references: [id])
+  plottingCompany        PlottingCompany?       @relation(fields: [plottingCompanyId], references: [id])
   role                   Role                   @relation(fields: [roleId], references: [id])
   supervisor             User?                  @relation("Supervision", fields: [supervisorId], references: [id], onUpdate: NoAction)
   subordinates           User[]                 @relation("Supervision")
@@ -90,6 +91,19 @@ model Division {
   users       User[]
 
   @@map("Division")
+}
+
+model PlottingCompany {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String?  @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+
+  @@map("PlottingCompany")
 }
 
 model LeaveBalance {

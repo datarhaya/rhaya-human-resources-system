@@ -15,6 +15,7 @@ import overtimeRoutes from './routes/overtime.routes.js';
 import overtimeRecapRoutes from './routes/overtimeRecap.routes.js'; 
 import payslipRoutes from './routes/payslip.routes.js';
 import welcomeEmailRoutes from './routes/welcomeEmail.routes.js';
+import plottingCompanyRoutes from './routes/plottingCompany.routes.js';
 
 // Import middleware
 import { authenticateToken } from './middleware/auth.js';
@@ -142,6 +143,7 @@ app.use('/api/leave', leaveRoutes);
 app.use('/api/overtime', overtimeRoutes);
 app.use('/api/overtime-recap', overtimeRecapRoutes);
 app.use('/api/payslips', payslipRoutes);
+app.use('/api/plotting-companies', plottingCompanyRoutes);
 
 // Static file serving for uploads (protected)
 app.use('/uploads', authenticateToken, express.static('uploads'));

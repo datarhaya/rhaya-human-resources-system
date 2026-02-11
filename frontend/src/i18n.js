@@ -568,6 +568,7 @@ const resources = {
         commentPlaceholder: 'Insert 20 character at minimum',
         minCharacters : 'Min. 20 characters',
         characters : "characters",
+        "maxTwoDaysFromStart": "Maximum 2 days from start date",
 
         // Error Dialog
         error: 'Error',
@@ -1300,6 +1301,7 @@ const resources = {
         commentPlaceholder: 'Masukkan komentar minimal 20 karakter',
         minCharacters : 'Min. 20 karakter',
         characters : "karakter",
+        maxTwoDaysFromStart: "Maksimal 2 hari dari tanggal mulai",
 
         // Error Dialog
         error: 'Kesalahan',

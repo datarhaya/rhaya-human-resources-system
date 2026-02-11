@@ -21,6 +21,7 @@ export const getAllUsers = async (req, res) => {
         role: { select: { id: true, name: true } },
         division: { select: { id: true, name: true } },
         supervisor: { select: { id: true, name: true, email: true } },
+        plottingCompany: { select: { id: true, code: true, name: true } },
         overtimeBalance: {
           select: {
             currentBalance: true,
@@ -98,6 +99,13 @@ export const getUserById = async (req, res) => {
             id: true,
             name: true,
             email: true
+          }
+        },
+        plottingCompany: {
+          select: {
+            id: true,
+            code: true,
+            name: true
           }
         },
         overtimeBalance: {
@@ -194,7 +202,7 @@ export const createUser = async (req, res) => {
       supervisorId,
       employeeStatus,
       joinDate,
-      plottingCompany,
+      plottingCompanyId,
       contractStartDate,
       contractEndDate,
       companyType,
@@ -228,7 +236,7 @@ export const createUser = async (req, res) => {
           supervisorId: supervisorId || null,
           employeeStatus: employeeStatus || 'PKWT',                        
           joinDate: joinDate ? new Date(joinDate) : new Date(),
-          plottingCompany: plottingCompany || 'PT Rhayakan Film Indonesia', 
+          plottingCompanyId: plottingCompanyId || null, 
           contractStartDate: contractStartDate ? new Date(contractStartDate) : null,  
           contractEndDate: contractEndDate ? new Date(contractEndDate) : null,        
           companyType: companyType || 'parent'
@@ -408,7 +416,7 @@ export const updateUser = async (req, res) => {
       supervisorId,
       employeeStatus,
       joinDate,
-      plottingCompany,     
+      plottingCompanyId,     
       contractStartDate,   
       contractEndDate      
     } = req.body;
@@ -441,7 +449,7 @@ export const updateUser = async (req, res) => {
       supervisorId: supervisorId || null,
       employeeStatus,
       joinDate: joinDate ? new Date(joinDate) : undefined,
-      plottingCompany,                                                          
+      plottingCompanyId: plottingCompanyId || null,                                                          
       contractStartDate: contractStartDate ? new Date(contractStartDate) : undefined,  
       contractEndDate: contractEndDate ? new Date(contractEndDate) : undefined         
     };
@@ -461,6 +469,7 @@ export const updateUser = async (req, res) => {
         include: {
           role: true,
           division: true,
+          plottingCompany: true,
           supervisor: {
             select: {
               id: true,
