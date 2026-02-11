@@ -162,22 +162,29 @@ async function sendReminderForLeave(leave) {
   if (!toRecipient && divisionId) {
     const division = await prisma.division.findUnique({
       where: { id: divisionId },
-      include: {
-        head: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            employeeStatus: true
-          }
-        }
+      select: {
+        id: true,
+        name: true,
+        headId: true
       }
     });
 
-    if (division?.head && division.head.email && division.head.employeeStatus !== 'Inactive') {
-      toRecipient = division.head;
-      toRecipientType = 'Division Head';
-      console.log(`[Leave Reminder] TO: Division Head (${division.head.email})`);
+    if (division?.headId) {
+      const divisionHead = await prisma.user.findUnique({
+        where: { id: division.headId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          employeeStatus: true
+        }
+      });
+
+      if (divisionHead && divisionHead.email && divisionHead.employeeStatus !== 'Inactive') {
+        toRecipient = divisionHead;
+        toRecipientType = 'Division Head';
+        console.log(`[Leave Reminder] TO: Division Head (${divisionHead.email})`);
+      }
     }
   }
 
@@ -225,26 +232,37 @@ async function sendReminderForLeave(leave) {
     where: {
       headId: { not: null }
     },
-    include: {
-      head: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          employeeStatus: true
-        }
+    select: {
+      id: true,
+      name: true,
+      headId: true
+    }
+  });
+
+  // Get all division head users
+  const divisionHeadIds = allDivisions.map(d => d.headId).filter(Boolean);
+  
+  if (divisionHeadIds.length > 0) {
+    const divisionHeads = await prisma.user.findMany({
+      where: {
+        id: { in: divisionHeadIds },
+        employeeStatus: { not: 'Inactive' }
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true
       }
-    }
-  });
+    });
 
-  allDivisions.forEach(division => {
-    if (division.head && division.head.email && division.head.employeeStatus !== 'Inactive') {
-      ccEmails.add(division.head.email);
-    }
-  });
+    divisionHeads.forEach(head => {
+      if (head.email) {
+        ccEmails.add(head.email);
+      }
+    });
 
-  console.log(`[Leave Reminder] Added ${allDivisions.length} division heads to CC`);
-
+    console.log(`[Leave Reminder] Added ${divisionHeads.length} division heads to CC`);
+  }
   // CC 3: HR (unless HR is already the TO recipient)
   const hrEmail = process.env.HR_EMAIL || 'hr@rhayaflicks.com';
   if (toRecipient.email !== hrEmail) {
@@ -269,7 +287,7 @@ async function sendReminderForLeave(leave) {
 
     await sendLeaveReminderH7Email(toRecipient, leave, employee, ccList);
     
-    console.log(`✅ Leave reminder sent successfully`);
+    console.log(`   Leave reminder sent successfully`);
     console.log(`   TO: ${toRecipient.email} (${toRecipientType})`);
     console.log(`   CC: ${ccList.length} recipients`);
 
