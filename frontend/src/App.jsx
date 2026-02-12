@@ -27,7 +27,7 @@ import OvertimeRecapManagement from './pages/OvertimeRecapManagement';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import LeaveDetail from './pages/LeaveDetail';
-
+import CompanyDivisionManagement from './pages/CompanyDivisionManagement';
 
 // Layout
 import Layout from './components/Layout';
@@ -140,7 +140,6 @@ function App() {
             </ProtectedRoute>
           } />
 
-          
           <Route path="/overtime/request" element={
             <ProtectedRoute>
               <OvertimeRequest />
@@ -190,8 +189,14 @@ function App() {
           } />
           
           <Route path="/users/manage" element={
-            <ProtectedRoute>
+            <ProtectedRoute requiredLevel={2}>
               <UserManagement />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/admin/company-division" element={
+            <ProtectedRoute requiredLevel={2}>
+              <CompanyDivisionManagement />
             </ProtectedRoute>
           } />
 

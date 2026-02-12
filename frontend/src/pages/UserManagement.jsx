@@ -1985,7 +1985,7 @@ export default function UserManagement() {
                           noOptionsMessage={() => "No supervisors found"}
                         />
                         <p className="text-xs text-gray-500 mt-1">
-                          💡 Type to search by name, NIP, or role
+                          Type to search by name, NIP, or role
                         </p>
                       </div>
 

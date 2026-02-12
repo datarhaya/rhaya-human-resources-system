@@ -48,6 +48,7 @@ const resources = {
         overtimeRecap: 'Overtime Recap',
         internalPolicy: 'Internal Policy',
         logout: 'Logout',
+        companyDivisionManagement:'Company & Division Management',
       },
 
       // Login Page
@@ -784,6 +785,7 @@ const resources = {
         overtimeRecap: 'Rekap Lembur',
         internalPolicy: 'Kebijakan Internal',
         logout: 'Keluar',
+        companyDivisionManagement:'Manajemen Perusahaan & Divisi',
       },
 
       // Login Page
