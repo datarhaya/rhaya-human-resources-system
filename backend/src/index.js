@@ -168,7 +168,7 @@ app.use(errorHandler);
 // START SERVER
 // ============================================
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log('='.repeat(50));
   console.log('HR System API Server Started');
   console.log('='.repeat(50));
@@ -185,7 +185,7 @@ app.listen(PORT, () => {
 process.on('SIGTERM', () => {
   console.log('SIGTERM signal received: closing HTTP server');
   schedulerService.stopScheduler();
-  app.close(() => {
+  server.close(() => {
     console.log('✅ HTTP server closed');
   });
 });
