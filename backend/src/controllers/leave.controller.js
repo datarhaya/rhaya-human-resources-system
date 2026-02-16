@@ -505,6 +505,13 @@ export const approveLeaveRequest = async (req, res) => {
     const approverId = req.user.id;
     const approverLevel = req.user.accessLevel;
 
+    // ── DEBUG LOG ──────────────────────────────────────────────────
+    console.log(`[Approve] ====== START ======`);
+    console.log(`[Approve] requestId:      ${requestId}`);
+    console.log(`[Approve] approverId:     ${approverId}`);
+    console.log(`[Approve] approverLevel:  ${approverLevel}`);
+    // ───────────────────────────────────────────────────────────────
+
     const request = await prisma.leaveRequest.findUnique({
       where: { id: requestId },
       include: {
@@ -520,6 +527,18 @@ export const approveLeaveRequest = async (req, res) => {
     if (!request) {
       return res.status(404).json({ error: 'Leave request not found' });
     }
+
+    // ── DEBUG LOG ──────────────────────────────────────────────────
+    console.log(`[Approve] --- Request state from DB ---`);
+    console.log(`[Approve] status:              ${request.status}`);
+    console.log(`[Approve] supervisorId:        ${request.supervisorId}`);
+    console.log(`[Approve] supervisorStatus:    ${request.supervisorStatus}`);
+    console.log(`[Approve] currentApproverId:   ${request.currentApproverId}`);
+    console.log(`[Approve] division.headId:     ${request.employee.division?.headId}`);
+    console.log(`[Approve] divisionHeadStatus:  ${request.divisionHeadStatus}`);
+    console.log(`[Approve] isAdmin:             ${approverLevel === 1}`);
+    console.log(`[Approve] isCurrentApprover:   ${request.currentApproverId === approverId}`);
+    // ───────────────────────────────────────────────────────────────
 
     if (request.status !== 'PENDING') {
       return res.status(400).json({ error: 'Request already processed' });
@@ -541,10 +560,21 @@ export const approveLeaveRequest = async (req, res) => {
     const isSupervisorStage = request.supervisorId && request.supervisorStatus !== 'APPROVED';
     const isDivisionHeadStage = request.employee.division?.headId && request.divisionHeadStatus !== 'APPROVED';
 
+    // ── DEBUG LOG ──────────────────────────────────────────────────
+    console.log(`[Approve] --- Stage detection ---`);
+    console.log(`[Approve] isSupervisorStage:   ${isSupervisorStage}`);
+    console.log(`[Approve] isDivisionHeadStage: ${isDivisionHeadStage}`);
+    // ───────────────────────────────────────────────────────────────
+
     if (isSupervisorStage) {
-      // Stage 1: Supervisor approval
       const divisionHeadId = request.employee.division?.headId || null;
       const needsDivisionHeadApproval = divisionHeadId && divisionHeadId !== approverId;
+
+      // ── DEBUG LOG ────────────────────────────────────────────────
+      console.log(`[Approve] STAGE: Supervisor`);
+      console.log(`[Approve] divisionHeadId:          ${divisionHeadId}`);
+      console.log(`[Approve] needsDivisionHeadApproval: ${needsDivisionHeadApproval}`);
+      // ─────────────────────────────────────────────────────────────
 
       updateData = {
         supervisorStatus: 'APPROVED',
@@ -555,7 +585,10 @@ export const approveLeaveRequest = async (req, res) => {
         approvedAt: needsDivisionHeadApproval ? null : new Date()
       };
     } else if (isDivisionHeadStage) {
-      // Stage 2: Division head approval - FINAL
+      // ── DEBUG LOG ────────────────────────────────────────────────
+      console.log(`[Approve] STAGE: Division Head`);
+      // ─────────────────────────────────────────────────────────────
+
       updateData = {
         divisionHeadStatus: 'APPROVED',
         divisionHeadComment: comment || null,
@@ -565,7 +598,10 @@ export const approveLeaveRequest = async (req, res) => {
         approvedAt: new Date()
       };
     } else {
-      // Direct approval (no supervisor set) or admin override
+      // ── DEBUG LOG ────────────────────────────────────────────────
+      console.log(`[Approve] STAGE: Direct / Admin override`);
+      // ─────────────────────────────────────────────────────────────
+
       updateData = {
         status: 'APPROVED',
         approvedAt: new Date(),
@@ -576,6 +612,11 @@ export const approveLeaveRequest = async (req, res) => {
       };
     }
 
+    // ── DEBUG LOG ──────────────────────────────────────────────────
+    console.log(`[Approve] --- updateData ---`);
+    console.log(`[Approve]`, JSON.stringify(updateData, null, 2));
+    // ───────────────────────────────────────────────────────────────
+
     const updatedRequest = await prisma.leaveRequest.update({
       where: { id: requestId },
       data: updateData,
@@ -584,6 +625,14 @@ export const approveLeaveRequest = async (req, res) => {
         currentApprover: true
       }
     });
+
+    // ── DEBUG LOG ──────────────────────────────────────────────────
+    console.log(`[Approve] --- After DB update ---`);
+    console.log(`[Approve] final status:     ${updatedRequest.status}`);
+    console.log(`[Approve] final approverId: ${updatedRequest.currentApproverId}`);
+    console.log(`[Approve] approvedAt:       ${updatedRequest.approvedAt}`);
+    console.log(`[Approve] ====== END ======`);
+    // ───────────────────────────────────────────────────────────────
 
     // Update leave balance if approved
     if (updatedRequest.status === 'APPROVED') {
@@ -606,20 +655,21 @@ export const approveLeaveRequest = async (req, res) => {
 
         if (employee && employee.email) {
           await sendLeaveApprovedEmail(employee, updatedRequest, approver.name);
-          console.log('Leave approval email sent to:', employee.email);
+          console.log('✅ Leave approval email sent to:', employee.email);
         }
       } catch (emailError) {
         // Don't fail the request if email fails
-        console.error('Leave approval email failed:', emailError.message);
+        console.error('⚠️ Leave approval email failed:', emailError.message);
       }
       try {
         const { sendImmediateLeaveReminder } = await import('../services/leaveReminder.service.js');
         await sendImmediateLeaveReminder(updatedRequest.id);
       } catch (reminderError) {
-        console.error('Leave reminder failed:', reminderError.message);
+        console.error('⚠️ Leave reminder failed:', reminderError.message);
       }
 
     }
+
     return res
       .set('Cache-Control', 'no-store, no-cache, must-revalidate')
       .set('Pragma', 'no-cache')
@@ -633,6 +683,7 @@ export const approveLeaveRequest = async (req, res) => {
     return res.status(500).json({ error: 'Failed to approve leave request' });
   }
 };
+
 
 /**
  * Reject leave request
