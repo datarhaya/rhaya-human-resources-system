@@ -202,7 +202,12 @@ export default function LeaveApproval() {
     try {
       const endpoint = actionType === 'approve' ? 'approve' : 'reject';
       await apiClient.post(`/leave/${selectedRequest.id}/${endpoint}`, {
-        comment: comment.trim()  // Always send trimmed comment
+        comment: comment.trim()
+      }, {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
       });
 
       setShowModal(false);

@@ -538,20 +538,24 @@ export const approveLeaveRequest = async (req, res) => {
     // Determine next approver or final approval
     let updateData = {};
 
-    if (request.supervisorId && !request.supervisorDate) {
-      // Supervisor approval stage
-      const nextApproverId = request.employee.division?.headId || null;
+    const isSupervisorStage = request.supervisorId && request.supervisorStatus !== 'APPROVED';
+    const isDivisionHeadStage = request.employee.division?.headId && request.divisionHeadStatus !== 'APPROVED';
+
+    if (isSupervisorStage) {
+      // Stage 1: Supervisor approval
+      const divisionHeadId = request.employee.division?.headId || null;
+      const needsDivisionHeadApproval = divisionHeadId && divisionHeadId !== approverId;
 
       updateData = {
         supervisorStatus: 'APPROVED',
         supervisorComment: comment || null,
         supervisorDate: new Date(),
-        status: nextApproverId ? 'PENDING' : 'APPROVED',
-        currentApproverId: nextApproverId || approverId,
-        approvedAt: nextApproverId ? null : new Date()
+        status: needsDivisionHeadApproval ? 'PENDING' : 'APPROVED',
+        currentApproverId: needsDivisionHeadApproval ? divisionHeadId : approverId,
+        approvedAt: needsDivisionHeadApproval ? null : new Date()
       };
-    } else if (request.employee.division?.headId && !request.divisionHeadDate) {
-      // Division head approval - FINAL
+    } else if (isDivisionHeadStage) {
+      // Stage 2: Division head approval - FINAL
       updateData = {
         divisionHeadStatus: 'APPROVED',
         divisionHeadComment: comment || null,
@@ -561,7 +565,7 @@ export const approveLeaveRequest = async (req, res) => {
         approvedAt: new Date()
       };
     } else {
-      // Direct approval or admin override
+      // Direct approval (no supervisor set) or admin override
       updateData = {
         status: 'APPROVED',
         approvedAt: new Date(),
@@ -616,12 +620,14 @@ export const approveLeaveRequest = async (req, res) => {
       }
 
     }
-
-    return res.json({
-      success: true,
-      message: 'Leave request approved successfully',
-      data: updatedRequest
-    });
+    return res
+      .set('Cache-Control', 'no-store, no-cache, must-revalidate')
+      .set('Pragma', 'no-cache')
+      .json({
+        success: true,
+        message: 'Leave request approved successfully',
+        data: updatedRequest
+      });
   } catch (error) {
     console.error('Approve leave error:', error);
     return res.status(500).json({ error: 'Failed to approve leave request' });
