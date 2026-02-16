@@ -566,7 +566,27 @@ export const approveLeaveRequest = async (req, res) => {
     console.log(`[Approve] isDivisionHeadStage: ${isDivisionHeadStage}`);
     // ───────────────────────────────────────────────────────────────
 
-    if (isSupervisorStage) {
+    if (isAdmin) {
+      // ── DEBUG LOG ────────────────────────────────────────────────
+      console.log(`[Approve] STAGE: Admin full override`);
+      // ─────────────────────────────────────────────────────────────
+
+      // Admin approves everything in one step, filling all pending stages
+      const divisionHeadId = request.employee.division?.headId || null;
+      updateData = {
+        status: 'APPROVED',
+        approvedAt: new Date(),
+        currentApproverId: approverId,
+        supervisorStatus: 'APPROVED',
+        supervisorComment: request.supervisorComment || comment || 'Approved by Admin',
+        supervisorDate: request.supervisorDate || new Date(),
+        ...(divisionHeadId && {
+          divisionHeadStatus: 'APPROVED',
+          divisionHeadComment: request.divisionHeadComment || comment || 'Approved by Admin',
+          divisionHeadDate: request.divisionHeadDate || new Date(),
+        })
+      };
+    } else if (isSupervisorStage) {
       const divisionHeadId = request.employee.division?.headId || null;
       const needsDivisionHeadApproval = divisionHeadId && divisionHeadId !== approverId;
 
@@ -599,7 +619,7 @@ export const approveLeaveRequest = async (req, res) => {
       };
     } else {
       // ── DEBUG LOG ────────────────────────────────────────────────
-      console.log(`[Approve] STAGE: Direct / Admin override`);
+      console.log(`[Approve] STAGE: Direct approval (no supervisor set)`);
       // ─────────────────────────────────────────────────────────────
 
       updateData = {
@@ -607,7 +627,7 @@ export const approveLeaveRequest = async (req, res) => {
         approvedAt: new Date(),
         currentApproverId: approverId,
         supervisorStatus: 'APPROVED',
-        supervisorComment: comment || 'Approved by Admin',
+        supervisorComment: comment || 'Approved',
         supervisorDate: new Date()
       };
     }
