@@ -308,7 +308,7 @@ export default function CompanyDivisionManagement() {
                               disabled={company._count?.users > 0}
                               title={company._count?.users > 0 ? 'Cannot deactivate company with employees' : ''}
                             >
-                              {company._count?.users > 0 ? '🔒 Deactivate' : 'Deactivate'}
+                              {company._count?.users > 0 ? 'Deactivate' : 'Deactivate'}
                             </button>
                           </td>
                         </tr>
@@ -371,7 +371,7 @@ export default function CompanyDivisionManagement() {
                               disabled={division._count?.users > 0}
                               title={division._count?.users > 0 ? 'Cannot delete division with employees' : ''}
                             >
-                              {division._count?.users > 0 ? '🔒 Delete' : 'Delete'}
+                              {division._count?.users > 0 ? 'Delete' : 'Delete'}
                             </button>
                           </td>
                         </tr>
