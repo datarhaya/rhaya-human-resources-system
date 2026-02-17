@@ -997,6 +997,7 @@ export default function LeaveHistory() {
                           <option value="PENDING">{t('leave.pending')}</option>
                           <option value="APPROVED">{t('leave.approved')}</option>
                           <option value="REJECTED">{t('leave.rejected')}</option>
+                          <option value="CANCELLED">{t('leave.cancelled')}</option>
                         </select>
                       </div>
                     </div>

@@ -485,6 +485,7 @@ const resources = {
         pending: 'Pending',
         approved: 'Approved',
         rejected: 'Rejected',
+        cancelled: 'Dibatalkan',
         
         // Buttons
         submitRequest: 'Submit Leave Request',
@@ -1218,6 +1219,7 @@ const resources = {
         pending: 'Tertunda',
         approved: 'Disetujui',
         rejected: 'Ditolak',
+        cancelled: 'Dibatalkan',
         revisionRequested: 'Revisi',
         
         // Buttons
