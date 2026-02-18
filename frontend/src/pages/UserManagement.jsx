@@ -59,6 +59,8 @@ export default function UserManagement() {
     password: '',
     name: '',
     nip: '',
+    nik: '',
+    npwp: '',
     phone: '',
     dateOfBirth: '',
     placeOfBirth: '',
@@ -361,6 +363,8 @@ export default function UserManagement() {
       password: '',
       name: '',
       nip: '',
+      nik: '',
+      npwp: '',
       phone: '',
       dateOfBirth: '',
       placeOfBirth: '',
@@ -486,6 +490,18 @@ export default function UserManagement() {
     e.preventDefault();
     
     if (isSubmitting) return; // Prevent double submission
+
+    // Validate NIK if provided
+    if (formData.nik && formData.nik.length !== 16) {
+      alert('NIK must be exactly 16 digits');
+      return;
+    }
+
+    // Validate NPWP if provided
+    if (formData.npwp && formData.npwp.replace(/\D/g, '').length !== 15) {
+      alert('NPWP must be exactly 15 digits (XX.XXX.XXX.X-XXX.XXX)');
+      return;
+    }
     
     setIsSubmitting(true);
     
@@ -500,7 +516,9 @@ export default function UserManagement() {
         contractEndDate: formData.contractEndDate || null,      
         gender: formData.gender || 'Not Specified',
         plottingCompanyId: formData.plottingCompanyId || null,
-        employeeStatus: formData.employeeStatus || 'PROBATION'
+        employeeStatus: formData.employeeStatus || 'PROBATION',
+        nik: formData.nik || null,
+        npwp: formData.npwp || null
       };
 
       // Remove password if empty (for edit mode)
@@ -526,6 +544,8 @@ export default function UserManagement() {
         password: '',
         name: '',
         nip: '',
+        nik: '',
+        npwp: '',
         phone: '',
         dateOfBirth: '',
         placeOfBirth: '',
@@ -711,6 +731,8 @@ export default function UserManagement() {
       password: '', // Don't load password
       name: user.name || '',
       nip: user.nip || '',
+      nik: user.nik || '',
+      npwp: user.npwp || '',
       phone: user.phone || '',
       dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : '',
       placeOfBirth: user.placeOfBirth || '',
@@ -1325,6 +1347,14 @@ export default function UserManagement() {
                         <p className="text-gray-900">{selectedUser.nip || 'N/A'}</p>
                       </div>
                       <div>
+                        <label className="text-sm font-medium text-gray-500">NIK</label>
+                        <p className="text-gray-900">{selectedUser.nik || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">NPWP</label>
+                        <p className="text-gray-900">{selectedUser.npwp || 'N/A'}</p>
+                      </div>
+                      <div>
                         <label className="text-sm font-medium text-gray-500">Phone</label>
                         <p className="text-gray-900">{selectedUser.phone || 'N/A'}</p>
                       </div>
@@ -1699,6 +1729,48 @@ export default function UserManagement() {
                         />
                       </div>
                       <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">NIK</label>
+                        <input
+                          type="text"
+                          maxLength={16}
+                          value={formData.nik}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            setFormData({...formData, nik: val});
+                          }}
+                          placeholder="16-digit national ID number"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        />
+                        {formData.nik && formData.nik.length !== 16 && (
+                          <p className="text-xs text-red-500 mt-1">NIK must be exactly 16 digits</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">NPWP</label>
+                        <input
+                          type="text"
+                          maxLength={20}
+                          value={formData.npwp}
+                          onChange={(e) => {
+                            // Format as XX.XXX.XXX.X-XXX.XXX
+                            const digits = e.target.value.replace(/\D/g, '').slice(0, 15);
+                            let formatted = '';
+                            if (digits.length > 0) formatted += digits.slice(0, 2);
+                            if (digits.length > 2) formatted += '.' + digits.slice(2, 5);
+                            if (digits.length > 5) formatted += '.' + digits.slice(5, 8);
+                            if (digits.length > 8) formatted += '.' + digits.slice(8, 9);
+                            if (digits.length > 9) formatted += '-' + digits.slice(9, 12);
+                            if (digits.length > 12) formatted += '.' + digits.slice(12, 15);
+                            setFormData({...formData, npwp: formatted});
+                          }}
+                          placeholder="XX.XXX.XXX.X-XXX.XXX"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        />
+                        {formData.npwp && formData.npwp.replace(/\D/g, '').length !== 15 && (
+                          <p className="text-xs text-red-500 mt-1">NPWP must be 15 digits (XX.XXX.XXX.X-XXX.XXX)</p>
+                        )}
+                      </div>
+                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
                         <input
                           type="text"
@@ -1964,7 +2036,7 @@ export default function UserManagement() {
                           </div>
                         )}
                         <p className="text-xs text-gray-500 mt-1">
-                          Select or create a plotting company for the employee
+                          💡 Select or create a plotting company for the employee
                         </p>
                       </div>
                       <div>
@@ -1985,7 +2057,7 @@ export default function UserManagement() {
                           noOptionsMessage={() => "No supervisors found"}
                         />
                         <p className="text-xs text-gray-500 mt-1">
-                          Type to search by name, NIP, or role
+                          💡 Type to search by name, NIP, or role
                         </p>
                       </div>
 

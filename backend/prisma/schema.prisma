@@ -18,6 +18,8 @@ model User {
   dateOfBirth            DateTime?
   placeOfBirth           String?
   nip                    String?                @unique
+  nik                    String?                @unique
+  npwp                   String?                @unique
   employeeStatus         String                 @default("PKWT")
   joinDate               DateTime?
   roleId                 String
@@ -71,6 +73,8 @@ model User {
   @@index([accessLevel])
   @@index([email], map: "idx_users_email")
   @@index([nip], map: "idx_users_nip")
+  @@index([nik], map: "idx_users_nik")
+  @@index([npwp], map: "idx_users_npwp")
   @@map("users")
 }
 
