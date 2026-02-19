@@ -1,16 +1,6 @@
-// frontend/src/components/GeneratePayslipModal.jsx
+// frontend/src/components/GenerateFromExcelModal.jsx
 //
-// NEW 2-step workflow: Preview → Confirm & Upload
-//
-// Import in PayslipManagement.jsx:
-//   import GeneratePayslipModal from '../components/GeneratePayslipModal';
-//
-// Usage:
-//   <GeneratePayslipModal
-//     isOpen={showGenerateModal}
-//     onClose={() => setShowGenerateModal(false)}
-//     onSuccess={fetchData}
-//   />
+// 2-step workflow: Preview → Confirm & Upload
 
 import { useState } from 'react';
 import apiClient from '../api/client';
