@@ -17,7 +17,7 @@ export default function PayslipManagement() {
   
   // Filters
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
-  const [filterMonth, setFilterMonth] = useState('');
+  const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1);
   const [filterEmployee, setFilterEmployee] = useState('');
   const [filterDivision, setFilterDivision] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
