@@ -5,6 +5,12 @@ import { PrismaClient } from '@prisma/client';
 import { uploadPayslip, getFileFromR2, deleteFromR2 } from '../config/storage.js';
 import { sendPayslipNotificationEmail, sendBatchPayslipNotification } from '../services/email.service.js';
 import { encryptPayslipPDF, validateBirthDate } from '../utils/pdfEncryption.js';
+import { 
+     getExcelSheetNames, 
+     getRecommendedSheetName,
+     generatePayslipsPreviewWithTemplate, 
+     confirmAndUploadPayslips 
+   } from '../services/payslipGenerator.template.service.js';
 
 const prisma = new PrismaClient();
 
@@ -685,6 +691,311 @@ export const deletePayslip = async (req, res) => {
   }
 };
 
+/**
+ * Generate payslips from Excel file (bulk)
+ * POST /api/payslips/generate-from-excel
+ *
+ * Body (multipart/form-data):
+ *   file              - Excel file (.xlsx)
+ *   year              - e.g. 2025
+ *   month             - e.g. 7
+ *   payDate           - e.g. 2025-07-28  (optional, defaults to 28th of month)
+ *   sendNotifications - 'true' | 'false'  (default: 'true')
+ */
+export const generateFromExcel = async (req, res) => {
+  try {
+    const { year, month, payDate, sendNotifications = 'true' } = req.body;
+    const file = req.file;
+
+    // ── Validation ────────────────────────────────────────────────────────────
+    if (!file) {
+      return res.status(400).json({ error: 'No Excel file uploaded' });
+    }
+
+    const allowedMimes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+    ];
+    if (!allowedMimes.includes(file.mimetype)) {
+      return res.status(400).json({ error: 'Only .xlsx / .xls files are allowed' });
+    }
+
+    if (!year || !month) {
+      return res.status(400).json({ error: 'Missing required fields: year, month' });
+    }
+
+    const yearInt  = parseInt(year);
+    const monthInt = parseInt(month);
+
+    if (isNaN(yearInt) || yearInt < 2020 || yearInt > 2100) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+    if (isNaN(monthInt) || monthInt < 1 || monthInt > 12) {
+      return res.status(400).json({ error: 'Invalid month (must be 1–12)' });
+    }
+
+    console.log(
+      `[generateFromExcel] Starting | Period: ${monthInt}/${yearInt} | ` +
+      `File: ${file.originalname} | HR: ${req.user.id}`
+    );
+
+    // ── Run pipeline ──────────────────────────────────────────────────────────
+    const results = await generatePayslipsFromExcel(
+      file.buffer,
+      {
+        year: yearInt,
+        month: monthInt,
+        payDate: payDate || null,
+      },
+      req.user.id,
+      sendNotifications === 'true' || sendNotifications === true
+    );
+
+    // ── Response ──────────────────────────────────────────────────────────────
+    const status = results.failed.length === 0 ? 200 : 207; // 207 = partial success
+
+    return res.status(status).json({
+      success: true,
+      message:
+        `Payslip generation complete: ${results.success.length} generated` +
+        (results.failed.length > 0 ? `, ${results.failed.length} failed` : ''),
+      data: {
+        period: { year: yearInt, month: monthInt },
+        summary: {
+          total:     results.success.length + results.failed.length + results.skipped.length,
+          generated: results.success.length,
+          failed:    results.failed.length,
+          skipped:   results.skipped.length,
+        },
+        generated: results.success,
+        failed:    results.failed,
+        skipped:   results.skipped,
+      },
+    });
+
+  } catch (error) {
+    console.error('❌ generateFromExcel error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to generate payslips from Excel',
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Generate payslip preview from Excel (Step 1: Parse + Generate PDFs)
+ * POST /api/payslips/generate-preview
+ *
+ * Body (multipart/form-data):
+ *   file     - Excel file (.xlsx)
+ *   year     - e.g. 2025
+ *   month    - e.g. 7
+ *   payDate  - e.g. 2025-07-28 (optional)
+ *
+ /**
+ * Detect sheet names from uploaded Excel (Step 0: Sheet Detection)
+ * POST /api/payslips/detect-sheets
+ *
+ * Body (multipart/form-data):
+ *   file  - Excel file (.xlsx)
+ *   month - Current month number (for recommendation)
+ *
+ * Returns:
+ *   {
+ *     sheets: ['Sheet1', 'February', 'Format'],
+ *     recommended: 'February'
+ *   }
+ */
+export const detectSheets = async (req, res) => {
+  try {
+    const { month } = req.body;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ error: 'No Excel file uploaded' });
+    }
+
+    const allowedMimes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+    ];
+    if (!allowedMimes.includes(file.mimetype)) {
+      return res.status(400).json({ error: 'Only .xlsx / .xls files are allowed' });
+    }
+
+    console.log(`[detectSheets] File: ${file.originalname} | HR: ${req.user.id}`);
+
+    const sheetNames = await getExcelSheetNames(file.buffer);
+    const recommended = getRecommendedSheetName(sheetNames, parseInt(month) || new Date().getMonth() + 1);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        sheets: sheetNames,
+        recommended,
+      },
+    });
+
+  } catch (error) {
+    console.error('❌ detectSheets error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to detect sheets',
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Generate payslip preview from Excel using template (Step 1: Parse + Generate PDFs)
+ * POST /api/payslips/generate-preview
+ *
+ * Body (multipart/form-data):
+ *   file      - Excel file (.xlsx)
+ *   sheetName - Selected sheet name
+ *   year      - e.g. 2025
+ *   month     - e.g. 2
+ *   payDate   - e.g. 2025-02-28 (optional)
+ *
+ * Returns:
+ *   {
+ *     employees: [{ employeeId, name, nik, grossPay, netPay, pdfBase64, checked: true }, ...],
+ *     failed: [{ name, nik, reason }, ...]
+ *   }
+ */
+export const generatePreview = async (req, res) => {
+  try {
+    const { year, month, payDate, sheetName } = req.body;
+    const file = req.file;
+
+    // Validation
+    if (!file) {
+      return res.status(400).json({ error: 'No Excel file uploaded' });
+    }
+
+    if (!sheetName) {
+      return res.status(400).json({ error: 'Sheet name is required' });
+    }
+
+    const allowedMimes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+    ];
+    if (!allowedMimes.includes(file.mimetype)) {
+      return res.status(400).json({ error: 'Only .xlsx / .xls files are allowed' });
+    }
+
+    if (!year || !month) {
+      return res.status(400).json({ error: 'Missing required fields: year, month' });
+    }
+
+    const yearInt  = parseInt(year);
+    const monthInt = parseInt(month);
+
+    if (isNaN(yearInt) || yearInt < 2020 || yearInt > 2100) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+    if (isNaN(monthInt) || monthInt < 1 || monthInt > 12) {
+      return res.status(400).json({ error: 'Invalid month (must be 1–12)' });
+    }
+
+    console.log(
+      `[generatePreview] Starting | Period: ${monthInt}/${yearInt} | ` +
+      `Sheet: ${sheetName} | File: ${file.originalname} | HR: ${req.user.id}`
+    );
+
+    // Run preview generation with template
+    const results = await generatePayslipsPreviewWithTemplate(file.buffer, sheetName, {
+      year: yearInt,
+      month: monthInt,
+      payDate: payDate || null,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Preview generated: ${results.employees.length} employees, ${results.failed.length} failed`,
+      data: {
+        period: { year: yearInt, month: monthInt, payDate },
+        employees: results.employees,
+        failed: results.failed,
+      },
+    });
+
+  } catch (error) {
+    console.error('❌ generatePreview error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to generate preview',
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Confirm and upload selected payslips (Step 2: Encrypt + Upload R2 + Send Emails)
+ * POST /api/payslips/confirm-upload
+ *
+ * Body (JSON):
+ *   {
+ *     selectedEmployees: [
+ *       { employeeId, pdfBase64, grossPay, netPay },
+ *       ...
+ *     ],
+ *     period: { year, month, payDate },
+ *     sendNotifications: true/false
+ *   }
+ */
+export const confirmUpload = async (req, res) => {
+  try {
+    const { selectedEmployees, period, sendNotifications = true } = req.body;
+
+    if (!selectedEmployees || !Array.isArray(selectedEmployees) || selectedEmployees.length === 0) {
+      return res.status(400).json({ error: 'No employees selected' });
+    }
+
+    if (!period || !period.year || !period.month) {
+      return res.status(400).json({ error: 'Period data missing' });
+    }
+
+    console.log(
+      `[confirmUpload] Starting upload for ${selectedEmployees.length} employees | ` +
+      `Period: ${period.month}/${period.year} | HR: ${req.user.id}`
+    );
+
+    // Run upload
+    const results = await confirmAndUploadPayslips(
+      selectedEmployees,
+      period,
+      req.user.id,
+      sendNotifications
+    );
+
+    const status = results.failed.length === 0 ? 200 : 207;
+
+    return res.status(status).json({
+      success: true,
+      message: `Upload complete: ${results.success.length} uploaded${results.failed.length > 0 ? `, ${results.failed.length} failed` : ''}`,
+      data: {
+        summary: {
+          uploaded: results.success.length,
+          failed: results.failed.length,
+        },
+        uploaded: results.success,
+        failed: results.failed,
+      },
+    });
+
+  } catch (error) {
+    console.error('❌ confirmUpload error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to upload payslips',
+      message: error.message,
+    });
+  }
+};
+
 export default {
   uploadPayslipController,
   batchUploadPayslips,
@@ -693,5 +1004,9 @@ export default {
   getAllPayslips,
   getMyPayslips,
   downloadPayslip,
-  deletePayslip
+  deletePayslip,
+  generateFromExcel,
+  detectSheets,
+  generatePreview,
+  confirmUpload,
 };

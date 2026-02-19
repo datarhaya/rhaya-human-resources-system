@@ -1,0 +1,691 @@
+// backend/src/services/payslipGenerator.template.service.js
+// Excel template-based payslip generation with proper merge handling
+// COMPLETE VERSION with all requirements implemented
+
+import ExcelJS from 'exceljs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import htmlPdf from 'html-pdf-node';
+import { uploadPayslip } from '../config/storage.js';
+import { encryptPayslipPDF } from '../utils/pdfEncryption.js';
+import { sendPayslipNotificationEmail } from '../services/email.service.js';
+import prisma from '../config/database.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const MONTH_NAMES = [
+  '', 'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+// Path to template file
+const TEMPLATE_PATH = path.join(__dirname, '../templates/Template_Payslip.xlsx');
+
+// ─── Utility Functions ────────────────────────────────────────────────────────
+
+/**
+ * Get all sheet names from uploaded Excel file
+ */
+export const getExcelSheetNames = async (excelBuffer) => {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(excelBuffer);
+  return workbook.worksheets.map(ws => ws.name);
+};
+
+/**
+ * Recommend sheet name based on current month
+ */
+export const getRecommendedSheetName = (sheetNames, month) => {
+  const monthName = MONTH_NAMES[month];
+  
+  const exactMatch = sheetNames.find(name => 
+    name.toLowerCase() === monthName.toLowerCase()
+  );
+  if (exactMatch) return exactMatch;
+  
+  const partialMatch = sheetNames.find(name =>
+    name.toLowerCase().includes(monthName.toLowerCase())
+  );
+  if (partialMatch) return partialMatch;
+  
+  return sheetNames[0] || null;
+};
+
+// ─── Excel Parser ─────────────────────────────────────────────────────────────
+
+/**
+ * Parse payroll data from selected sheet
+ */
+export const parsePayrollSheet = async (excelBuffer, sheetName) => {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(excelBuffer);
+  
+  const sheet = workbook.getWorksheet(sheetName);
+  if (!sheet) {
+    throw new Error(`Sheet "${sheetName}" not found`);
+  }
+  
+  const employees = [];
+  
+  sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    if (rowNumber < 10) return;
+    
+    const name = row.getCell('B').value;
+    if (!name || typeof name !== 'string') return;
+    
+    const getCellValue = (col) => {
+      const cell = row.getCell(col);
+      const v = cell.value;
+      if (v && typeof v === 'object' && 'result' in v) return v.result;
+      return v;
+    };
+    
+    const parseNum = (col) => {
+      const v = getCellValue(col);
+      if (!v) return 0;
+      if (typeof v === 'string') {
+        const cleaned = v.replace(/[^0-9.-]/g, '');
+        return parseFloat(cleaned) || 0;
+      }
+      return typeof v === 'number' ? v : 0;
+    };
+    
+    employees.push({
+      rowNumber,
+      nik: String(getCellValue('E') || '').trim(),
+      position: getCellValue('C') || '',
+      
+      // Earnings
+      basicPay:        parseNum('H'),   // GAJI/PENSIUN
+      overtimePay:     parseNum('Z'),   // LEMBUR
+      bdd:             parseNum('Y'),   // THR + BONUS + OVERTIME
+      
+      // Health & Wellness components (req #7)
+      bpjskesEmployer: parseNum('N'),   // PREMI BPJSKES 4%
+      jkk:             parseNum('Q'),   // PREMI JKK 0.24%
+      jkm:             parseNum('R'),   // PREMI JKM 0.3%
+      
+      // Deductions (req #8, #9, #10)
+      pph21Percentage: parseNum('AE'),  // TER percentage
+      kompensasiA1:    parseNum('AG'),  // PPh 21 ADJUST (not AF)
+      pph21Adjust:     parseNum('AF'),  // PPh 21 ADJUST (not AF)
+      bpjstk:          parseNum('T'),   // PREMI JHTK 2%
+      bpjskes:         parseNum('U'),   // PREMI JKES 1%
+      
+      // Totals
+      grossPay:        parseNum('AC'),
+      netPay:          parseNum('AL'),
+    });
+  });
+  
+  return employees;
+};
+
+// ─── Excel to PDF Converter ───────────────────────────────────────────────────
+
+/**
+ * Convert Excel worksheet range to HTML with merged cells support
+ */
+async function excelRangeToHtml(sheet, range) {
+  const [startCell, endCell] = range.split(':');
+  const startRow = parseInt(startCell.match(/\d+/)[0]);
+  const endRow = parseInt(endCell.match(/\d+/)[0]);
+  const startCol = startCell.charCodeAt(0) - 64; // C=3
+  const endCol = endCell.charCodeAt(0) - 64;     // F=6
+  
+  // Track merged cells
+  const mergedCells = new Map();
+  const skipCells = new Set();
+  
+  Object.keys(sheet._merges).forEach(mergeKey => {
+    const merge = sheet._merges[mergeKey];
+    const { top, left, bottom, right } = merge.model;
+    
+    if (top >= startRow && bottom <= endRow && left >= startCol && right <= endCol) {
+      const rowspan = bottom - top + 1;
+      const colspan = right - left + 1;
+      mergedCells.set(`${top},${left}`, { rowspan, colspan });
+      
+      for (let r = top; r <= bottom; r++) {
+        for (let c = left; c <= right; c++) {
+          if (r !== top || c !== left) {
+            skipCells.add(`${r},${c}`);
+          }
+        }
+      }
+    }
+  });
+  
+  // Define grid regions (absolute Excel column numbers: C=3, D=4, E=5, F=6)
+  const gridRegions = [
+    { startRow: 7, endRow: 10, startCol: 3, endCol: 6 },   // C7:F10
+    { startRow: 15, endRow: 24, startCol: 3, endCol: 6 },  // C15:F24
+    { startRow: 26, endRow: 33, startCol: 3, endCol: 6 },  // C26:F33
+    { startRow: 35, endRow: 35, startCol: 5, endCol: 6 },  // E35:F35
+  ];
+  
+  const boldGridRows = [15, 24, 26, 33, 35]; // Rows with bold borders
+  
+  const hasGrid = (row, col) => {
+    return gridRegions.some(region =>
+      row >= region.startRow && row <= region.endRow &&
+      col >= region.startCol && col <= region.endCol
+    );
+  };
+  
+  const hasBoldGrid = (row) => boldGridRows.includes(row);
+  
+  // Start table with outer border (req #13)
+  let html = '<table cellpadding="4" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 10pt; border: 2px solid #000000;">';
+  
+  for (let r = startRow; r <= endRow; r++) {
+    // Set row height for row 35 (req #12)
+    const rowStyle = r === 36 ? ' style="height: 190px;"' : '';
+    html += `<tr${rowStyle}>`;
+    
+    for (let c = startCol; c <= endCol; c++) {
+      if (skipCells.has(`${r},${c}`)) continue;
+      
+      const cell = sheet.getCell(r, c);
+      let value = cell.value;
+      
+      // Handle rich text (req #5)
+      if (value && typeof value === 'object' && value.richText) {
+        value = value.richText.map(segment => {
+          if (segment.font?.bold) {
+            return `<strong>${segment.text}</strong>`;
+          }
+          return segment.text;
+        }).join('');
+      }
+      // Handle formula results
+      else if (value && typeof value === 'object') {
+        if ('result' in value) {
+          value = value.result;
+        } else if ('formula' in value) {
+          value = cell.text || '';
+        } else {
+          value = '';
+        }
+      }
+      
+      // Convert null/undefined to empty string
+      if (value === null || value === undefined) {
+        value = '';
+      }
+      
+      // Handle dates
+      if (value instanceof Date) {
+        value = value.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        });
+      }
+      
+      // Handle numbers - round to remove decimals (req #5)
+      if (typeof value === 'number') {
+        value = Math.round(value).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      }
+      
+      // Build cell style
+      let style = 'padding: 4px 8px;';
+      
+      // Set column C width to 150px (req #11)
+      if (c === 2) {
+        style += ' width: 43px;';
+      }
+      
+      if (c === 3) {
+        style += ' width: 150px;';
+      }
+      
+      if (c === 7) {
+        style += ' width: 43px;';
+      }
+
+      // Apply grid borders
+      const showGrid = hasGrid(r, c);
+      const boldBorder = hasBoldGrid(r);
+      
+      if (showGrid) {
+        const borderWidth = boldBorder ? '2px' : '1px';
+        style += ` border: ${borderWidth} solid #000000;`;
+      } else {
+        style += ' border: none;';
+      }
+      
+      if (cell.font?.bold) style += ' font-weight: bold;';
+      if (cell.font?.size) style += ` font-size: ${cell.font.size}pt;`;
+      
+      // Special color for plotting company (req #3)
+      if (r === 6 && c === 3) {
+        style += ' color: #28577d;';
+      }
+      
+      // White text for specific header cells (req #4)
+      const headerCells = [
+        { r: 7, c: 3 }, // EMPLOYEE INFORMATION
+        { r: 7, c: 5 }, // PAY DATE
+        { r: 7, c: 6 }, // PERIOD
+        { r: 9, c: 5 }, // Employee ID
+        { r: 9, c: 6 }, // PAY TYPE
+      ];
+      
+      if (headerCells.some(h => h.r === r && h.c === c)) {
+        style += ' color: #ffffff;';
+      }
+      
+      if (cell.fill?.fgColor?.argb) {
+        const color = cell.fill.fgColor.argb.slice(2);
+        style += ` background-color: #${color};`;
+      }
+      
+      if (cell.alignment?.horizontal) {
+        style += ` text-align: ${cell.alignment.horizontal};`;
+      }
+      if (cell.alignment?.vertical) {
+        style += ` vertical-align: ${cell.alignment.vertical};`;
+      }
+      
+      const mergeInfo = mergedCells.get(`${r},${c}`);
+      const rowspan = mergeInfo?.rowspan || 1;
+      const colspan = mergeInfo?.colspan || 1;
+      
+      html += `<td style="${style}" rowspan="${rowspan}" colspan="${colspan}">${value}</td>`;
+    }
+    
+    html += '</tr>';
+  }
+  
+  html += '</table>';
+  return html;
+}
+
+/**
+ * Fill template with employee data and convert to PDF
+ */
+export const fillTemplateAndConvertToPDF = async (employeeData, payrollData, period) => {
+  // Load template
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(TEMPLATE_PATH);
+  
+  const sheet = workbook.getWorksheet('Payslip');
+  if (!sheet) {
+    throw new Error('Template sheet "Payslip" not found');
+  }
+
+  
+  // ── Populate cells ─────────────────────────────────────────────────────────
+  sheet.mergeCells('C3:E3');
+  sheet.mergeCells('C4:E4');
+
+  sheet.getCell('C6').value = employeeData.plottingCompanyName || 'PT Rhayakan Film Indonesia';
+  sheet.mergeCells('C6:D6');
+  
+  // Name and Role - merge with column D (req #1, #2)
+  sheet.getCell('C8').value = employeeData.name;
+  // sheet.mergeCells('C8:D8');
+  
+  sheet.getCell('C9').value = payrollData.position || '';
+  // sheet.mergeCells('C9:D9');
+  
+  sheet.getCell('C10').value = employeeData.email;
+  
+  // Pay date with dd/mm/yy format (req #3)
+  const payDate = period.payDate 
+    ? new Date(period.payDate) 
+    : new Date(period.year, period.month - 1, 28);
+  
+  const formatDate = (date) => {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = String(date.getFullYear()).slice(-2);
+    return `${day}/${month}/${year}`;
+  };
+  
+  sheet.getCell('E8').value = formatDate(payDate);
+  sheet.getCell('F8').value = `${MONTH_NAMES[period.month]} ${period.year}`;
+  sheet.getCell('E10').value = employeeData.nip || employeeData.id;
+  
+  const leaveBalance = employeeData.annualRemaining + employeeData.toilBalance - employeeData.toilUsed;
+  sheet.getCell('D12').value = leaveBalance;
+  
+  // Add "per dd/mm/yy" below "Sisa Cuti" (req #4)
+  sheet.getCell('C13').value = `per ${formatDate(payDate)}`;
+  
+  // Earnings
+  sheet.getCell('E16').value = payrollData.basicPay;
+  sheet.getCell('F16').value = payrollData.basicPay;
+
+  sheet.getCell('E17').value = payrollData.overtimePay;
+  sheet.getCell('F17').value = payrollData.overtimePay;
+  
+  // Zero out these fields (req #6)
+  sheet.getCell('E18').value = 0; // Transportation
+  sheet.getCell('E20').value = 0; // Commission and Bonus
+  sheet.getCell('E21').value = 0; // Sick Pay
+  sheet.getCell('E23').value = 0; // Others
+
+  sheet.getCell('F18').value = 0; // Transportation
+  sheet.getCell('F20').value = 0; // Commission and Bonus
+  sheet.getCell('F21').value = 0; // Sick Pay
+  sheet.getCell('F23').value = 0; // Others
+  
+  // C19 - Prepaid Expense with bold "Prepaid Expense From:" (req #5)
+  sheet.getCell('C19').value = {
+    richText: [
+      { font: { bold: true }, text: 'Prepaid Expense From:' },
+      { text: ' THR: Bonus: Overtime' }
+    ]
+  };
+  sheet.getCell('E19').value = payrollData.bdd;
+  sheet.getCell('F19').value = payrollData.bdd;
+  
+  // Health & Wellness = sum of columns N + Q + R (req #7)
+  const healthWellness = (payrollData.bpjskesEmployer || 0) + 
+                         (payrollData.jkk || 0) + 
+                         (payrollData.jkm || 0);
+  sheet.getCell('E22').value = healthWellness;
+  sheet.getCell('F22').value = healthWellness;
+
+  sheet.getCell('F24').value = (payrollData.basicPay + payrollData.overtimePay + healthWellness + payrollData.bdd);
+  
+  // Deductions (req #8, #9, #10)
+  sheet.getCell('D27').value = payrollData.pph21Percentage;
+  sheet.getCell('E27').value = payrollData.pph21Adjust; // AG column (adjust)
+  sheet.getCell('F27').value = payrollData.pph21Adjust; // AG column (adjust)
+  
+  sheet.getCell('D28').value = "2%";
+  sheet.getCell('E28').value = payrollData.bpjstk;      // Column T
+  sheet.getCell('F28').value = payrollData.bpjstk;      // Column T
+  
+  sheet.getCell('D29').value = "1%";
+  sheet.getCell('E29').value = payrollData.bpjskes;     // Column U
+  sheet.getCell('F29').value = payrollData.bpjskes;     // Column U
+  
+  sheet.getCell('D30').value = "0%";
+  sheet.getCell('E30').value = 0    
+  sheet.getCell('F30').value = 0     
+  
+  sheet.getCell('D31').value = "0%";
+  sheet.getCell('E31').value = payrollData.kompensasiA1;  
+  sheet.getCell('F31').value = payrollData.kompensasiA1; 
+
+  sheet.getCell('D32').value = "0%";
+  sheet.getCell('E32').value = 0    
+  sheet.getCell('F32').value = 0     
+
+  sheet.getCell('F33').value = (payrollData.pph21Adjust + payrollData.bpjstk + payrollData.bpjskes + payrollData.kompensasiA1);     // Column F
+
+
+  // Take Home Pay
+  sheet.getCell('F35').value = ((payrollData.basicPay + payrollData.overtimePay) - (payrollData.pph21Adjust + payrollData.bpjstk + payrollData.bpjskes + payrollData.kompensasiA1)); // Recalculate net pay to ensure consistency with deductions (req #14)
+  
+  // ── Convert to HTML ────────────────────────────────────────────────────────
+  const htmlTable = await excelRangeToHtml(sheet, 'B2:G37');
+  
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        @page { 
+          size: A4; 
+          margin: 15mm;
+        }
+        body { 
+          margin: 0; 
+          padding: 0; 
+          width: 210mm;  /* A4 width */
+        }
+        table {
+          width: 100%;
+          page-break-inside: avoid;
+        }
+      </style>
+    </head>
+    <body>${htmlTable}</body>
+    </html>
+  `;
+  
+  // ── Convert HTML to PDF ────────────────────────────────────────────────────
+  const options = { 
+    format: 'A4',
+    printBackground: true,
+    margin: { top: '15mm', right: '15mm', bottom: '15mm', left: '15mm' },
+  };
+  
+  const file = { content: htmlContent };
+  const pdfBuffer = await htmlPdf.generatePdf(file, options);
+  
+  return pdfBuffer;
+};
+
+// ─── Preview Function ─────────────────────────────────────────────────────────
+
+/**
+ * Generate preview from Excel with sheet selection
+ */
+export const generatePayslipsPreviewWithTemplate = async (excelBuffer, sheetName, period) => {
+  const results = { employees: [], failed: [] };
+  
+  const payrollRows = await parsePayrollSheet(excelBuffer, sheetName);
+  
+  if (payrollRows.length === 0) {
+    throw new Error(`No employee data found in sheet "${sheetName}" (starting row 10)`);
+  }
+  
+  const dbEmployees = await prisma.user.findMany({
+    where: { employeeStatus: { not: 'Inactive' } },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      nip: true,
+      nik: true,
+      dateOfBirth: true,
+      plottingCompany: { select: { name: true } },
+      leaveBalances: {
+        select: { annualRemaining: true, toilBalance: true, toilUsed: true },
+        orderBy: { year: 'desc' },
+        take: 1,
+      },
+    },
+  });
+  
+  const nikMap = new Map();
+  for (const emp of dbEmployees) {
+    if (emp.nik) nikMap.set(String(emp.nik).trim(), emp);
+  }
+  
+  for (const row of payrollRows) {
+    if (!row.nik) {
+      results.failed.push({ nik: row.nik, reason: 'NIK is empty' });
+      continue;
+    }
+    
+    const employee = nikMap.get(row.nik);
+    if (!employee) {
+      results.failed.push({ nik: row.nik, reason: `No employee found with NIK ${row.nik}` });
+      continue;
+    }
+    
+    if (!employee.dateOfBirth) {
+      results.failed.push({
+        name: employee.name,
+        nik: row.nik,
+        reason: 'Date of birth missing — required for encryption',
+      });
+      continue;
+    }
+    
+    try {
+      const leaveData = employee.leaveBalances?.[0];
+      
+      const pdfBuffer = await fillTemplateAndConvertToPDF({
+        id: employee.id,
+        name: employee.name,
+        email: employee.email,
+        nip: employee.nip,
+        plottingCompanyName: employee.plottingCompany?.name,
+        annualRemaining: leaveData?.annualRemaining || 0,
+        toilBalance: leaveData?.toilBalance || 0,
+        toilUsed: leaveData?.toilUsed || 0,
+      }, row, period);
+      
+      // Validate deductions (req #14)
+      const calculatedNet = (row.basicPay + row.overtimePay) - 
+                           (row.pph21Adjust + row.bpjstk + row.bpjskes + row.kompensasiA1);
+      const deductionMismatch = Math.abs(calculatedNet - row.netPay) > 1; // Allow 1 IDR rounding difference
+      
+      // Format as IDR (req #15)
+      const formatIDR = (amount) => {
+        return new Intl.NumberFormat('id-ID', {
+          style: 'currency',
+          currency: 'IDR',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        }).format(Math.round(amount));
+      };
+      
+      results.employees.push({
+        employeeId: employee.id,
+        name: employee.name,
+        nik: row.nik,
+        email: employee.email,
+        position: row.position,
+        grossPay: row.grossPay,
+        netPay: row.netPay,
+        grossPayFormatted: formatIDR(row.grossPay),  // req #15
+        netPayFormatted: formatIDR(row.netPay),      // req #15
+        pdfBase64: pdfBuffer.toString('base64'),
+        checked: true,
+        deductionWarning: deductionMismatch ? `Deduction mismatch: Expected ${formatIDR(calculatedNet)} but got ${formatIDR(row.netPay)}` : null, // req #14
+      });
+      
+    } catch (err) {
+      console.error(`Failed to generate for ${employee.name}:`, err.message);
+      results.failed.push({ name: employee.name, nik: row.nik, reason: err.message });
+    }
+  }
+  
+  console.log(
+    `✅ Preview complete: ${results.employees.length} generated, ${results.failed.length} failed`
+  );
+  
+  return results;
+};
+
+// ─── Confirm & Upload Function ────────────────────────────────────────────────
+
+export const confirmAndUploadPayslips = async (
+  selectedEmployees,
+  period,
+  uploadedById,
+  sendNotifications = true
+) => {
+  const results = { success: [], failed: [] };
+  
+  const employeeIds = selectedEmployees.map(e => e.employeeId);
+  const dbEmployees = await prisma.user.findMany({
+    where: { id: { in: employeeIds } },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      dateOfBirth: true,
+      employeeStatus: true,
+    },
+  });
+  
+  const employeeMap = new Map(dbEmployees.map(e => [e.id, e]));
+  
+  for (const item of selectedEmployees) {
+    const employee = employeeMap.get(item.employeeId);
+    if (!employee) {
+      results.failed.push({ employeeId: item.employeeId, reason: 'Employee not found' });
+      continue;
+    }
+    
+    if (!employee.dateOfBirth) {
+      results.failed.push({
+        employeeId: item.employeeId,
+        name: employee.name,
+        reason: 'Date of birth missing',
+      });
+      continue;
+    }
+    
+    try {
+      const pdfBuffer = Buffer.from(item.pdfBase64, 'base64');
+      const encryptedBuffer = await encryptPayslipPDF(pdfBuffer, employee.dateOfBirth);
+      
+      const filename = `${employee.id}_payslip_${period.year}_${String(period.month).padStart(2, '0')}.pdf`;
+      const r2Key = await uploadPayslip(encryptedBuffer, employee.id, period.year, period.month, filename);
+      
+      const existing = await prisma.payslip.findUnique({
+        where: {
+          employeeId_year_month: {
+            employeeId: employee.id,
+            year: period.year,
+            month: period.month,
+          },
+        },
+      });
+      
+      const payslipData = {
+        fileName: filename,
+        fileUrl: r2Key,
+        fileSize: encryptedBuffer.length,
+        grossSalary: item.grossPay || null,
+        netSalary: item.netPay || null,
+        notes: `Generated from Excel template — ${MONTH_NAMES[period.month]} ${period.year}`,
+        uploadedById,
+        uploadedAt: new Date(),
+      };
+      
+      let payslip;
+      if (existing) {
+        payslip = await prisma.payslip.update({
+          where: { id: existing.id },
+          data: payslipData,
+        });
+      } else {
+        payslip = await prisma.payslip.create({
+          data: {
+            employeeId: employee.id,
+            year: period.year,
+            month: period.month,
+            ...payslipData,
+          },
+        });
+      }
+      
+      if (sendNotifications && employee.employeeStatus !== 'Inactive') {
+        try {
+          await sendPayslipNotificationEmail(employee, { year: period.year, month: period.month });
+        } catch (emailErr) {
+          console.warn(`Email failed for ${employee.name}:`, emailErr.message);
+        }
+      }
+      
+      results.success.push({
+        employeeId: employee.id,
+        name: employee.name,
+        payslipId: payslip.id,
+        emailSent: sendNotifications,
+      });
+      
+    } catch (err) {
+      console.error(`Upload failed for ${employee.name}:`, err.message);
+      results.failed.push({ employeeId: employee.id, name: employee.name, reason: err.message });
+    }
+  }
+  
+  console.log(`✅ Upload complete: ${results.success.length} uploaded, ${results.failed.length} failed`);
+  
+  return results;
+};

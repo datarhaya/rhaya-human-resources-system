@@ -9,7 +9,11 @@ import {
   getAllPayslips,
   getMyPayslips,
   downloadPayslip,
-  deletePayslip
+  generateFromExcel,
+  deletePayslip,
+  detectSheets,         
+  generatePreview,      
+  confirmUpload,        
 } from '../controllers/payslip.controller.js';
 import { authenticateToken, authorizeHR, requireRole } from '../middleware/auth.js';
 import { uploadPayslip as uploadMiddleware, uploadGeneric } from '../config/upload.js';
@@ -25,6 +29,14 @@ router.use(authenticateToken);
 
 // Get my payslips
 router.get('/my-payslips', getMyPayslips);
+
+// Generate payslips from Excel (bulk generate + upload + notify)
+router.post(
+  '/generate-from-excel',
+  requireRole([1, 2]),
+  uploadGeneric.single('file'),   // uploadGeneric already imported in your routes file
+  generateFromExcel
+);
 
 // Download payslip
 router.get('/:payslipId/download', downloadPayslip);
@@ -63,6 +75,29 @@ router.post('/notify-all',
 router.get('/', 
   authorizeHR, 
   getAllPayslips
+);
+
+// Detect sheet names from uploaded Excel
+router.post(
+  '/detect-sheets',
+  requireRole([1, 2]),
+  uploadGeneric.single('file'),
+  detectSheets
+);
+
+// Generate preview from selected sheet (parse + generate PDFs, no upload)
+router.post(
+  '/generate-preview',
+  requireRole([1, 2]),
+  uploadGeneric.single('file'),
+  generatePreview
+);
+
+// Confirm and upload selected payslips (encrypt + R2 + email)
+router.post(
+  '/confirm-upload',
+  requireRole([1, 2]),
+  confirmUpload
 );
 
 // Delete payslip

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Select from 'react-select';
 import apiClient from '../api/client';
+import GenerateFromExcelModal from '../components/GenerateFromExcelModal';
 
 export default function PayslipManagement() {
   const [payslips, setPayslips] = useState([]);
@@ -12,6 +13,7 @@ export default function PayslipManagement() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [existingPayslip, setExistingPayslip] = useState(null);
+  const [showExcelModal, setShowExcelModal] = useState(false);
   
   // Filters
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
@@ -394,7 +396,18 @@ export default function PayslipManagement() {
           <span>Batch Upload</span>
         </button>
 
-        {/* Existing Single Upload Button */}
+        <button
+          onClick={() => setShowExcelModal(true)}
+          className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 flex items-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Generate from Excel
+        </button>
+
+        {/* Single Upload Button */}
         <button
           onClick={() => setShowUploadModal(true)}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
@@ -1094,6 +1107,11 @@ export default function PayslipManagement() {
           </div>
         </div>
       )}
+      <GenerateFromExcelModal
+        isOpen={showExcelModal}
+        onClose={() => setShowExcelModal(false)}
+        onSuccess={fetchData}
+      />
 
       {loading && (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
