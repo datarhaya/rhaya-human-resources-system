@@ -2036,7 +2036,7 @@ export default function UserManagement() {
                           </div>
                         )}
                         <p className="text-xs text-gray-500 mt-1">
-                          💡 Select or create a plotting company for the employee
+                          Select or create a plotting company for the employee
                         </p>
                       </div>
                       <div>
@@ -2057,7 +2057,7 @@ export default function UserManagement() {
                           noOptionsMessage={() => "No supervisors found"}
                         />
                         <p className="text-xs text-gray-500 mt-1">
-                          💡 Type to search by name, NIP, or role
+                          Type to search by name, NIP, or role
                         </p>
                       </div>
 
