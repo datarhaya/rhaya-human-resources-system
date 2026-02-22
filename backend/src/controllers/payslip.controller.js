@@ -11,6 +11,7 @@ import {
      generatePayslipsPreviewWithTemplate, 
      confirmAndUploadPayslips 
    } from '../services/payslipGenerator.template.service.js';
+import { generatePayslipFilename } from '../utils/payslipFilename.js';
 
 const prisma = new PrismaClient();
 
@@ -35,7 +36,7 @@ export const uploadPayslipController = async (req, res) => {
       });
     }
 
-    // ✅ Get employee with date of birth
+    // Get employee with date of birth AND plotting company
     const employee = await prisma.user.findUnique({
       where: { id: employeeId },
       select: { 
@@ -43,7 +44,11 @@ export const uploadPayslipController = async (req, res) => {
         name: true, 
         email: true, 
         employeeStatus: true,
-        dateOfBirth: true  // ✅ Correct field name
+        dateOfBirth: true,
+        plottingCompanyId: true,                        
+        plottingCompany: {                              
+          select: { id: true, code: true, name: true }
+        }
       }
     });
 
@@ -53,7 +58,17 @@ export const uploadPayslipController = async (req, res) => {
       });
     }
 
-    // ✅ BLOCK UPLOAD if no date of birth
+    // Validate plotting company exists
+    if (!employee.plottingCompany) {
+      return res.status(400).json({ 
+        error: 'Employee must be assigned to a plotting company before uploading payslip.',
+        field: 'plottingCompanyId',
+        employeeId: employee.id,
+        employeeName: employee.name
+      });
+    }
+
+    // BLOCK UPLOAD if no date of birth
     if (!validateBirthDate(employee.dateOfBirth)) {
       return res.status(400).json({ 
         error: 'Tanggal lahir karyawan harus diisi sebelum upload payslip. Mohon update data karyawan terlebih dahulu.',
@@ -63,44 +78,54 @@ export const uploadPayslipController = async (req, res) => {
       });
     }
 
-    console.log(`✅ Birth date validation passed for employee: ${employee.name}`);
+    console.log(`Birth date validation passed for employee: ${employee.name}`);
 
-    // Check if payslip already exists
+    // Check if payslip already exists (with new unique constraint)
     const existing = await prisma.payslip.findUnique({
       where: {
-        employeeId_year_month: {
+        employeeId_year_month_plottingCompanyId: {      
           employeeId,
           year: parseInt(year),
-          month: parseInt(month)
+          month: parseInt(month),
+          plottingCompanyId: employee.plottingCompanyId  
         }
       }
     });
 
-    // ✅ ENCRYPT PDF with date of birth password (DDMMYYYY)
+    // ENCRYPT PDF with date of birth password (DDMMYYYY)
     let encryptedBuffer;
     try {
-      console.log(`🔒 Encrypting PDF for employee: ${employee.name}`);
+      console.log(`Encrypting PDF for employee: ${employee.name}`);
       encryptedBuffer = await encryptPayslipPDF(file.buffer, employee.dateOfBirth);
-      console.log(`✅ PDF encrypted successfully (size: ${encryptedBuffer.length} bytes)`);
+      console.log(`PDF encrypted successfully (size: ${encryptedBuffer.length} bytes)`);
     } catch (encryptError) {
-      console.error('❌ PDF encryption failed:', encryptError);
+      console.error('PDF encryption failed:', encryptError);
       return res.status(500).json({ 
         error: 'Gagal mengenkripsi file PDF. Mohon coba lagi atau hubungi IT support.',
         details: encryptError.message
       });
     }
 
+    // GENERATE NEW FILENAME FORMAT
+    const filename = generatePayslipFilename(
+      employee.name,
+      employee.plottingCompany.code,
+      { year: parseInt(year), month: parseInt(month) }
+    );
+
+    console.log(`Generated filename: ${filename}`);
+
     // Upload ENCRYPTED file to R2
     let r2Key;
     try {
       r2Key = await uploadPayslip(
-        encryptedBuffer,  // ✅ Upload encrypted buffer, not original
+        encryptedBuffer,
         employeeId, 
         parseInt(year), 
         parseInt(month), 
-        file.originalname
+        filename  // Use generated filename
       );
-      console.log('✅ Encrypted file uploaded to R2:', r2Key);
+      console.log('Encrypted file uploaded to R2:', r2Key);
     } catch (uploadError) {
       console.error('Error uploading to R2:', uploadError);
       return res.status(500).json({ 
@@ -116,99 +141,84 @@ export const uploadPayslipController = async (req, res) => {
       // Delete old file from R2
       try {
         await deleteFromR2(existing.fileUrl);
-        console.log('🗑️  Old file deleted from R2:', existing.fileUrl);
+        console.log('Old file deleted from R2:', existing.fileUrl);
       } catch (deleteError) {
-        console.warn('Could not delete old file:', deleteError.message);
+        console.warn('Warning: Could not delete old file:', deleteError.message);
       }
 
       // Update existing payslip
       payslip = await prisma.payslip.update({
         where: { id: existing.id },
         data: {
-          fileName: file.originalname,
+          fileName: filename,           
           fileUrl: r2Key,
-          fileSize: encryptedBuffer.length,  // ✅ Use encrypted size
+          fileSize: encryptedBuffer.length,
           grossSalary: grossSalary ? parseFloat(grossSalary) : null,
           netSalary: netSalary ? parseFloat(netSalary) : null,
-          notes: notes || null,
+          notes,
           uploadedById: req.user.id,
           uploadedAt: new Date()
         },
         include: {
-          employee: {
-            select: { id: true, name: true, email: true, employeeStatus: true }
-          }
+          employee: { select: { name: true, email: true } },
+          plottingCompany: { select: { code: true, name: true } }  
         }
       });
 
-      console.log('✅ Payslip updated:', payslip.id);
-
+      console.log(`Updated existing payslip: ${payslip.id}`);
     } else {
       // Create new payslip
+      isNewUpload = true;
       payslip = await prisma.payslip.create({
         data: {
           employeeId,
           year: parseInt(year),
           month: parseInt(month),
-          fileName: file.originalname,
+          plottingCompanyId: employee.plottingCompanyId,  
+          fileName: filename,                              
           fileUrl: r2Key,
-          fileSize: encryptedBuffer.length,  // ✅ Use encrypted size
+          fileSize: encryptedBuffer.length,
           grossSalary: grossSalary ? parseFloat(grossSalary) : null,
           netSalary: netSalary ? parseFloat(netSalary) : null,
-          notes: notes || null,
-          uploadedById: req.user.id
+          notes,
+          uploadedById: req.user.id,
+          uploadedAt: new Date()
         },
         include: {
-          employee: {
-            select: { id: true, name: true, email: true, employeeStatus: true }
-          }
+          employee: { select: { name: true, email: true } },
+          plottingCompany: { select: { code: true, name: true } }  
         }
       });
 
-      isNewUpload = true;
-      console.log('✅ Payslip created:', payslip.id);
+      console.log(`Created new payslip: ${payslip.id}`);
     }
 
-    // Send email notification if requested and employee is active
-    const shouldSendEmail = sendNotification === 'true' || sendNotification === true;
-    
-    if (shouldSendEmail && payslip.employee.employeeStatus !== 'Inactive') {
+    // Send email notification if requested
+    if ((sendNotification === 'true' || sendNotification === true) && 
+        employee.employeeStatus !== 'Inactive') {
       try {
-        await sendPayslipNotificationEmail(
-          payslip.employee, 
-          { year: payslip.year, month: payslip.month }
-        );
-        console.log(`✅ Payslip notification email sent to: ${payslip.employee.email}`);
+        await sendPayslipNotificationEmail(employee, {
+          year: parseInt(year),
+          month: parseInt(month),
+          plottingCompanyName: employee.plottingCompany.name  
+        });
+        console.log(`Email notification sent to: ${employee.email}`);
       } catch (emailError) {
-        console.error(`⚠️ Failed to send payslip notification email: ${emailError.message}`);
-        // Don't fail the request if email fails
+        console.error('Failed to send email notification:', emailError);
       }
     }
 
-    // res.json({
-    //   success: true,
-    //   message: isNewUpload 
-    //     ? 'Payslip berhasil diupload dan dienkripsi' 
-    //     : 'Payslip berhasil diupdate dan dienkripsi',
-    //   data: payslip,
-    //   encrypted: true  // ✅ Indicate PDF is encrypted
-    // });
-    return res.status(200).json({
+    return res.status(isNewUpload ? 201 : 200).json({
       success: true,
-      message: isNewUpload ? 'Payslip berhasil diupload' : 'Payslip berhasil diupdate',
+      message: isNewUpload ? 'Payslip uploaded successfully' : 'Payslip updated successfully',
       data: payslip
     });
 
   } catch (error) {
-    console.error('❌ Upload payslip error:', error);
-    
-    // res.status(500).json({
-    //   error: 'Failed to upload payslip',
-    //   message: error.message
-    // });
+    console.error('Error in uploadPayslipController:', error);
     return res.status(500).json({
       success: false,
-      error: 'Failed to upload payslip',
+      error: 'Internal server error',
       message: error.message
     });
   }
@@ -221,32 +231,36 @@ export const uploadPayslipController = async (req, res) => {
 export const batchUploadPayslips = async (req, res) => {
   try {
     const { year, month, sendNotifications = 'true' } = req.body;
-    const files = req.files; // Using multiple file upload
+    const files = req.files;
 
     if (!files || files.length === 0) {
       return res.status(400).json({ error: 'No files uploaded' });
     }
 
     if (!year || !month) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: year, month' 
-      });
+      return res.status(400).json({ error: 'Missing required fields: year, month' });
     }
-
-    console.log(`[Batch Upload] Starting batch upload for ${month}/${year} - ${files.length} files`);
 
     const results = {
       success: [],
       failed: [],
-      notifiedEmployees: []
+      skipped: []
     };
 
-    // Process each file
     for (const file of files) {
       try {
         // Extract employeeId from filename
-        // Expected format: employeeId_payslip_YYYY_MM.pdf or just employeeId.pdf
-        const employeeId = file.originalname.split('_')[0].split('.')[0];
+        // Support both old format (employeeId_payslip_YYYY_MM.pdf) and new format
+        let employeeId;
+        
+        // Try old format first
+        const oldMatch = file.originalname.match(/^(.+)_payslip_\d{4}_\d{1,2}\.pdf$/);
+        if (oldMatch) {
+          employeeId = oldMatch[1];
+        } else {
+          // Try to extract from new format or just use filename without extension
+          employeeId = file.originalname.replace(/\.pdf$/i, '').split(' - ')[0];
+        }
 
         if (!employeeId) {
           results.failed.push({
@@ -256,10 +270,20 @@ export const batchUploadPayslips = async (req, res) => {
           continue;
         }
 
-        // Check if employee exists
+        // Get employee with plotting company
         const employee = await prisma.user.findUnique({
           where: { id: employeeId },
-          select: { id: true, name: true, email: true, employeeStatus: true }
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            employeeStatus: true,
+            dateOfBirth: true,
+            plottingCompanyId: true,
+            plottingCompany: {
+              select: { id: true, code: true, name: true }
+            }
+          }
         });
 
         if (!employee) {
@@ -271,119 +295,130 @@ export const batchUploadPayslips = async (req, res) => {
           continue;
         }
 
-        // Check if payslip already exists
+        if (!employee.plottingCompany) {
+          results.skipped.push({
+            filename: file.originalname,
+            employeeId,
+            employeeName: employee.name,
+            reason: 'Employee not assigned to a plotting company'
+          });
+          continue;
+        }
+
+        if (!validateBirthDate(employee.dateOfBirth)) {
+          results.skipped.push({
+            filename: file.originalname,
+            employeeId,
+            employeeName: employee.name,
+            reason: 'Date of birth not set'
+          });
+          continue;
+        }
+
+        // Encrypt PDF
+        const encryptedBuffer = await encryptPayslipPDF(file.buffer, employee.dateOfBirth);
+
+        // Generate filename
+        const filename = generatePayslipFilename(
+          employee.name,
+          employee.plottingCompany.code,
+          { year: parseInt(year), month: parseInt(month) }
+        );
+
+        // Upload to R2
+        const r2Key = await uploadPayslip(
+          encryptedBuffer,
+          employeeId,
+          parseInt(year),
+          parseInt(month),
+          filename
+        );
+
+        // Check if payslip exists
         const existing = await prisma.payslip.findUnique({
           where: {
-            employeeId_year_month: {
+            employeeId_year_month_plottingCompanyId: {
               employeeId,
               year: parseInt(year),
-              month: parseInt(month)
+              month: parseInt(month),
+              plottingCompanyId: employee.plottingCompanyId
             }
           }
         });
 
-        // Upload file to R2
-        const r2Key = await uploadPayslip(
-          file.buffer, 
-          employeeId, 
-          parseInt(year), 
-          parseInt(month), 
-          file.originalname
-        );
-
         let payslip;
-
         if (existing) {
-          // Delete old file
-          try {
-            await deleteFromR2(existing.fileUrl);
-          } catch (deleteError) {
-            console.warn('Could not delete old file:', deleteError.message);
-          }
-
-          // Update existing
+          await deleteFromR2(existing.fileUrl);
           payslip = await prisma.payslip.update({
             where: { id: existing.id },
             data: {
-              fileName: file.originalname,
+              fileName: filename,
               fileUrl: r2Key,
-              fileSize: file.size,
+              fileSize: encryptedBuffer.length,
               uploadedById: req.user.id,
               uploadedAt: new Date()
             }
           });
         } else {
-          // Create new
           payslip = await prisma.payslip.create({
             data: {
               employeeId,
               year: parseInt(year),
               month: parseInt(month),
-              fileName: file.originalname,
+              plottingCompanyId: employee.plottingCompanyId,
+              fileName: filename,
               fileUrl: r2Key,
-              fileSize: file.size,
-              uploadedById: req.user.id
+              fileSize: encryptedBuffer.length,
+              uploadedById: req.user.id,
+              uploadedAt: new Date()
             }
           });
         }
 
+        // Send email notification
+        if ((sendNotifications === 'true' || sendNotifications === true) &&
+            employee.employeeStatus !== 'Inactive') {
+          try {
+            await sendPayslipNotificationEmail(employee, {
+              year: parseInt(year),
+              month: parseInt(month),
+              plottingCompanyName: employee.plottingCompany.name
+            });
+          } catch (emailError) {
+            console.error(`Email failed for ${employee.name}:`, emailError);
+          }
+        }
+
         results.success.push({
+          filename: file.originalname,
+          newFilename: filename,
           employeeId,
           employeeName: employee.name,
-          filename: file.originalname,
           payslipId: payslip.id
         });
 
-        // Collect employees for notification
-        if (employee.employeeStatus !== 'Inactive') {
-          results.notifiedEmployees.push(employee);
-        }
-
-      } catch (fileError) {
+      } catch (error) {
+        console.error(`Error processing ${file.originalname}:`, error);
         results.failed.push({
           filename: file.originalname,
-          error: fileError.message
+          error: error.message
         });
       }
     }
 
-    // Send batch notifications if requested
-    const shouldSendNotifications = sendNotifications === 'true' || sendNotifications === true;
-    
-    if (shouldSendNotifications && results.notifiedEmployees.length > 0) {
-      try {
-        const notificationResult = await sendBatchPayslipNotification(
-          results.notifiedEmployees,
-          { year: parseInt(year), month: parseInt(month) }
-        );
-        
-        console.log(`✅ Batch notifications sent: ${notificationResult.success} succeeded, ${notificationResult.failed} failed`);
-        
-        results.emailNotifications = {
-          sent: notificationResult.success,
-          failed: notificationResult.failed,
-          failedEmails: notificationResult.failedEmails
-        };
-      } catch (emailError) {
-        console.error('⚠️ Batch notification error:', emailError);
-        results.emailNotifications = {
-          error: emailError.message
-        };
-      }
-    }
+    const status = results.failed.length > 0 ? 207 : 200;
 
-    console.log(`[Batch Upload] Complete: ${results.success.length} succeeded, ${results.failed.length} failed`);
-
-    res.json({
+    return res.status(status).json({
       success: true,
-      message: `Batch upload complete: ${results.success.length} uploaded, ${results.failed.length} failed`,
+      message: `Batch upload complete: ${results.success.length} uploaded, ${results.failed.length} failed, ${results.skipped.length} skipped`,
       data: results
     });
 
   } catch (error) {
-    console.error('❌ Batch upload error:', error);
-    res.status(500).json({
-      error: 'Failed to process batch upload',
+    console.error('Error in batchUploadPayslips:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error',
       message: error.message
     });
   }
@@ -422,7 +457,7 @@ export const sendPayslipNotification = async (req, res) => {
       { year: payslip.year, month: payslip.month }
     );
 
-    console.log(`✅ Manual payslip notification sent to: ${payslip.employee.email}`);
+    console.log(`Manual payslip notification sent to: ${payslip.employee.email}`);
 
     res.json({
       success: true,
@@ -430,7 +465,7 @@ export const sendPayslipNotification = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Send notification error:', error);
+    console.error('Send notification error:', error);
     res.status(500).json({
       error: 'Failed to send notification',
       message: error.message
@@ -488,7 +523,7 @@ export const notifyAllForMonth = async (req, res) => {
       { year: parseInt(year), month: parseInt(month) }
     );
 
-    console.log(`✅ Blast notifications complete: ${result.success} sent, ${result.failed} failed`);
+    console.log(`Blast notifications complete: ${result.success} sent, ${result.failed} failed`);
 
     res.json({
       success: true,
@@ -502,7 +537,7 @@ export const notifyAllForMonth = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Notify all error:', error);
+    console.error('Notify all error:', error);
     res.status(500).json({
       error: 'Failed to send notifications',
       message: error.message
@@ -774,7 +809,7 @@ export const generateFromExcel = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ generateFromExcel error:', error);
+    console.error('generateFromExcel error:', error);
     return res.status(500).json({
       success: false,
       error: 'Failed to generate payslips from Excel',
@@ -838,7 +873,7 @@ export const detectSheets = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ detectSheets error:', error);
+    console.error('detectSheets error:', error);
     return res.status(500).json({
       success: false,
       error: 'Failed to detect sheets',
@@ -923,7 +958,7 @@ export const generatePreview = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ generatePreview error:', error);
+    console.error('generatePreview error:', error);
     return res.status(500).json({
       success: false,
       error: 'Failed to generate preview',
@@ -987,7 +1022,7 @@ export const confirmUpload = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ confirmUpload error:', error);
+    console.error('confirmUpload error:', error);
     return res.status(500).json({
       success: false,
       error: 'Failed to upload payslips',

@@ -1,5 +1,5 @@
 // frontend/src/components/GenerateFromExcelModal.jsx
-//
+
 // 2-step workflow: Preview → Confirm & Upload
 
 import { useState } from 'react';
@@ -141,6 +141,9 @@ export default function GeneratePayslipModal({ isOpen, onClose, onSuccess }) {
           pdfBase64:  e.pdfBase64,
           grossPay:   e.grossPay,
           netPay:     e.netPay,
+          plottingCompanyId: e.plottingCompanyId,      // NEW
+          plottingCompanyCode: e.plottingCompanyCode,  // NEW
+          plottingCompanyName: e.plottingCompanyName,  // NEW
         })),
         period: previewData.period,
         sendNotifications: form.sendNotifications,
@@ -419,6 +422,7 @@ export default function GeneratePayslipModal({ isOpen, onClose, onSuccess }) {
                             <input type="checkbox" checked={employees.every(e => e.checked)} onChange={toggleAll} className="rounded" />
                           </th>
                           <th className="px-3 py-2">Employee</th>
+                          <th className="px-3 py-2">Company</th>
                           <th className="px-3 py-2">NIK</th>
                           <th className="px-3 py-2 text-right">Gross Pay</th>
                           <th className="px-3 py-2 text-right">Net Pay</th>
@@ -444,6 +448,10 @@ export default function GeneratePayslipModal({ isOpen, onClose, onSuccess }) {
                                   {emp.deductionWarning}
                                 </div>
                               )}
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="text-sm font-medium text-gray-700">{emp.plottingCompanyCode || '-'}</div>
+                              <div className="text-xs text-gray-500">{emp.plottingCompanyName || ''}</div>
                             </td>
                             <td className="px-3 py-2 text-gray-600">{emp.nik}</td>
                             <td className="px-3 py-2 text-right text-gray-700">

@@ -22,6 +22,32 @@ const MONTH_NAMES = [
 // Path to template file
 const TEMPLATE_PATH = path.join(__dirname, '../templates/Template_Payslip.xlsx');
 
+// ─── Helper Functions ─────────────────────────────────────────────────────────
+
+/**
+ * Abbreviate employee name: "Muhammad Harun Asrori" → "Muhammad Harun A."
+ */
+const abbreviateName = (fullName) => {
+  const words = fullName.trim().split(' ');
+  if (words.length <= 2) return fullName;
+  
+  const firstTwo = words.slice(0, 2).join(' ');
+  const restAbbrev = words.slice(2).map(w => w.charAt(0).toUpperCase() + '.').join(' ');
+  return `${firstTwo} ${restAbbrev}`;
+};
+
+/**
+ * Generate payslip filename with new format
+ * Format: {CompanyCode} - Payslip {AbbrevName} - {Month} {Year}.pdf
+ * Example: "RFI - Payslip Muhammad Harun A. - February 2026.pdf"
+ */
+const generatePayslipFilename = (employeeName, plottingCompanyCode, period) => {
+  const abbrevName = abbreviateName(employeeName);
+  const monthName = MONTH_NAMES[period.month];
+  
+  return `${plottingCompanyCode} - Payslip ${abbrevName} - ${monthName} ${period.year}.pdf`;
+};
+
 // ─── Utility Functions ────────────────────────────────────────────────────────
 
 /**
@@ -101,7 +127,7 @@ export const parsePayrollSheet = async (excelBuffer, sheetName) => {
       overtimePay:     parseNum('Z'),   // LEMBUR
       bdd:             parseNum('Y'),   // THR + BONUS + OVERTIME
       
-      // Health & Wellness components (req #7)
+      // Health & Wellness components 
       bpjskesEmployer: parseNum('N'),   // PREMI BPJSKES 4%
       jkk:             parseNum('Q'),   // PREMI JKK 0.24%
       jkm:             parseNum('R'),   // PREMI JKM 0.3%
@@ -487,7 +513,13 @@ export const generatePayslipsPreviewWithTemplate = async (excelBuffer, sheetName
       nip: true,
       nik: true,
       dateOfBirth: true,
-      plottingCompany: { select: { name: true } },
+      plottingCompany: { 
+        select: { 
+          id: true,
+          name: true, 
+          code: true  
+        } 
+      },
       leaveBalances: {
         select: { annualRemaining: true, toilBalance: true, toilUsed: true },
         orderBy: { year: 'desc' },
@@ -557,10 +589,13 @@ export const generatePayslipsPreviewWithTemplate = async (excelBuffer, sheetName
         nik: row.nik,
         email: employee.email,
         position: row.position,
+        plottingCompanyId: employee.plottingCompany?.id,      
+        plottingCompanyCode: employee.plottingCompany?.code,  
+        plottingCompanyName: employee.plottingCompany?.name,  
         grossPay: row.grossPay,
         netPay: row.netPay,
-        grossPayFormatted: formatIDR(row.grossPay),  // req #15
-        netPayFormatted: formatIDR(row.netPay),      // req #15
+        grossPayFormatted: formatIDR(row.grossPay),  
+        netPayFormatted: formatIDR(row.netPay),      
         pdfBase64: pdfBuffer.toString('base64'),
         checked: true,
         deductionWarning: deductionMismatch ? `Deduction mismatch: Expected ${formatIDR(calculatedNet)} but got ${formatIDR(row.netPay)}` : null, // req #14
@@ -619,19 +654,36 @@ export const confirmAndUploadPayslips = async (
       continue;
     }
     
+    // Validate plottingCompanyId is provided
+    if (!item.plottingCompanyId) {
+      results.failed.push({
+        employeeId: item.employeeId,
+        name: employee.name,
+        reason: 'Plotting company ID missing',
+      });
+      continue;
+    }
+    
     try {
       const pdfBuffer = Buffer.from(item.pdfBase64, 'base64');
       const encryptedBuffer = await encryptPayslipPDF(pdfBuffer, employee.dateOfBirth);
       
-      const filename = `${employee.id}_payslip_${period.year}_${String(period.month).padStart(2, '0')}.pdf`;
+      // Generate filename format ie."RFI - Payslip Muhammad Harun A. - February 2026.pdf"
+      const filename = generatePayslipFilename(
+        employee.name,
+        item.plottingCompanyCode,
+        period
+      );
+      
       const r2Key = await uploadPayslip(encryptedBuffer, employee.id, period.year, period.month, filename);
       
       const existing = await prisma.payslip.findUnique({
         where: {
-          employeeId_year_month: {
+          employeeId_year_month_plottingCompanyId: {
             employeeId: employee.id,
             year: period.year,
             month: period.month,
+            plottingCompanyId: item.plottingCompanyId, // NEW: Include in unique check
           },
         },
       });
@@ -645,6 +697,7 @@ export const confirmAndUploadPayslips = async (
         notes: `Generated from Excel template — ${MONTH_NAMES[period.month]} ${period.year}`,
         uploadedById,
         uploadedAt: new Date(),
+        plottingCompanyId: item.plottingCompanyId, // NEW: Save plotting company
       };
       
       let payslip;
@@ -666,7 +719,11 @@ export const confirmAndUploadPayslips = async (
       
       if (sendNotifications && employee.employeeStatus !== 'Inactive') {
         try {
-          await sendPayslipNotificationEmail(employee, { year: period.year, month: period.month });
+          await sendPayslipNotificationEmail(employee, { 
+            year: period.year, 
+            month: period.month,
+            plottingCompanyName: item.plottingCompanyName, // NEW: Include company in email
+          });
         } catch (emailErr) {
           console.warn(`Email failed for ${employee.name}:`, emailErr.message);
         }

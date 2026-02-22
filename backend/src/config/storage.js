@@ -196,12 +196,14 @@ export const fileExists = async (key) => {
  * @param {string} employeeId
  * @param {number} year
  * @param {number} month
- * @param {string} originalFilename
+ * @param {string} filename - Full filename (already generated with new format)
  * @returns {Promise<string>} - R2 key
  */
-export const uploadPayslip = async (fileBuffer, employeeId, year, month, originalFilename) => {
-  const ext = path.extname(originalFilename);
-  const key = FILE_TYPES.PAYSLIP.getKey(employeeId, year, month, ext);
+export const uploadPayslip = async (fileBuffer, employeeId, year, month, filename) => {
+  // Use the filename provided (controller generates it with new format)
+  // Format: "RFI - Payslip Muhammad Harun A. - February 2026.pdf"
+  const monthPadded = month.toString().padStart(2, '0');
+  const key = `payslips/${employeeId}/${year}/${monthPadded}/${filename}`;
   
   return uploadToR2(fileBuffer, key, 'application/pdf', {
     employeeId,
