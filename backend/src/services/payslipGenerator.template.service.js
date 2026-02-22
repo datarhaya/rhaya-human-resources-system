@@ -445,9 +445,9 @@ export const fillTemplateAndConvertToPDF = async (employeeData, payrollData, per
 
   sheet.getCell('F33').value = (payrollData.pph21Adjust + payrollData.bpjstk + payrollData.bpjskes + payrollData.kompensasiA1);     // Column F
 
-
   // Take Home Pay
-  sheet.getCell('F35').value = ((payrollData.basicPay + payrollData.overtimePay) - (payrollData.pph21Adjust + payrollData.bpjstk + payrollData.bpjskes + payrollData.kompensasiA1)); // Recalculate net pay to ensure consistency with deductions (req #14)
+  sheet.getCell('F35').value = ((payrollData.basicPay + payrollData.overtimePay) - 
+                                (payrollData.pph21Adjust + payrollData.bpjstk + payrollData.bpjskes + payrollData.kompensasiA1)); // Recalculate net pay to ensure consistency with deductions
   
   // ── Convert to HTML ────────────────────────────────────────────────────────
   const htmlTable = await excelRangeToHtml(sheet, 'B2:G37');
@@ -608,7 +608,7 @@ export const generatePayslipsPreviewWithTemplate = async (excelBuffer, sheetName
   }
   
   console.log(
-    `✅ Preview complete: ${results.employees.length} generated, ${results.failed.length} failed`
+    `Preview complete: ${results.employees.length} generated, ${results.failed.length} failed`
   );
   
   return results;
@@ -742,7 +742,7 @@ export const confirmAndUploadPayslips = async (
     }
   }
   
-  console.log(`✅ Upload complete: ${results.success.length} uploaded, ${results.failed.length} failed`);
+  console.log(`Upload complete: ${results.success.length} uploaded, ${results.failed.length} failed`);
   
   return results;
 };

@@ -6,11 +6,12 @@ import { uploadPayslip, getFileFromR2, deleteFromR2 } from '../config/storage.js
 import { sendPayslipNotificationEmail, sendBatchPayslipNotification } from '../services/email.service.js';
 import { encryptPayslipPDF, validateBirthDate } from '../utils/pdfEncryption.js';
 import { 
-     getExcelSheetNames, 
-     getRecommendedSheetName,
-     generatePayslipsPreviewWithTemplate, 
-     confirmAndUploadPayslips 
-   } from '../services/payslipGenerator.template.service.js';
+      getExcelSheetNames, 
+      getRecommendedSheetName,
+      parsePayrollSheet,
+      fillTemplateAndConvertToPDF,
+      confirmAndUploadPayslips 
+} from '../services/payslipGenerator.template.service.js';
 import { generatePayslipFilename } from '../utils/payslipFilename.js';
 
 const prisma = new PrismaClient();
@@ -1031,6 +1032,224 @@ export const confirmUpload = async (req, res) => {
   }
 };
 
+/**
+ * Generate payslip preview with real-time progress streaming (SSE)
+ * POST /api/payslips/generate-preview-stream
+ * 
+ * Uses Server-Sent Events to stream progress updates to the client
+ */
+export const generatePreviewStream = async (req, res) => {
+  // Set SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+
+  // Helper to send progress events
+  const sendProgress = (data) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  try {
+    const { year, month, payDate, sheetName } = req.body;
+    
+    // Get file from multipart (stored in memory by multer)
+    const file = req.file;
+
+    if (!file || !sheetName || !year || !month) {
+      sendProgress({ 
+        type: 'error', 
+        message: 'Missing required fields' 
+      });
+      return res.end();
+    }
+
+    const yearInt = parseInt(year);
+    const monthInt = parseInt(month);
+    const period = { year: yearInt, month: monthInt, payDate: payDate || null };
+
+    // Step 1: Parse Excel
+    sendProgress({ 
+      type: 'status', 
+      message: 'Reading Excel file...',
+      stage: 'parsing'
+    });
+
+    const payrollRows = await parsePayrollSheet(file.buffer, sheetName);
+    
+    if (payrollRows.length === 0) {
+      sendProgress({ 
+        type: 'error', 
+        message: `No employee data found in sheet "${sheetName}"` 
+      });
+      return res.end();
+    }
+
+    sendProgress({ 
+      type: 'status', 
+      message: `Found ${payrollRows.length} employees in Excel`,
+      stage: 'parsed',
+      total: payrollRows.length
+    });
+
+    // Step 2: Fetch employees from DB
+    sendProgress({ 
+      type: 'status', 
+      message: 'Fetching employee data from database...',
+      stage: 'fetching'
+    });
+
+    const dbEmployees = await prisma.user.findMany({
+      where: { employeeStatus: { not: 'Inactive' } },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        nip: true,
+        nik: true,
+        dateOfBirth: true,
+        plottingCompany: { 
+          select: { 
+            id: true,
+            name: true, 
+            code: true
+          } 
+        },
+        leaveBalances: {
+          select: { annualRemaining: true, toilBalance: true, toilUsed: true },
+          orderBy: { year: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    const nikMap = new Map();
+    for (const emp of dbEmployees) {
+      if (emp.nik) nikMap.set(String(emp.nik).trim(), emp);
+    }
+
+    // Step 3: Process each employee with progress updates
+    const results = { employees: [], failed: [] };
+    let processedCount = 0;
+
+    for (const row of payrollRows) {
+      processedCount++;
+      
+      // Send progress update
+      sendProgress({
+        type: 'progress',
+        current: processedCount,
+        total: payrollRows.length,
+        percentage: Math.round((processedCount / payrollRows.length) * 100),
+        currentEmployee: row.nik ? nikMap.get(row.nik)?.name || 'Unknown' : 'Unknown',
+        stage: 'generating'
+      });
+
+      // Validation checks
+      if (!row.nik) {
+        results.failed.push({ nik: row.nik, reason: 'NIK is empty' });
+        continue;
+      }
+
+      const employee = nikMap.get(row.nik);
+      if (!employee) {
+        results.failed.push({ nik: row.nik, reason: `No employee found with NIK ${row.nik}` });
+        continue;
+      }
+
+      if (!employee.dateOfBirth) {
+        results.failed.push({
+          name: employee.name,
+          nik: row.nik,
+          reason: 'Date of birth missing',
+        });
+        continue;
+      }
+
+      // Generate PDF
+      try {
+        const leaveData = employee.leaveBalances?.[0];
+        
+        const pdfBuffer = await fillTemplateAndConvertToPDF({
+          id: employee.id,
+          name: employee.name,
+          email: employee.email,
+          nip: employee.nip,
+          plottingCompanyName: employee.plottingCompany?.name,
+          annualRemaining: leaveData?.annualRemaining || 0,
+          toilBalance: leaveData?.toilBalance || 0,
+          toilUsed: leaveData?.toilUsed || 0,
+        }, row, period);
+
+        // Validate deductions
+        const calculatedNet = (row.basicPay + row.overtimePay) - 
+                            (row.pph21Adjust + row.bpjstk + row.bpjskes + row.kompensasiA1);
+        const deductionMismatch = Math.abs(calculatedNet - row.netPay) > 1; // Allow 1 IDR rounding difference
+
+        // Format as IDR
+        const formatIDR = (amount) => {
+          return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+          }).format(Math.round(amount));
+        };
+
+        results.employees.push({
+          employeeId: employee.id,
+          name: employee.name,
+          nik: row.nik,
+          email: employee.email,
+          position: row.position,
+          plottingCompanyId: employee.plottingCompany?.id,
+          plottingCompanyCode: employee.plottingCompany?.code,
+          plottingCompanyName: employee.plottingCompany?.name,
+          grossPay: row.grossPay,
+          netPay: row.netPay,
+          grossPayFormatted: formatIDR(row.grossPay),
+          netPayFormatted: formatIDR(row.netPay),
+          pdfBase64: pdfBuffer.toString('base64'),
+          checked: true,
+          deductionWarning: deductionMismatch 
+            ? `Deduction mismatch: Expected ${formatIDR(calculatedNet)} but got ${formatIDR(row.netPay)}` 
+            : null,
+        });
+
+      } catch (err) {
+        console.error(`Failed to generate for ${employee.name}:`, err.message);
+        results.failed.push({ name: employee.name, nik: row.nik, reason: err.message });
+      }
+    }
+
+    // Send completion event with final results
+    sendProgress({
+      type: 'complete',
+      data: {
+        period,
+        employees: results.employees,
+        failed: results.failed,
+      },
+      summary: {
+        total: payrollRows.length,
+        generated: results.employees.length,
+        failed: results.failed.length,
+      }
+    });
+
+    // Close connection
+    res.end();
+
+  } catch (error) {
+    console.error('generatePreviewStream error:', error);
+    sendProgress({ 
+      type: 'error', 
+      message: error.message 
+    });
+    res.end();
+  }
+};
+
 export default {
   uploadPayslipController,
   batchUploadPayslips,
@@ -1044,4 +1263,5 @@ export default {
   detectSheets,
   generatePreview,
   confirmUpload,
+  generatePreviewStream
 };

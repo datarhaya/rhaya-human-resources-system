@@ -1,5 +1,4 @@
 // frontend/src/components/GenerateFromExcelModal.jsx
-
 // 2-step workflow: Preview → Confirm & Upload
 
 import { useState } from 'react';
@@ -30,6 +29,15 @@ export default function GeneratePayslipModal({ isOpen, onClose, onSuccess }) {
 
   const [loading, setLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+
+  // Progress tracking
+  const [progress, setProgress] = useState({
+    current: 0,
+    total: 0,
+    percentage: 0,
+    currentEmployee: '',
+    stage: '',
+  });
 
   // Step 1.5: sheet selection
   const [sheetData, setSheetData] = useState(null); // { sheets: [], recommended: '' }
@@ -93,14 +101,16 @@ export default function GeneratePayslipModal({ isOpen, onClose, onSuccess }) {
     }
   };
 
-  // Step 1.5 → 2: Generate preview
+  // Step 1.5 → 2: Generate preview with real-time progress (SSE)
   const handleGeneratePreview = async (e) => {
     e.preventDefault();
     if (!selectedSheet) { alert('Please select a sheet'); return; }
 
     setLoading(true);
+    setProgress({ current: 0, total: 0, percentage: 0, currentEmployee: '', stage: 'starting' });
 
     try {
+      // Build FormData
       const fd = new FormData();
       fd.append('file', form.file);
       fd.append('sheetName', selectedSheet);
@@ -108,19 +118,70 @@ export default function GeneratePayslipModal({ isOpen, onClose, onSuccess }) {
       fd.append('month', form.month);
       if (form.payDate) fd.append('payDate', form.payDate);
 
-      const res = await apiClient.post('/payslips/generate-preview', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      // Create EventSource for SSE (requires GET, so we'll use fetch with streaming)
+      const response = await fetch(`${apiClient.defaults.baseURL}/payslips/generate-preview-stream`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: fd,
       });
 
-      setPreviewData(res.data.data);
-      setEmployees(res.data.data.employees); // all checked by default
-      setStep(2);
+      if (!response.ok) {
+        throw new Error('Failed to start generation');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      // Read stream
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = JSON.parse(line.slice(6));
+            
+            if (data.type === 'progress') {
+              setProgress({
+                current: data.current,
+                total: data.total,
+                percentage: data.percentage,
+                currentEmployee: data.currentEmployee,
+                stage: data.stage,
+              });
+            } else if (data.type === 'status') {
+              setProgress(prev => ({
+                ...prev,
+                stage: data.stage,
+                message: data.message,
+                total: data.total || prev.total,
+              }));
+            } else if (data.type === 'complete') {
+              setPreviewData(data.data);
+              setEmployees(data.data.employees);
+              setStep(2);
+              setLoading(false);
+              return;
+            } else if (data.type === 'error') {
+              throw new Error(data.message);
+            }
+          }
+        }
+      }
 
     } catch (err) {
-      const msg = err.response?.data?.message || err.response?.data?.error || err.message;
+      const msg = err.message || 'Preview generation failed';
       alert(`Preview failed: ${msg}`);
-    } finally {
       setLoading(false);
+      setProgress({ current: 0, total: 0, percentage: 0, currentEmployee: '', stage: '' });
     }
   };
 
@@ -336,6 +397,39 @@ export default function GeneratePayslipModal({ isOpen, onClose, onSuccess }) {
             {/* ── STEP 1.5: Sheet Selection ────────────────────────────────── */}
             {step === 1.5 && sheetData && (
               <div className="space-y-4">
+                {/* Progress Overlay */}
+                {loading && progress.stage === 'generating' && progress.total > 0 && (
+                  <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-blue-900">
+                        Generating Payslips...
+                      </span>
+                      <span className="text-sm font-bold text-blue-700">
+                        {progress.current}/{progress.total}
+                      </span>
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    <div className="w-full bg-blue-200 rounded-full h-3 mb-2 overflow-hidden">
+                      <div 
+                        className="bg-blue-600 h-full transition-all duration-300 ease-out rounded-full flex items-center justify-end px-2"
+                        style={{ width: `${progress.percentage}%` }}
+                      >
+                        <span className="text-xs font-bold text-white">
+                          {progress.percentage}%
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Current Employee */}
+                    {progress.currentEmployee && (
+                      <div className="text-xs text-blue-700 mt-1">
+                        Processing: <span className="font-medium">{progress.currentEmployee}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <p className="text-sm text-blue-800">
                     <strong>{sheetData.sheets.length} sheet(s)</strong> found in your Excel file.
@@ -576,7 +670,9 @@ export default function GeneratePayslipModal({ isOpen, onClose, onSuccess }) {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                       </svg>
-                      Generating...
+                      {progress.stage === 'generating' && progress.total > 0
+                        ? `${progress.current}/${progress.total} (${progress.percentage}%)`
+                        : 'Generating...'}
                     </>
                   ) : (
                     'Generate Preview'

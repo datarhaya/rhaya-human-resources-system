@@ -13,7 +13,8 @@ import {
   deletePayslip,
   detectSheets,         
   generatePreview,      
-  confirmUpload,        
+  confirmUpload,
+  generatePreviewStream        
 } from '../controllers/payslip.controller.js';
 import { authenticateToken, authorizeHR, requireRole } from '../middleware/auth.js';
 import { uploadPayslip as uploadMiddleware, uploadGeneric } from '../config/upload.js';
@@ -83,6 +84,13 @@ router.post(
   requireRole([1, 2]),
   uploadGeneric.single('file'),
   detectSheets
+);
+
+router.post(
+  '/generate-preview-stream',
+  requireRole([1, 2]),
+  uploadGeneric.single('file'),  // Accepts multipart/form-data
+  generatePreviewStream
 );
 
 // Generate preview from selected sheet (parse + generate PDFs, no upload)
