@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Select from 'react-select';
 import apiClient from '../api/client';
 import GenerateFromExcelModal from '../components/GenerateFromExcelModal';
+import PayslipDashboardWidget from '../components/PayslipDashboardWidget';
 
 export default function PayslipManagement() {
   const [payslips, setPayslips] = useState([]);
@@ -21,6 +22,7 @@ export default function PayslipManagement() {
   const [filterEmployee, setFilterEmployee] = useState('');
   const [filterDivision, setFilterDivision] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   const [uploadData, setUploadData] = useState({
     employeeId: '',
@@ -113,6 +115,11 @@ export default function PayslipManagement() {
     } else {
       await performUpload();
     }
+  };
+
+  const handleUploadSuccess = () => {
+    fetchData();  // Refresh payslip list
+    setRefreshTrigger(prev => prev + 1);  // Refresh widget
   };
 
   const performUpload = async () => {
@@ -382,44 +389,49 @@ export default function PayslipManagement() {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-      <h1 className="text-2xl font-bold text-gray-900">Payslip Management</h1>
-      
-      <div className="flex space-x-3">
-        {/* ADD: Batch Upload Button */}
-        <button
-          onClick={() => setShowBatchModal(true)}
-          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center space-x-2"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-          </svg>
-          <span>Batch Upload</span>
-        </button>
+        <h1 className="text-2xl font-bold text-gray-900">Payslip Management</h1>
+        <div className="flex space-x-3">
+          {/* Batch Upload Button */}
+          <button
+            onClick={() => setShowBatchModal(true)}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center space-x-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            <span>Batch Upload</span>
+          </button>
 
-        <button
-          onClick={() => setShowExcelModal(true)}
-          className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 flex items-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          Generate from Excel
-        </button>
+          <button
+            onClick={() => setShowExcelModal(true)}
+            className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Generate from Excel
+          </button>
 
-        {/* Single Upload Button */}
-        <button
-          onClick={() => setShowUploadModal(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          <span>Upload Payslip</span>
-        </button>
+          {/* Single Upload Button */}
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Upload Payslip</span>
+          </button>
+        </div>
       </div>
-    </div>
-
+      {filterYear && filterMonth && (
+      <PayslipDashboardWidget 
+        year={filterYear} 
+        month={filterMonth}
+        onRefresh={refreshTrigger}  // Widget refreshes when this changes
+      />
+      )}
       {/* Filters */}
       <div className="mb-6 bg-white rounded-lg shadow p-4">
         <div className="grid grid-cols-5 gap-4">

@@ -14,7 +14,8 @@ import {
   detectSheets,         
   generatePreview,      
   confirmUpload,
-  generatePreviewStream        
+  generatePreviewStream,
+  getMonthlyStats
 } from '../controllers/payslip.controller.js';
 import { authenticateToken, authorizeHR, requireRole } from '../middleware/auth.js';
 import { uploadPayslip as uploadMiddleware, uploadGeneric } from '../config/upload.js';
@@ -76,6 +77,12 @@ router.post('/notify-all',
 router.get('/', 
   authorizeHR, 
   getAllPayslips
+);
+
+router.get(
+  '/monthly-stats',
+  requireRole([1, 2]),  // Admin and HR only
+  getMonthlyStats
 );
 
 // Detect sheet names from uploaded Excel

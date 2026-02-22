@@ -196,7 +196,7 @@ export const uploadPayslipController = async (req, res) => {
 
     // Send email notification if requested
     if ((sendNotification === 'true' || sendNotification === true) && 
-        employee.employeeStatus !== 'Inactive') {
+        employee.employeeStatus !== 'INACTIVE') {
       try {
         await sendPayslipNotificationEmail(employee, {
           year: parseInt(year),
@@ -378,7 +378,7 @@ export const batchUploadPayslips = async (req, res) => {
 
         // Send email notification
         if ((sendNotifications === 'true' || sendNotifications === true) &&
-            employee.employeeStatus !== 'Inactive') {
+            employee.employeeStatus !== 'INACTIVE') {
           try {
             await sendPayslipNotificationEmail(employee, {
               year: parseInt(year),
@@ -446,7 +446,7 @@ export const sendPayslipNotification = async (req, res) => {
       return res.status(404).json({ error: 'Payslip not found' });
     }
 
-    if (payslip.employee.employeeStatus === 'Inactive') {
+    if (payslip.employee.employeeStatus === 'INACTIVE') {
       return res.status(400).json({ 
         error: 'Cannot send notification to inactive employee' 
       });
@@ -509,7 +509,7 @@ export const notifyAllForMonth = async (req, res) => {
 
     // Filter active employees
     const activeEmployees = payslips
-      .filter(p => p.employee.employeeStatus !== 'Inactive')
+      .filter(p => p.employee.employeeStatus !== 'INACTIVE')
       .map(p => p.employee);
 
     if (activeEmployees.length === 0) {
@@ -1100,7 +1100,7 @@ export const generatePreviewStream = async (req, res) => {
     });
 
     const dbEmployees = await prisma.user.findMany({
-      where: { employeeStatus: { not: 'Inactive' } },
+      where: { employeeStatus: { not: 'INACTIVE' } },
       select: {
         id: true,
         name: true,
@@ -1250,6 +1250,169 @@ export const generatePreviewStream = async (req, res) => {
   }
 };
 
+/**
+ * Get monthly payslip statistics
+ * GET /api/payslips/monthly-stats?year=2026&month=2
+ * 
+ * Returns summary for dashboard widget:
+ * - Total active employees
+ * - Payslips issued (count)
+ * - Missing employees (list)
+ */
+export const getMonthlyStats = async (req, res) => {
+  try {
+    const { year, month } = req.query;
+
+    if (!year || !month) {
+      return res.status(400).json({ 
+        error: 'Missing required parameters: year, month' 
+      });
+    }
+
+    const yearInt = parseInt(year);
+    const monthInt = parseInt(month);
+
+    if (isNaN(yearInt) || isNaN(monthInt) || monthInt < 1 || monthInt > 12) {
+      return res.status(400).json({ 
+        error: 'Invalid year or month' 
+      });
+    }
+
+    console.log(`[getMonthlyStats] Fetching stats for ${monthInt}/${yearInt}`);
+
+    // Count total active employees
+    const monthEndDate = new Date(yearInt, monthInt, 0); // Last day of the month
+
+    const totalEmployees = await prisma.user.count({
+      where: { 
+        employeeStatus: { not: 'INACTIVE' },
+        accessLevel: { notIn: [1, 2] },  // Exclude Admin (1) and HR (2)
+        OR: [
+          { joinDate: null },  // Include if joinDate not set (legacy data)
+          { joinDate: { lte: monthEndDate } }  // Include if joined on or before month end
+        ]
+      }
+    });
+
+    // Count payslips issued for this month (can be more than employees due to multi-company)
+    const issuedCount = await prisma.payslip.count({
+      where: { 
+        year: yearInt, 
+        month: monthInt 
+      }
+    });
+
+    // Get unique employee IDs who have payslips this month
+    const issuedEmployeeIds = await prisma.payslip.findMany({
+      where: { 
+        year: yearInt, 
+        month: monthInt 
+      },
+      select: { 
+        employeeId: true 
+      },
+      distinct: ['employeeId'],
+    });
+
+    const issuedIds = new Set(issuedEmployeeIds.map(p => p.employeeId));
+    const employeesWithPayslips = issuedIds.size;
+
+    // 4. Find employees WITHOUT payslips (missing)
+    const missingEmployees = await prisma.user.findMany({
+      where: {
+        employeeStatus: { not: 'INACTIVE' },
+        accessLevel: { notIn: [1, 2] },       // Exclude Admin and HR
+        OR: [
+          { joinDate: null },                 // Include if joinDate not set (legacy data)
+          { joinDate: { lte: monthEndDate } }  // Include if joined on or before month end
+        ],
+        id: { notIn: Array.from(issuedIds) },
+      },
+      select: { 
+        id: true, 
+        name: true, 
+        nik: true,
+        email: true,
+        plottingCompany: {
+          select: {
+            code: true,
+            name: true
+          }
+        }
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    });
+
+    // 5. Get breakdown by company (how many payslips per company)
+    const companiesCounts = await prisma.payslip.groupBy({
+      by: ['plottingCompanyId'],
+      where: {
+        year: yearInt,
+        month: monthInt
+      },
+      _count: {
+        id: true
+      }
+    });
+
+    // Fetch company names for the counts
+    const companyIds = companiesCounts.map(c => c.plottingCompanyId);
+    const companies = await prisma.plottingCompany.findMany({
+      where: { id: { in: companyIds } },
+      select: { id: true, code: true, name: true }
+    });
+
+    const companyMap = new Map(companies.map(c => [c.id, c]));
+    
+    const byCompany = companiesCounts.map(c => ({
+      companyId: c.plottingCompanyId,
+      companyCode: companyMap.get(c.plottingCompanyId)?.code || 'Unknown',
+      companyName: companyMap.get(c.plottingCompanyId)?.name || 'Unknown',
+      count: c._count.id
+    })).sort((a, b) => b.count - a.count);
+
+    // 6. Calculate completion percentage
+    const completionPercentage = totalEmployees > 0 
+      ? Math.round((employeesWithPayslips / totalEmployees) * 100) 
+      : 0;
+
+    const stats = {
+      period: { year: yearInt, month: monthInt },
+      totalEmployees,
+      employeesWithPayslips,
+      missingCount: missingEmployees.length,
+      issuedCount, // Total payslips (can be > employees due to multi-company)
+      completionPercentage,
+      missingEmployees: missingEmployees.map(emp => ({
+        id: emp.id,
+        name: emp.name,
+        nik: emp.nik,
+        email: emp.email,
+        companyCode: emp.plottingCompany?.code,
+        companyName: emp.plottingCompany?.name
+      })),
+      byCompany, // Breakdown by plotting company
+    };
+
+    console.log(`✅ Stats: ${employeesWithPayslips}/${totalEmployees} employees (${completionPercentage}%), ${missingEmployees.length} missing`);
+
+    return res.status(200).json({
+      success: true,
+      data: stats
+    });
+
+  } catch (error) {
+    console.error('❌ getMonthlyStats error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch monthly statistics',
+      message: error.message
+    });
+  }
+};
+
 export default {
   uploadPayslipController,
   batchUploadPayslips,
@@ -1263,5 +1426,6 @@ export default {
   detectSheets,
   generatePreview,
   confirmUpload,
-  generatePreviewStream
+  generatePreviewStream,
+  getMonthlyStats
 };

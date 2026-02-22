@@ -132,7 +132,7 @@ export const parsePayrollSheet = async (excelBuffer, sheetName) => {
       jkk:             parseNum('Q'),   // PREMI JKK 0.24%
       jkm:             parseNum('R'),   // PREMI JKM 0.3%
       
-      // Deductions (req #8, #9, #10)
+      // Deductions 
       pph21Percentage: parseNum('AE'),  // TER percentage
       kompensasiA1:    parseNum('AG'),  // PPh 21 ADJUST (not AF)
       pph21Adjust:     parseNum('AF'),  // PPh 21 ADJUST (not AF)
@@ -418,7 +418,7 @@ export const fillTemplateAndConvertToPDF = async (employeeData, payrollData, per
 
   sheet.getCell('F24').value = (payrollData.basicPay + payrollData.overtimePay + healthWellness + payrollData.bdd);
   
-  // Deductions (req #8, #9, #10)
+  // Deductions
   sheet.getCell('D27').value = payrollData.pph21Percentage;
   sheet.getCell('E27').value = payrollData.pph21Adjust; // AG column (adjust)
   sheet.getCell('F27').value = payrollData.pph21Adjust; // AG column (adjust)
