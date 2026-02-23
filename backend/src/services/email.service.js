@@ -963,7 +963,7 @@ export async function sendOvertimeReminderEmail({
       <div class="email-wrapper">
         <div class="container">
           <div class="header">
-            <div class="urgent-badge">PENTING</div>
+            <div class="urgent-badge">OVERTIME REMINDER</div>
             <h1>Batas Akhir Submit Lembur</h1>
           </div>
           
@@ -999,7 +999,7 @@ export async function sendOvertimeReminderEmail({
             <div class="warning-box">
               <h3>
                 <span class="warning-icon">!</span>
-                PENTING - HARAP DIPERHATIKAN
+                CATATAN - ABAIKAN JIKA SUDAH MENGAJUKAN OVERTIME
               </h3>
               
               <ul class="checklist">
@@ -1044,7 +1044,7 @@ export async function sendOvertimeReminderEmail({
   `;
 
   const text = `
-[PENTING] Batas Akhir Submit Lembur - ${recapDate}
+[OVERTIME REMINDER] Batas Akhir Submit Lembur - ${recapDate}
 
 Kepada ${employeeName},
 
@@ -1077,7 +1077,7 @@ PT Rhayakan Film Indonesia
 
   return sendEmail({
     to: employeeEmail,
-    subject: `[PENTING] Batas Akhir Submit Lembur - ${recapDate}`,
+    subject: `[OVERTIME REMINDER] Batas Akhir Submit Lembur - ${recapDate}`,
     html: html,
     text: text
   });

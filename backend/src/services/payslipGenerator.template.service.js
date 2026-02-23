@@ -117,6 +117,46 @@ export const parsePayrollSheet = async (excelBuffer, sheetName) => {
       return typeof v === 'number' ? v : 0;
     };
     
+    // Special parser for percentage - handles both decimal and whole number formats
+    const parsePercentage = (col) => {
+      const cell = row.getCell(col);
+      const v = getCellValue(col);
+      
+      // Log for debugging
+      console.log(`[Row ${rowNumber}] Cell ${col}:`, {
+        rawValue: cell.value,
+        numFmt: cell.numFmt,
+        parsedValue: v,
+        type: typeof v
+      });
+      
+      if (!v) return 0;
+      
+      // If it's a number
+      if (typeof v === 'number') {
+        // Excel percentages are stored as decimals (0.0175 = 1.75%)
+        // Check if it's already a decimal (< 1) or a whole number (> 1)
+        if (v < 1) {
+          // Already decimal, multiply by 100 to get percentage
+          return v * 100; // 0.0175 → 1.75
+        } else {
+          // Already a whole number percentage
+          return v; // 1.75 → 1.75
+        }
+      }
+      
+      // If it's a string
+      if (typeof v === 'string') {
+        const cleaned = v.replace(/[^0-9.-]/g, '');
+        const num = parseFloat(cleaned) || 0;
+        return num < 1 ? num * 100 : num;
+      }
+      
+      return 0;
+    };
+    
+    const pph21Pct = parsePercentage('AE');
+    
     employees.push({
       rowNumber,
       nik: String(getCellValue('E') || '').trim(),
@@ -133,7 +173,7 @@ export const parsePayrollSheet = async (excelBuffer, sheetName) => {
       jkm:             parseNum('R'),   // PREMI JKM 0.3%
       
       // Deductions 
-      pph21Percentage: parseNum('AE'),  // TER percentage
+      pph21Percentage: pph21Pct,        // TER percentage (converted to 1.75 format)
       kompensasiA1:    parseNum('AG'),  // PPh 21 ADJUST (not AF)
       pph21Adjust:     parseNum('AF'),  // PPh 21 ADJUST (not AF)
       bpjstk:          parseNum('T'),   // PREMI JHTK 2%
@@ -144,6 +184,8 @@ export const parsePayrollSheet = async (excelBuffer, sheetName) => {
       netPay:          parseNum('AL'),
     });
   });
+  
+  console.log(`Parsed ${employees.length} employees from sheet "${sheetName}"`);
   
   return employees;
 };
@@ -250,7 +292,7 @@ async function excelRangeToHtml(sheet, range) {
         });
       }
       
-      // Handle numbers - round to remove decimals (req #5)
+      // Handle numbers - round to remove decimals
       if (typeof value === 'number') {
         value = Math.round(value).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
       }
@@ -419,7 +461,9 @@ export const fillTemplateAndConvertToPDF = async (employeeData, payrollData, per
   sheet.getCell('F24').value = (payrollData.basicPay + payrollData.overtimePay + healthWellness + payrollData.bdd);
   
   // Deductions
-  sheet.getCell('D27').value = payrollData.pph21Percentage;
+  sheet.getCell('D27').value = `${payrollData.pph21Percentage}%`;
+  // sheet.getCell('D27').value = payrollData.pph21Percentage;
+  // sheet.getCell('D27').numFmt = '0.00"%"';
   sheet.getCell('E27').value = payrollData.pph21Adjust; // AG column (adjust)
   sheet.getCell('F27').value = payrollData.pph21Adjust; // AG column (adjust)
   

@@ -266,7 +266,7 @@ export default function OvertimeRecapManagement() {
         periodLabel: `${monthNames[month - 1]} ${year}`
       });
       
-      alert(`✅ Emails sent to ${response.data.emailsSent} employees\n❌ Failed: ${response.data.failed}`);
+      alert(`Emails sent to ${response.data.emailsSent} employees\nFailed: ${response.data.failed}`);
       
     } catch (error) {
       console.error('Send email error:', error);
@@ -1437,7 +1437,7 @@ export default function OvertimeRecapManagement() {
           <div className="bg-white rounded-lg max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h2 className="text-xl font-bold">📧 Send Email Reminder</h2>
+                <h2 className="text-xl font-bold">Send Email Reminder</h2>
                 <p className="text-sm text-gray-600 mt-1">
                   Reminder for overtime submission deadline
                 </p>
@@ -1465,7 +1465,6 @@ export default function OvertimeRecapManagement() {
                       This email will be sent to <strong>eligible employees only</strong>
                     </p>
                     <p className="text-xs text-blue-600 mt-1">
-                      {/* ✅ Updated calculation */}
                       Estimated recipients: {users.filter(u => 
                         !['RESIGNED', 'INACTIVE', 'ADMIN', 'FREELANCE'].includes(u.employeeStatus)
                       ).length} employees
@@ -1482,7 +1481,7 @@ export default function OvertimeRecapManagement() {
                 <div>
                   <label className="text-xs font-medium text-gray-500 uppercase">Subject</label>
                   <p className="text-sm font-medium mt-1">
-                    [PENTING] Batas Akhir Submit Lembur - {recapConfig.toDate ? format(parseISO(recapConfig.toDate), 'dd MMMM yyyy') : '(date not set)'}
+                    [OVERTIME REMINDER] Batas Akhir Submit Lembur - {recapConfig.toDate ? format(parseISO(recapConfig.toDate), 'dd MMMM yyyy') : '(date not set)'}
                   </p>
                 </div>
 
@@ -1497,7 +1496,7 @@ export default function OvertimeRecapManagement() {
                     </p>
                     
                     <div className="bg-white border rounded p-3 my-3">
-                      <p className="font-semibold mb-2">📅 PERIODE LEMBUR</p>
+                      <p className="font-semibold mb-2">PERIODE LEMBUR</p>
                       <p className="text-xs space-y-1">
                         <span className="block">Periode: <strong>{monthNames[recapConfig.month - 1]} {recapConfig.year}</strong></span>
                         <span className="block">Dari: <strong>{recapConfig.fromDate ? format(parseISO(recapConfig.fromDate), 'dd MMMM yyyy') : '(not set)'}</strong></span>
@@ -1506,7 +1505,7 @@ export default function OvertimeRecapManagement() {
                     </div>
 
                     <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-                      <p className="font-semibold text-yellow-800 mb-2">⚠️ PENTING - HARAP DIPERHATIKAN</p>
+                      <p className="font-semibold text-yellow-800 mb-2">CATATAN - ABAIKAN JIKA SUDAH MENGAJUKAN OVERTIME</p>
                       <p className="text-xs text-yellow-800 space-y-1">
                         ✓ Semua lembur HARUS sudah disubmit hari ini<br/>
                         ✓ Setelah hari ini, submit akan DIKUNCI<br/>
@@ -1527,7 +1526,7 @@ export default function OvertimeRecapManagement() {
               {/* Warning */}
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <p className="text-xs text-yellow-800">
-                  ⚠️ <strong>Before sending:</strong>
+                  <strong>Before sending:</strong>
                   <br />• Make sure the dates are correct
                   <br />• This email will be sent immediately to all active employees
                   <br />• Employees without email addresses will be skipped
@@ -1538,7 +1537,7 @@ export default function OvertimeRecapManagement() {
               {(!recapConfig.fromDate || !recapConfig.toDate) && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                   <p className="text-sm text-red-800 font-medium">
-                    ❌ Cannot send: Please configure dates first
+                    Cannot send: Please configure dates first
                   </p>
                 </div>
               )}
