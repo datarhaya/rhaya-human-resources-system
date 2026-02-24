@@ -163,22 +163,22 @@ export const parsePayrollSheet = async (excelBuffer, sheetName) => {
       position: getCellValue('C') || '',
       
       // Earnings
-      basicPay:        parseNum('H'),   // GAJI/PENSIUN
-      overtimePay:     parseNum('Z'),   // LEMBUR
-      bdd:             parseNum('Y'),   // THR + BONUS + OVERTIME
-      
-      // Health & Wellness components 
-      bpjskesEmployer: parseNum('N'),   // PREMI BPJSKES 4%
-      jkk:             parseNum('Q'),   // PREMI JKK 0.24%
-      jkm:             parseNum('R'),   // PREMI JKM 0.3%
-      
-      // Deductions 
-      pph21Percentage: pph21Pct,        // TER percentage (converted to 1.75 format)
-      kompensasiA1:    parseNum('AG'),  // PPh 21 ADJUST (not AF)
+      basicPay:        parseNum('H'),                           // GAJI/PENSIUN
+      overtimePay:     parseNum('Z'),                           // LEMBUR
+      bdd:             parseNum('Y'),                           // THR + BONUS + OVERTIME
+
+      // Health & Wellness components                         
+      bpjskesEmployer: parseNum('N'),                           // PREMI BPJSKES 4%
+      jkk:             parseNum('Q'),                           // PREMI JKK 0.24%
+      jkm:             parseNum('R'),                           // PREMI JKM 0.3%
+
+      // Deductions                         
+      pph21Percentage: pph21Pct,                                // TER percentage (converted to 1.75 format)
+      kompensasiA1:    parseNum('AG'),                          // PPh 21 ADJUST (not AF)
       pph21Ter:        String(getCellValue('G') || '').trim(),  // PPh 21 ADJUST (not AF)
-      pph21Adjust:     parseNum('AF'),  // PPh 21 ADJUST (not AF)
-      bpjstk:          parseNum('T'),   // PREMI JHTK 2%
-      bpjskes:         parseNum('U'),   // PREMI JKES 1%
+      pph21Adjust:     parseNum('AF'),                          // PPh 21 ADJUST (not AF)
+      bpjstk:          parseNum('T'),                           // PREMI JHTK 2%
+      bpjskes:         parseNum('U'),                           // PREMI JKES 1%
       
       // Totals
       grossPay:        parseNum('AC'),
