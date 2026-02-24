@@ -429,6 +429,10 @@ export const fillTemplateAndConvertToPDF = async (employeeData, payrollData, per
   sheet.getCell('E16').value = payrollData.basicPay;
   sheet.getCell('F16').value = payrollData.basicPay;
 
+  const hours = employeeData.overtimeHours || 0;
+  const formatted = hours % 1 === 0 ? hours.toString() : hours.toFixed(1);
+  sheet.getCell('D17').value = formatted;
+  sheet.getCell('D17').numFmt = '@';  // Text format
   sheet.getCell('E17').value = payrollData.overtimePay;
   sheet.getCell('F17').value = payrollData.overtimePay;
   
@@ -558,6 +562,7 @@ export const generatePayslipsPreviewWithTemplate = async (excelBuffer, sheetName
       nip: true,
       nik: true,
       dateOfBirth: true,
+      overtimeRate: true,  
       plottingCompany: { 
         select: { 
           id: true,
@@ -570,6 +575,17 @@ export const generatePayslipsPreviewWithTemplate = async (excelBuffer, sheetName
         orderBy: { year: 'desc' },
         take: 1,
       },
+      overtimeRecaps: {  
+        where: {
+          year: period.year,
+          month: period.month
+        },
+        select: {
+          totalHours: true,
+          paidHours: true
+        },
+        take: 1
+      }
     },
   });
 
@@ -611,6 +627,25 @@ export const generatePayslipsPreviewWithTemplate = async (excelBuffer, sheetName
     
     try {
       const leaveData = employee.leaveBalances?.[0];
+
+      const overtimeRecap = employee.overtimeRecaps?.[0];
+  
+      // Calculate overtime hours from payment and rate
+      // Formula: overtimeHours = overtimePayment / (overtimeRate * 8)
+      const overtimeRate = parseFloat(employee.overtimeRate || 0);
+      const overtimePayment = row.overtimePay || 0;
+      
+      let calculatedOvertimeHours = 0;
+      if (overtimeRate > 0 && overtimePayment > 0) {
+        const hourlyRate = overtimeRate / 8;
+        calculatedOvertimeHours = overtimePayment / hourlyRate;
+      }
+      
+      // Get actual overtime hours from DB
+      const dbOvertimeHours = overtimeRecap?.paidHours || 0;
+      
+      // Check for mismatch (allow 0.5 hour difference for rounding)
+      const overtimeMismatch = Math.abs(calculatedOvertimeHours - dbOvertimeHours) > 0.5;
       
       const pdfBuffer = await fillTemplateAndConvertToPDF({
         id: employee.id,
@@ -621,6 +656,7 @@ export const generatePayslipsPreviewWithTemplate = async (excelBuffer, sheetName
         annualRemaining: leaveData?.annualRemaining || 0,
         toilBalance: leaveData?.toilBalance || 0,
         toilUsed: leaveData?.toilUsed || 0,
+        overtimeHours: dbOvertimeHours,
       }, row, period, selectedCompany);
       
       // Validate deductions (req #14)
@@ -652,10 +688,12 @@ export const generatePayslipsPreviewWithTemplate = async (excelBuffer, sheetName
           employeeDbCompanyId: employee.plottingCompany?.id,
           employeeDbCompanyCode: employee.plottingCompany?.code,
           employeeDbCompanyName: employee.plottingCompany?.name,
-          
-          // Flag if company mismatch
           companyMismatch: employee.plottingCompany?.id !== selectedCompany.id,
-          
+          overtimeHoursDb: dbOvertimeHours,
+          overtimeHoursCalculated: calculatedOvertimeHours,
+          overtimeMismatch: overtimeMismatch,
+          overtimePayment: overtimePayment,
+          overtimeRate: overtimeRate,
           grossPay: row.grossPay,
           netPay: row.netPay,
           grossPayFormatted: formatIDR(row.grossPay),

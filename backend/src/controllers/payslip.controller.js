@@ -1175,11 +1175,12 @@ export const generatePreviewStream = async (req, res) => {
         nip: true,
         nik: true,
         dateOfBirth: true,
+        overtimeRate: true,  
         plottingCompany: { 
           select: { 
             id: true,
             name: true, 
-            code: true
+            code: true  
           } 
         },
         leaveBalances: {
@@ -1187,6 +1188,17 @@ export const generatePreviewStream = async (req, res) => {
           orderBy: { year: 'desc' },
           take: 1,
         },
+        overtimeRecaps: {  
+          where: {
+            year: period.year,
+            month: period.month
+          },
+          select: {
+            totalHours: true,
+            paidHours: true
+          },
+          take: 1
+        }
       },
     });
 
@@ -1251,6 +1263,25 @@ export const generatePreviewStream = async (req, res) => {
 
         console.log(`Generating preview for ${employee.name} (NIK: ${employee.nik}) with plotting company ID ${employee.plottingCompany?.id}`);
         
+        const overtimeRecap = employee.overtimeRecaps?.[0];
+  
+        // Calculate overtime hours from payment and rate
+        // Formula: overtimeHours = overtimePayment / (overtimeRate * 8)
+        const overtimeRate = parseFloat(employee.overtimeRate || 0);
+        const overtimePayment = row.overtimePay || 0;
+        
+        let calculatedOvertimeHours = 0;
+        if (overtimeRate > 0 && overtimePayment > 0) {
+          const hourlyRate = overtimeRate / 8;
+          calculatedOvertimeHours = overtimePayment / hourlyRate;
+        }
+        
+        // Get actual overtime hours from DB
+        const dbOvertimeHours = overtimeRecap?.paidHours || 0;
+        
+        // Check for mismatch (allow 0.5 hour difference for rounding)
+        const overtimeMismatch = Math.abs(calculatedOvertimeHours - dbOvertimeHours) > 0.5;
+        
         const pdfBuffer = await fillTemplateAndConvertToPDF({
           id: employee.id,
           name: employee.name,
@@ -1260,6 +1291,7 @@ export const generatePreviewStream = async (req, res) => {
           annualRemaining: leaveData?.annualRemaining || 0,
           toilBalance: leaveData?.toilBalance || 0,
           toilUsed: leaveData?.toilUsed || 0,
+          overtimeHours: dbOvertimeHours,
         }, row, period, selectedCompany);
 
         // Validate deductions
@@ -1291,10 +1323,12 @@ export const generatePreviewStream = async (req, res) => {
           employeeDbCompanyId: employee.plottingCompany?.id,
           employeeDbCompanyCode: employee.plottingCompany?.code,
           employeeDbCompanyName: employee.plottingCompany?.name,
-          
-          // Flag if company mismatch
           companyMismatch: employee.plottingCompany?.id !== selectedCompany.id,
-          
+          overtimeHoursDb: dbOvertimeHours,
+          overtimeHoursCalculated: calculatedOvertimeHours,
+          overtimeMismatch: overtimeMismatch,
+          overtimePayment: overtimePayment,
+          overtimeRate: overtimeRate,
           grossPay: row.grossPay,
           netPay: row.netPay,
           grossPayFormatted: formatIDR(row.grossPay),
