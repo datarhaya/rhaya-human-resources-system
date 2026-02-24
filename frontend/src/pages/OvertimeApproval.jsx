@@ -620,7 +620,7 @@ export default function OvertimeApproval() {
                     {/* Action Buttons - Right Side on Desktop, Below on Mobile */}
                     <div className="flex gap-2 sm:flex-col sm:justify-center sm:space-y-2 sm:gap-0 mt-3 sm:mt-0 sm:min-w-[200px]">
                       {/* View Details Button */}
-                      {isAdmin && (
+
                         <Link
                           to={`/overtime/detail/${request.id}`}
                           className="flex-1 sm:flex-none px-3 py-2 sm:px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-center transition-colors flex items-center justify-center"
@@ -641,7 +641,7 @@ export default function OvertimeApproval() {
                             <span className="text-sm">{t('overtime.viewDetails')}</span>
                           </span>
                         </Link>
-                      )}
+
 
                       {/* Approval Action buttons */}
                       {(request.status === 'PENDING' || request.status === 'REVISION_REQUESTED') && (
