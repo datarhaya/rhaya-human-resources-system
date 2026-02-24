@@ -175,7 +175,7 @@ export const parsePayrollSheet = async (excelBuffer, sheetName) => {
       // Deductions 
       pph21Percentage: pph21Pct,        // TER percentage (converted to 1.75 format)
       kompensasiA1:    parseNum('AG'),  // PPh 21 ADJUST (not AF)
-      pph21Ter:        parseNum('AD'),  // PPh 21 ADJUST (not AF)
+      pph21Ter:        String(getCellValue('G') || '').trim(),  // PPh 21 ADJUST (not AF)
       pph21Adjust:     parseNum('AF'),  // PPh 21 ADJUST (not AF)
       bpjstk:          parseNum('T'),   // PREMI JHTK 2%
       bpjskes:         parseNum('U'),   // PREMI JKES 1%
@@ -186,6 +186,7 @@ export const parsePayrollSheet = async (excelBuffer, sheetName) => {
     });
   });
   
+  console.log('PPh 21 Ter:', employees.pph21Ter)
   console.log(`Parsed ${employees.length} employees from sheet "${sheetName}"`);
   
   return employees;
@@ -434,7 +435,9 @@ export const fillTemplateAndConvertToPDF = async (employeeData, payrollData, per
   sheet.getCell('D7').value = formatDate(payDate);
   sheet.getCell('E7').value = `${MONTH_NAMES[period.month]} ${period.year}`;
   sheet.getCell('D9').value = employeeData.nip || employeeData.id;
+  // console.log('PPh 21 Ter:', payrollData.pph21Ter);
   sheet.getCell('E9').value = payrollData.pph21Ter;
+  sheet.getCell('E9').numFmt = '@';  // Text format
   
   // const leaveBalance = employeeData.annualRemaining + employeeData.toilBalance - employeeData.toilUsed;
   // sheet.getCell('D12').value = leaveBalance;
