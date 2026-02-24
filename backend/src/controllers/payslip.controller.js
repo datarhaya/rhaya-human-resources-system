@@ -8,6 +8,7 @@ import { encryptPayslipPDF, validateBirthDate } from '../utils/pdfEncryption.js'
 import { 
       getExcelSheetNames, 
       getRecommendedSheetName,
+      detectPlottingCompanyFromSheet,
       parsePayrollSheet,
       fillTemplateAndConvertToPDF,
       confirmAndUploadPayslips 
@@ -865,11 +866,17 @@ export const detectSheets = async (req, res) => {
     const sheetNames = await getExcelSheetNames(file.buffer);
     const recommended = getRecommendedSheetName(sheetNames, parseInt(month) || new Date().getMonth() + 1);
 
+    const companies = await prisma.plottingCompany.findMany({
+      select: { id: true, code: true, name: true },
+      orderBy: { code: 'asc' }
+    });
+
     return res.status(200).json({
       success: true,
       data: {
         sheets: sheetNames,
         recommended,
+        companies
       },
     });
 
@@ -879,6 +886,53 @@ export const detectSheets = async (req, res) => {
       success: false,
       error: 'Failed to detect sheets',
       message: error.message,
+    });
+  }
+};
+
+/**
+ * Detect plotting company from first employee in selected sheet
+ * POST /api/payslips/detect-company
+ */
+export const detectCompany = async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const { sheetName } = req.body;
+    if (!sheetName) {
+      return res.status(400).json({ error: 'Missing sheet name' });
+    }
+
+    const detected = await detectPlottingCompanyFromSheet(file.buffer, sheetName);
+
+    if (!detected) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          detected: false,
+          message: 'Could not detect company from first employee'
+        }
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        detected: true,
+        employeeName: detected.employeeName,
+        nik: detected.nik,
+        recommendedCompany: detected.plottingCompany
+      }
+    });
+
+  } catch (error) {
+    console.error('detectCompany error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 };
@@ -902,7 +956,7 @@ export const detectSheets = async (req, res) => {
  */
 export const generatePreview = async (req, res) => {
   try {
-    const { year, month, payDate, sheetName } = req.body;
+    const { year, month, payDate, sheetName, plottingCompanyId, workdays } = req.body;
     const file = req.file;
 
     // Validation
@@ -926,6 +980,10 @@ export const generatePreview = async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields: year, month' });
     }
 
+    if (!plottingCompanyId) {
+      return res.status(400).json({ error: 'Missing required field: plottingCompanyId' });
+    }
+
     const yearInt  = parseInt(year);
     const monthInt = parseInt(month);
 
@@ -942,11 +1000,15 @@ export const generatePreview = async (req, res) => {
     );
 
     // Run preview generation with template
-    const results = await generatePayslipsPreviewWithTemplate(file.buffer, sheetName, {
-      year: yearInt,
-      month: monthInt,
-      payDate: payDate || null,
-    });
+    const results = await generatePayslipsPreviewWithTemplate(
+      file.buffer, 
+      sheetName, {
+        year: yearInt,
+        month: monthInt,
+        payDate: payDate || null,
+        workdays: workdays ? parseInt(workdays) : 20
+      }, 
+      plottingCompanyId);
 
     return res.status(200).json({
       success: true,
@@ -1051,7 +1113,7 @@ export const generatePreviewStream = async (req, res) => {
   };
 
   try {
-    const { year, month, payDate, sheetName } = req.body;
+    const { year, month, payDate, sheetName, plottingCompanyId, workdays } = req.body;
     
     // Get file from multipart (stored in memory by multer)
     const file = req.file;
@@ -1066,7 +1128,12 @@ export const generatePreviewStream = async (req, res) => {
 
     const yearInt = parseInt(year);
     const monthInt = parseInt(month);
-    const period = { year: yearInt, month: monthInt, payDate: payDate || null };
+    const period = { 
+      year: yearInt, 
+      month: monthInt, 
+      payDate: payDate || null,
+      workdays: workdays ? parseInt(workdays) : 20
+    };
 
     // Step 1: Parse Excel
     sendProgress({ 
@@ -1132,6 +1199,18 @@ export const generatePreviewStream = async (req, res) => {
     const results = { employees: [], failed: [] };
     let processedCount = 0;
 
+    // Fetch the selected plotting company details
+    const selectedCompany = await prisma.plottingCompany.findUnique({
+      where: { id: plottingCompanyId }, 
+      select: { id: true, code: true, name: true }
+    });
+
+    if (!selectedCompany) {
+      sendProgress({ type: 'error', message: 'Selected company not found' });
+      console.error('Selected company not found for ID:', plottingCompanyId);
+      return res.end();
+    }
+
     for (const row of payrollRows) {
       processedCount++;
       
@@ -1169,17 +1248,19 @@ export const generatePreviewStream = async (req, res) => {
       // Generate PDF
       try {
         const leaveData = employee.leaveBalances?.[0];
+
+        console.log(`Generating preview for ${employee.name} (NIK: ${employee.nik}) with plotting company ID ${employee.plottingCompany?.id}`);
         
         const pdfBuffer = await fillTemplateAndConvertToPDF({
           id: employee.id,
           name: employee.name,
           email: employee.email,
           nip: employee.nip,
-          plottingCompanyName: employee.plottingCompany?.name,
+          plottingCompanyName: selectedCompany.name,
           annualRemaining: leaveData?.annualRemaining || 0,
           toilBalance: leaveData?.toilBalance || 0,
           toilUsed: leaveData?.toilUsed || 0,
-        }, row, period);
+        }, row, period, selectedCompany);
 
         // Validate deductions
         const calculatedNet = (row.basicPay + row.overtimePay) - 
@@ -1196,15 +1277,24 @@ export const generatePreviewStream = async (req, res) => {
           }).format(Math.round(amount));
         };
 
+        console.log(`Employee ${employee.name} plotting company: ${employee.plottingCompany?.name || 'N/A'}, Selected company: ${selectedCompany.name}`),
+
         results.employees.push({
           employeeId: employee.id,
           name: employee.name,
           nik: row.nik,
           email: employee.email,
           position: row.position,
-          plottingCompanyId: employee.plottingCompany?.id,
-          plottingCompanyCode: employee.plottingCompany?.code,
-          plottingCompanyName: employee.plottingCompany?.name,
+          plottingCompanyId: selectedCompany.id,
+          plottingCompanyCode: selectedCompany.code,
+          plottingCompanyName: selectedCompany.name,
+          employeeDbCompanyId: employee.plottingCompany?.id,
+          employeeDbCompanyCode: employee.plottingCompany?.code,
+          employeeDbCompanyName: employee.plottingCompany?.name,
+          
+          // Flag if company mismatch
+          companyMismatch: employee.plottingCompany?.id !== selectedCompany.id,
+          
           grossPay: row.grossPay,
           netPay: row.netPay,
           grossPayFormatted: formatIDR(row.grossPay),
@@ -1427,5 +1517,6 @@ export default {
   generatePreview,
   confirmUpload,
   generatePreviewStream,
-  getMonthlyStats
+  getMonthlyStats,
+  detectCompany
 };

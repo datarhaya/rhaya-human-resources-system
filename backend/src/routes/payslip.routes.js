@@ -11,7 +11,8 @@ import {
   downloadPayslip,
   generateFromExcel,
   deletePayslip,
-  detectSheets,         
+  detectSheets,
+  detectCompany,         
   generatePreview,      
   confirmUpload,
   generatePreviewStream,
@@ -91,6 +92,14 @@ router.post(
   requireRole([1, 2]),
   uploadGeneric.single('file'),
   detectSheets
+);
+
+// Detect plotting company from selected sheet
+router.post(
+  '/detect-company',
+  requireRole([1, 2]),
+  uploadGeneric.single('file'),
+  detectCompany
 );
 
 router.post(

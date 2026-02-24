@@ -123,12 +123,12 @@ export const parsePayrollSheet = async (excelBuffer, sheetName) => {
       const v = getCellValue(col);
       
       // Log for debugging
-      console.log(`[Row ${rowNumber}] Cell ${col}:`, {
-        rawValue: cell.value,
-        numFmt: cell.numFmt,
-        parsedValue: v,
-        type: typeof v
-      });
+      // console.log(`[Row ${rowNumber}] Cell ${col}:`, {
+      //   rawValue: cell.value,
+      //   numFmt: cell.numFmt,
+      //   parsedValue: v,
+      //   type: typeof v
+      // });
       
       if (!v) return 0;
       
@@ -374,7 +374,7 @@ async function excelRangeToHtml(sheet, range) {
 /**
  * Fill template with employee data and convert to PDF
  */
-export const fillTemplateAndConvertToPDF = async (employeeData, payrollData, period) => {
+export const fillTemplateAndConvertToPDF = async (employeeData, payrollData, period, plottingCompany) => {
   // Load template
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(TEMPLATE_PATH);
@@ -422,8 +422,10 @@ export const fillTemplateAndConvertToPDF = async (employeeData, payrollData, per
   
   // Add "per dd/mm/yy" below "Sisa Cuti" (req #4)
   sheet.getCell('C13').value = `per ${formatDate(payDate)}`;
+
   
   // Earnings
+  sheet.getCell('D16').value = period.workdays || 20;
   sheet.getCell('E16').value = payrollData.basicPay;
   sheet.getCell('F16').value = payrollData.basicPay;
 
@@ -461,29 +463,28 @@ export const fillTemplateAndConvertToPDF = async (employeeData, payrollData, per
   sheet.getCell('F24').value = (payrollData.basicPay + payrollData.overtimePay + healthWellness + payrollData.bdd);
   
   // Deductions
-  sheet.getCell('D27').value = `${payrollData.pph21Percentage}%`;
-  // sheet.getCell('D27').value = payrollData.pph21Percentage;
-  // sheet.getCell('D27').numFmt = '0.00"%"';
+  sheet.getCell('D27').value = `${payrollData.pph21Percentage.toFixed(2)}%`;
+  sheet.getCell('D27').numFmt = '@'; // Text format
   sheet.getCell('E27').value = payrollData.pph21Adjust; // AG column (adjust)
   sheet.getCell('F27').value = payrollData.pph21Adjust; // AG column (adjust)
   
-  sheet.getCell('D28').value = "2%";
+  sheet.getCell('D28').value = "2.00%";
   sheet.getCell('E28').value = payrollData.bpjstk;      // Column T
   sheet.getCell('F28').value = payrollData.bpjstk;      // Column T
   
-  sheet.getCell('D29').value = "1%";
+  sheet.getCell('D29').value = "1.00%";
   sheet.getCell('E29').value = payrollData.bpjskes;     // Column U
   sheet.getCell('F29').value = payrollData.bpjskes;     // Column U
   
-  sheet.getCell('D30').value = "0%";
+  sheet.getCell('D30').value = "0.00%";
   sheet.getCell('E30').value = 0    
   sheet.getCell('F30').value = 0     
   
-  sheet.getCell('D31').value = "0%";
+  sheet.getCell('D31').value = "0.00%";
   sheet.getCell('E31').value = payrollData.kompensasiA1;  
   sheet.getCell('F31').value = payrollData.kompensasiA1; 
 
-  sheet.getCell('D32').value = "0%";
+  sheet.getCell('D32').value = "0.00%";
   sheet.getCell('E32').value = 0    
   sheet.getCell('F32').value = 0     
 
@@ -539,7 +540,7 @@ export const fillTemplateAndConvertToPDF = async (employeeData, payrollData, per
 /**
  * Generate preview from Excel with sheet selection
  */
-export const generatePayslipsPreviewWithTemplate = async (excelBuffer, sheetName, period) => {
+export const generatePayslipsPreviewWithTemplate = async (excelBuffer, sheetName, period, plottingCompanyId) => {
   const results = { employees: [], failed: [] };
   
   const payrollRows = await parsePayrollSheet(excelBuffer, sheetName);
@@ -549,7 +550,7 @@ export const generatePayslipsPreviewWithTemplate = async (excelBuffer, sheetName
   }
   
   const dbEmployees = await prisma.user.findMany({
-    where: { employeeStatus: { not: 'Inactive' } },
+    where: { employeeStatus: { not: 'INACTIVE' } },
     select: {
       id: true,
       name: true,
@@ -571,6 +572,16 @@ export const generatePayslipsPreviewWithTemplate = async (excelBuffer, sheetName
       },
     },
   });
+
+  // Fetch the selected plotting company details
+  const selectedCompany = await prisma.plottingCompany.findUnique({
+    where: { id: plottingCompanyId },
+    select: { id: true, code: true, name: true }
+  });
+
+  if (!selectedCompany) {
+    throw new Error('Selected plotting company not found');
+  }
   
   const nikMap = new Map();
   for (const emp of dbEmployees) {
@@ -606,11 +617,11 @@ export const generatePayslipsPreviewWithTemplate = async (excelBuffer, sheetName
         name: employee.name,
         email: employee.email,
         nip: employee.nip,
-        plottingCompanyName: employee.plottingCompany?.name,
+        plottingCompanyName: selectedCompany.name,
         annualRemaining: leaveData?.annualRemaining || 0,
         toilBalance: leaveData?.toilBalance || 0,
         toilUsed: leaveData?.toilUsed || 0,
-      }, row, period);
+      }, row, period, selectedCompany);
       
       // Validate deductions (req #14)
       const calculatedNet = (row.basicPay + row.overtimePay) - 
@@ -627,23 +638,32 @@ export const generatePayslipsPreviewWithTemplate = async (excelBuffer, sheetName
         }).format(Math.round(amount));
       };
       
+      console.log(`Employee ${employee.name} plotting company: ${employee.plottingCompany?.name || 'N/A'}, Selected company: ${selectedCompany.name}`),
+      
       results.employees.push({
-        employeeId: employee.id,
-        name: employee.name,
-        nik: row.nik,
-        email: employee.email,
-        position: row.position,
-        plottingCompanyId: employee.plottingCompany?.id,      
-        plottingCompanyCode: employee.plottingCompany?.code,  
-        plottingCompanyName: employee.plottingCompany?.name,  
-        grossPay: row.grossPay,
-        netPay: row.netPay,
-        grossPayFormatted: formatIDR(row.grossPay),  
-        netPayFormatted: formatIDR(row.netPay),      
-        pdfBase64: pdfBuffer.toString('base64'),
-        checked: true,
-        deductionWarning: deductionMismatch ? `Deduction mismatch: Expected ${formatIDR(calculatedNet)} but got ${formatIDR(row.netPay)}` : null, // req #14
-      });
+          employeeId: employee.id,
+          name: employee.name,
+          nik: row.nik,
+          email: employee.email,
+          position: row.position,
+          plottingCompanyId: selectedCompany.id,
+          plottingCompanyCode: selectedCompany.code,
+          plottingCompanyName: selectedCompany.name,
+          employeeDbCompanyId: employee.plottingCompany?.id,
+          employeeDbCompanyCode: employee.plottingCompany?.code,
+          employeeDbCompanyName: employee.plottingCompany?.name,
+          
+          // Flag if company mismatch
+          companyMismatch: employee.plottingCompany?.id !== selectedCompany.id,
+          
+          grossPay: row.grossPay,
+          netPay: row.netPay,
+          grossPayFormatted: formatIDR(row.grossPay),
+          netPayFormatted: formatIDR(row.netPay),
+          pdfBase64: pdfBuffer.toString('base64'),
+          checked: true,
+          deductionWarning: deductionMismatch ? `Deduction mismatch: Expected ${formatIDR(calculatedNet)} but got ${formatIDR(row.netPay)}` : null,
+        });
       
     } catch (err) {
       console.error(`Failed to generate for ${employee.name}:`, err.message);
@@ -789,4 +809,66 @@ export const confirmAndUploadPayslips = async (
   console.log(`Upload complete: ${results.success.length} uploaded, ${results.failed.length} failed`);
   
   return results;
+};
+
+/**
+ * Detect plotting company from first employee in the sheet
+ * Used to recommend which company this payroll data is for
+ */
+export const detectPlottingCompanyFromSheet = async (excelBuffer, sheetName) => {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(excelBuffer);
+  
+  const sheet = workbook.getWorksheet(sheetName);
+  if (!sheet) {
+    throw new Error(`Sheet "${sheetName}" not found`);
+  }
+
+  // Find first employee (row 10+)
+  let firstEmployeeNIK = null;
+  
+  sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    if (rowNumber < 10) return;
+    if (firstEmployeeNIK) return; // Already found
+    
+    const name = row.getCell('B').value;
+    if (!name || typeof name !== 'string') return;
+    
+    const nikCell = row.getCell('E').value;
+    firstEmployeeNIK = String(nikCell || '').trim();
+  });
+
+  if (!firstEmployeeNIK) {
+    return null; // No employee found
+  }
+
+  // Fetch employee from DB to get their plotting company
+  const employee = await prisma.user.findFirst({
+    where: { 
+      nik: firstEmployeeNIK,
+      employeeStatus: { not: 'Inactive' }
+    },
+    select: {
+      id: true,
+      name: true,
+      nik: true,
+      plottingCompany: {
+        select: {
+          id: true,
+          code: true,
+          name: true
+        }
+      }
+    }
+  });
+
+  if (!employee || !employee.plottingCompany) {
+    return null;
+  }
+
+  return {
+    employeeName: employee.name,
+    nik: employee.nik,
+    plottingCompany: employee.plottingCompany
+  };
 };

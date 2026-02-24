@@ -23,6 +23,7 @@ export default function GeneratePayslipModal({ isOpen, onClose, onSuccess }) {
     year:  currentYear,
     month: currentMonth,
     payDate: '',
+    workdays: 20,
     file:  null,
     sendNotifications: true,
   });
@@ -42,6 +43,11 @@ export default function GeneratePayslipModal({ isOpen, onClose, onSuccess }) {
   // Step 1.5: sheet selection
   const [sheetData, setSheetData] = useState(null); // { sheets: [], recommended: '' }
   const [selectedSheet, setSelectedSheet] = useState('');
+
+  // Step 1.5b: company selection
+  const [companies, setCompanies] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState('');
+  const [detectedCompany, setDetectedCompany] = useState(null);
 
   // Step 2: preview data
   const [previewData, setPreviewData] = useState(null); // { period, employees: [], failed: [] }
@@ -90,12 +96,49 @@ export default function GeneratePayslipModal({ isOpen, onClose, onSuccess }) {
       });
 
       setSheetData(res.data.data);
+      setCompanies(res.data.data.companies);
       setSelectedSheet(res.data.data.recommended || res.data.data.sheets[0]);
       setStep(1.5);
 
     } catch (err) {
       const msg = err.response?.data?.message || err.response?.data?.error || err.message;
       alert(`Failed to read Excel file: ${msg}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Step 1.5a → 1.5b: Sheet selected, detect company from first employee
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const handleSheetSelected = async () => {
+    if (!selectedSheet) { alert('Please select a sheet'); return; }
+
+    setLoading(true);
+
+    try {
+      const fd = new FormData();
+      fd.append('file', form.file);
+      fd.append('sheetName', selectedSheet);
+
+      const res = await apiClient.post('/payslips/detect-company', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      if (res.data.data.detected) {
+        setDetectedCompany(res.data.data.recommendedCompany);
+        setSelectedCompany(res.data.data.recommendedCompany.id);
+      } else {
+        // No detection, default to first company
+        setSelectedCompany(companies[0]?.id || '');
+      }
+
+      setStep(1.6); // Go to company selection
+
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message;
+      alert(`Failed to detect company: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -116,6 +159,8 @@ export default function GeneratePayslipModal({ isOpen, onClose, onSuccess }) {
       fd.append('sheetName', selectedSheet);
       fd.append('year', form.year);
       fd.append('month', form.month);
+      fd.append('plottingCompanyId', selectedCompany);  
+      fd.append('workdays', form.workdays);              
       if (form.payDate) fd.append('payDate', form.payDate);
 
       // Create EventSource for SSE (requires GET, so we'll use fetch with streaming)
@@ -353,6 +398,22 @@ export default function GeneratePayslipModal({ isOpen, onClose, onSuccess }) {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Workdays
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="31"
+                    value={form.workdays}
+                    onChange={(e) => setForm({ ...form, workdays: parseInt(e.target.value) })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Default: 20 days</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Payroll Excel File <span className="text-red-500">*</span>
                   </label>
                   <div
@@ -479,6 +540,83 @@ export default function GeneratePayslipModal({ isOpen, onClose, onSuccess }) {
               </div>
             )}
 
+            {step === 1.6 && (
+              <div className="space-y-4">
+                {/* Detected Company Info */}
+                {/* {detectedCompany && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-blue-900">Auto-Detected Company</h4>
+                        <p className="text-xs text-blue-700 mt-1">
+                          Based on first employee: <span className="font-medium">{detectedCompany.employeeName}</span>
+                        </p>
+                        <p className="text-xs text-blue-600 mt-1">
+                          Recommended: <span className="font-semibold">{detectedCompany.code} - {detectedCompany.name}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )} */}
+
+                {/* Company Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Plotting Company
+                    <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <select
+                    value={selectedCompany}
+                    onChange={(e) => setSelectedCompany(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="">-- Select Company --</option>
+                    {companies.map(company => (
+                      <option key={company.id} value={company.id}>
+                        {company.code} - {company.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Choose which company these payslips are for. This determines the company code in filenames.
+                  </p>
+                </div>
+
+                {/* Navigation Buttons */}
+                <div className="flex items-center justify-between pt-4 border-t">
+                  <button 
+                    onClick={() => setStep(1.5)} 
+                    className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                  >
+                    Back to Sheet Selection
+                  </button>
+                  <button
+                    onClick={handleGeneratePreview}
+                    disabled={loading || !selectedCompany}
+                    className="px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                        </svg>
+                        {progress.stage === 'generating' && progress.total > 0
+                          ? `${progress.current}/${progress.total} (${progress.percentage}%)`
+                          : 'Generating...'}
+                      </>
+                    ) : (
+                      'Generate Preview'
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* ── STEP 2: Preview Table ─────────────────────────────────────── */}
             {step === 2 && previewData && (
               <div className="space-y-4">
@@ -540,6 +678,20 @@ export default function GeneratePayslipModal({ isOpen, onClose, onSuccess }) {
                               {emp.deductionWarning && (
                                 <div className="text-xs text-red-600 mt-1 font-medium">
                                   {emp.deductionWarning}
+                                </div>
+                              )}
+                              {/* Company Mismatch Warning */}
+                              {emp.companyMismatch && (
+                                <div className="flex items-start gap-1 text-xs mt-1 p-1.5 bg-yellow-50 border border-yellow-200 rounded">
+                                  <svg className="w-3.5 h-3.5 text-yellow-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                  </svg>
+                                  <div>
+                                    <div className="text-yellow-700">
+                                      On database: <span className="font-semibold">{emp.employeeDbCompanyCode}</span>
+                                      {' '}| On Payslip: <span className="font-semibold">{emp.plottingCompanyCode}</span>
+                                    </div>
+                                  </div>
                                 </div>
                               )}
                             </td>
@@ -660,7 +812,7 @@ export default function GeneratePayslipModal({ isOpen, onClose, onSuccess }) {
                   Back
                 </button>
                 <button
-                  onClick={handleGeneratePreview}
+                  onClick={handleSheetSelected}
                   disabled={loading || !selectedSheet}
                   className="px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
@@ -675,7 +827,7 @@ export default function GeneratePayslipModal({ isOpen, onClose, onSuccess }) {
                         : 'Generating...'}
                     </>
                   ) : (
-                    'Generate Preview'
+                    'Next: Select Company'
                   )}
                 </button>
               </>
