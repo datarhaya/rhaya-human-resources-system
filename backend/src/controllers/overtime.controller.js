@@ -79,7 +79,7 @@ export const submitOvertimeRequest = async (req, res) => {
         const entryDate = new Date(entry.date);
         if (entryDate <= settings.lastRecapDate) {
           return res.status(400).json({
-            error: `Lembur untuk tanggal ${formatDate(entryDate)} sudah direkap.`
+            // error: `Lembur untuk tanggal ${formatDate(entryDate)} sudah direkap.`
           });
         }
       }
