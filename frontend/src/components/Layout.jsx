@@ -319,7 +319,9 @@ export default function Layout({ children }) {
                 <span className="text-white font-bold text-xl">HR</span>
               </div>
               <div>
-                <h1 className="font-bold text-lg">{t('login.title')}</h1>
+                <h1 className="font-bold text-lg leading-5">
+                  {t('login.title')}
+                </h1>
                 <p className="text-xs text-gray-500">Rhaya Flicks</p>
               </div>
             </div>

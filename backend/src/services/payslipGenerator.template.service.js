@@ -175,6 +175,7 @@ export const parsePayrollSheet = async (excelBuffer, sheetName) => {
       // Deductions 
       pph21Percentage: pph21Pct,        // TER percentage (converted to 1.75 format)
       kompensasiA1:    parseNum('AG'),  // PPh 21 ADJUST (not AF)
+      pph21Ter:        parseNum('AD'),  // PPh 21 ADJUST (not AF)
       pph21Adjust:     parseNum('AF'),  // PPh 21 ADJUST (not AF)
       bpjstk:          parseNum('T'),   // PREMI JHTK 2%
       bpjskes:         parseNum('U'),   // PREMI JKES 1%
@@ -227,13 +228,13 @@ async function excelRangeToHtml(sheet, range) {
   
   // Define grid regions (absolute Excel column numbers: C=3, D=4, E=5, F=6)
   const gridRegions = [
-    { startRow: 7, endRow: 10, startCol: 3, endCol: 6 },   // C7:F10
-    { startRow: 15, endRow: 24, startCol: 3, endCol: 6 },  // C15:F24
-    { startRow: 26, endRow: 33, startCol: 3, endCol: 6 },  // C26:F33
-    { startRow: 35, endRow: 35, startCol: 5, endCol: 6 },  // E35:F35
+    { startRow: 6, endRow: 9, startCol: 2, endCol: 5 },    // B6:E9
+    { startRow: 14, endRow: 22, startCol: 2, endCol: 5 },  // B14:E22
+    { startRow: 24, endRow: 31, startCol: 2, endCol: 5 },  // B24:E31
+    { startRow: 33, endRow: 34, startCol: 2, endCol: 5 },  // B33:E34
   ];
   
-  const boldGridRows = [15, 24, 26, 33, 35]; // Rows with bold borders
+  const boldGridRows = [14, 22, 24, 31]; // Rows with bold borders
   
   const hasGrid = (row, col) => {
     return gridRegions.some(region =>
@@ -248,8 +249,13 @@ async function excelRangeToHtml(sheet, range) {
   let html = '<table cellpadding="4" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 10pt; border: 2px solid #000000;">';
   
   for (let r = startRow; r <= endRow; r++) {
-    // Set row height for row 35 (req #12)
-    const rowStyle = r === 36 ? ' style="height: 190px;"' : '';
+
+    let rowStyle = '';
+    if (r === 4 || r === 10 || r === 13 || r === 23 || r === 32 || r === 35 || r === 36 || r === 37 ||
+        r === 40 || r === 41 || r === 42 || r === 43 || r === 44 || r === 45 || r === 46 || r === 47) {
+      rowStyle = ' style="height: 21px;"';
+    }
+    
     html += `<tr${rowStyle}>`;
     
     for (let c = startCol; c <= endCol; c++) {
@@ -301,16 +307,28 @@ async function excelRangeToHtml(sheet, range) {
       let style = 'padding: 4px 8px;';
       
       // Set column C width to 150px (req #11)
+      if (c === 1) {
+        style += ' width: 43px;';
+      }
+      
       if (c === 2) {
-        style += ' width: 43px;';
+        style += ' width: 146px;';
       }
-      
+
       if (c === 3) {
-        style += ' width: 150px;';
+        style += ' width: 146px;';
+      }
+
+      if (c === 4) {
+        style += ' width: 132px;';
+      }
+
+      if (c === 5) {
+        style += ' width: 170px;';
       }
       
-      if (c === 7) {
-        style += ' width: 43px;';
+      if (c === 6) {
+        style += ' width: 47px;';
       }
 
       // Apply grid borders
@@ -334,11 +352,11 @@ async function excelRangeToHtml(sheet, range) {
       
       // White text for specific header cells (req #4)
       const headerCells = [
-        { r: 7, c: 3 }, // EMPLOYEE INFORMATION
-        { r: 7, c: 5 }, // PAY DATE
-        { r: 7, c: 6 }, // PERIOD
-        { r: 9, c: 5 }, // Employee ID
-        { r: 9, c: 6 }, // PAY TYPE
+        { r: 6, c: 2 }, // EMPLOYEE INFORMATION
+        { r: 6, c: 4 }, // PAY DATE
+        { r: 6, c: 5 }, // PERIOD
+        { r: 8, c: 4 }, // Employee ID
+        { r: 8, c: 5 }, // PAY TYPE
       ];
       
       if (headerCells.some(h => h.r === r && h.c === c)) {
@@ -386,20 +404,20 @@ export const fillTemplateAndConvertToPDF = async (employeeData, payrollData, per
 
   
   // ── Populate cells ─────────────────────────────────────────────────────────
-  sheet.mergeCells('C3:E3');
-  sheet.mergeCells('C4:E4');
+  sheet.mergeCells('B2:D2');
+  sheet.mergeCells('B3:D3');
 
-  sheet.getCell('C6').value = employeeData.plottingCompanyName || 'PT Rhayakan Film Indonesia';
-  sheet.mergeCells('C6:D6');
+  sheet.getCell('B5').value = employeeData.plottingCompanyName || 'PT Rhayakan Film Indonesia';
+  sheet.mergeCells('B5:C5');
   
   // Name and Role - merge with column D (req #1, #2)
-  sheet.getCell('C8').value = employeeData.name;
+  sheet.getCell('B7').value = employeeData.name;
   // sheet.mergeCells('C8:D8');
   
-  sheet.getCell('C9').value = payrollData.position || '';
+  sheet.getCell('B8').value = payrollData.position || '';
   // sheet.mergeCells('C9:D9');
   
-  sheet.getCell('C10').value = employeeData.email;
+  sheet.getCell('B9').value = employeeData.email;
   
   // Pay date with dd/mm/yy format (req #3)
   const payDate = period.payDate 
@@ -413,93 +431,94 @@ export const fillTemplateAndConvertToPDF = async (employeeData, payrollData, per
     return `${day}/${month}/${year}`;
   };
   
-  sheet.getCell('E8').value = formatDate(payDate);
-  sheet.getCell('F8').value = `${MONTH_NAMES[period.month]} ${period.year}`;
-  sheet.getCell('E10').value = employeeData.nip || employeeData.id;
+  sheet.getCell('D7').value = formatDate(payDate);
+  sheet.getCell('E7').value = `${MONTH_NAMES[period.month]} ${period.year}`;
+  sheet.getCell('D9').value = employeeData.nip || employeeData.id;
+  sheet.getCell('E9').value = payrollData.pph21Ter;
   
-  const leaveBalance = employeeData.annualRemaining + employeeData.toilBalance - employeeData.toilUsed;
-  sheet.getCell('D12').value = leaveBalance;
+  // const leaveBalance = employeeData.annualRemaining + employeeData.toilBalance - employeeData.toilUsed;
+  // sheet.getCell('D12').value = leaveBalance;
   
-  // Add "per dd/mm/yy" below "Sisa Cuti" (req #4)
-  sheet.getCell('C13').value = `per ${formatDate(payDate)}`;
+  // // Add "per dd/mm/yy" below "Sisa Cuti" (req #4)
+  // sheet.getCell('C13').value = `per ${formatDate(payDate)}`;
 
   
   // Earnings
-  sheet.getCell('D16').value = period.workdays || 20;
-  sheet.getCell('E16').value = payrollData.basicPay;
-  sheet.getCell('F16').value = payrollData.basicPay;
+  sheet.getCell('C15').value = period.workdays || 20;
+  sheet.getCell('D15').value = payrollData.basicPay;
+  sheet.getCell('E15').value = payrollData.basicPay;
 
   const hours = employeeData.overtimeHours || 0;
   const formatted = hours % 1 === 0 ? hours.toString() : hours.toFixed(1);
-  sheet.getCell('D17').value = formatted;
-  sheet.getCell('D17').numFmt = '@';  // Text format
-  sheet.getCell('E17').value = payrollData.overtimePay;
-  sheet.getCell('F17').value = payrollData.overtimePay;
+  sheet.getCell('C16').value = formatted;
+  sheet.getCell('C16').numFmt = '@';  // Text format
+  sheet.getCell('D16').value = payrollData.overtimePay;
+  sheet.getCell('E16').value = payrollData.overtimePay;
   
   // Zero out these fields (req #6)
-  sheet.getCell('E18').value = 0; // Transportation
-  sheet.getCell('E20').value = 0; // Commission and Bonus
-  sheet.getCell('E21').value = 0; // Sick Pay
-  sheet.getCell('E23').value = 0; // Others
+  sheet.getCell('C17').value = 0; // Transportation
+  sheet.getCell('C18').value = 0; // Commission and Bonus
+  sheet.getCell('C19').value = 0; // Sick Pay
+  sheet.getCell('C21').value = 0; // Others
 
-  sheet.getCell('F18').value = 0; // Transportation
-  sheet.getCell('F20').value = 0; // Commission and Bonus
-  sheet.getCell('F21').value = 0; // Sick Pay
-  sheet.getCell('F23').value = 0; // Others
+  sheet.getCell('E17').value = 0; // Transportation
+  sheet.getCell('E18').value = 0; // Commission and Bonus
+  sheet.getCell('E19').value = 0; // Sick Pay
+  sheet.getCell('E21').value = 0; // Others
   
-  // C19 - Prepaid Expense with bold "Prepaid Expense From:" (req #5)
-  sheet.getCell('C19').value = {
+  // C17 - Prepaid Expense with bold "Prepaid Expense From:" (req #5)
+  sheet.getCell('B17').value = {
     richText: [
       { font: { bold: true }, text: 'Prepaid Expense From:' },
       { text: ' THR: Bonus: Overtime' }
     ]
   };
-  sheet.getCell('E19').value = payrollData.bdd;
-  sheet.getCell('F19').value = payrollData.bdd;
+  sheet.getCell('D18').value = payrollData.bdd;
+  sheet.getCell('E18').value = payrollData.bdd;
   
   // Health & Wellness = sum of columns N + Q + R (req #7)
   const healthWellness = (payrollData.bpjskesEmployer || 0) + 
                          (payrollData.jkk || 0) + 
                          (payrollData.jkm || 0);
-  sheet.getCell('E22').value = healthWellness;
-  sheet.getCell('F22').value = healthWellness;
+  sheet.getCell('D20').value = healthWellness;
+  sheet.getCell('E20').value = healthWellness;
 
-  sheet.getCell('F24').value = (payrollData.basicPay + payrollData.overtimePay + healthWellness + payrollData.bdd);
+  sheet.getCell('E22').value = (payrollData.basicPay + payrollData.overtimePay + healthWellness + payrollData.bdd);
   
   // Deductions
-  sheet.getCell('D27').value = `${payrollData.pph21Percentage.toFixed(2)}%`;
-  sheet.getCell('D27').numFmt = '@'; // Text format
-  sheet.getCell('E27').value = payrollData.pph21Adjust; // AG column (adjust)
-  sheet.getCell('F27').value = payrollData.pph21Adjust; // AG column (adjust)
+  sheet.getCell('C25').value = `${payrollData.pph21Percentage.toFixed(2)}%`;
+  sheet.getCell('C25').numFmt = '@'; // Text format
+  sheet.getCell('D25').value = payrollData.pph21Adjust; // AG column (adjust)
+  sheet.getCell('E25').value = payrollData.pph21Adjust; // AG column (adjust)
   
-  sheet.getCell('D28').value = "2.00%";
-  sheet.getCell('E28').value = payrollData.bpjstk;      // Column T
-  sheet.getCell('F28').value = payrollData.bpjstk;      // Column T
+  sheet.getCell('C26').value = "2.00%";
+  sheet.getCell('D26').value = payrollData.bpjstk;      // Column T
+  sheet.getCell('E26').value = payrollData.bpjstk;      // Column T
   
-  sheet.getCell('D29').value = "1.00%";
-  sheet.getCell('E29').value = payrollData.bpjskes;     // Column U
-  sheet.getCell('F29').value = payrollData.bpjskes;     // Column U
+  sheet.getCell('C27').value = "1.00%";
+  sheet.getCell('D27').value = payrollData.bpjskes;     // Column U
+  sheet.getCell('E27').value = payrollData.bpjskes;     // Column U
   
-  sheet.getCell('D30').value = "0.00%";
-  sheet.getCell('E30').value = 0    
-  sheet.getCell('F30').value = 0     
+  sheet.getCell('C28').value = "0.00%";
+  sheet.getCell('D28').value = 0    
+  sheet.getCell('E28').value = 0     
   
-  sheet.getCell('D31').value = "0.00%";
-  sheet.getCell('E31').value = payrollData.kompensasiA1;  
-  sheet.getCell('F31').value = payrollData.kompensasiA1; 
+  sheet.getCell('C29').value = "0.00%";
+  sheet.getCell('D29').value = 0    
+  sheet.getCell('E29').value = 0     
 
-  sheet.getCell('D32').value = "0.00%";
-  sheet.getCell('E32').value = 0    
-  sheet.getCell('F32').value = 0     
+  sheet.getCell('C30').value = "0.00%";
+  sheet.getCell('D30').value = payrollData.kompensasiA1;  
+  sheet.getCell('E30').value = payrollData.kompensasiA1; 
 
-  sheet.getCell('F33').value = (payrollData.pph21Adjust + payrollData.bpjstk + payrollData.bpjskes + payrollData.kompensasiA1);     // Column F
+  sheet.getCell('E31').value = (payrollData.pph21Adjust + payrollData.bpjstk + payrollData.bpjskes + payrollData.kompensasiA1);     // Column F
 
   // Take Home Pay
-  sheet.getCell('F35').value = ((payrollData.basicPay + payrollData.overtimePay) - 
+  sheet.getCell('E33').value = ((payrollData.basicPay + payrollData.overtimePay) - 
                                 (payrollData.pph21Adjust + payrollData.bpjstk + payrollData.bpjskes + payrollData.kompensasiA1)); // Recalculate net pay to ensure consistency with deductions
   
   // ── Convert to HTML ────────────────────────────────────────────────────────
-  const htmlTable = await excelRangeToHtml(sheet, 'B2:G37');
+  const htmlTable = await excelRangeToHtml(sheet, 'A1:F49');
   
   const htmlContent = `
     <!DOCTYPE html>
