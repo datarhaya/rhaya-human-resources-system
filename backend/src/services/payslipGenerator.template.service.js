@@ -164,8 +164,8 @@ export const parsePayrollSheet = async (excelBuffer, sheetName) => {
       
       // Earnings
       basicPay:        parseNum('H'),                           // GAJI/PENSIUN
-      overtimePay:     parseNum('Z'),                           // LEMBUR
-      bdd:             parseNum('Y'),                           // THR + BONUS + OVERTIME
+      overtimePay:     parseNum('Y'),                           // LEMBUR
+      bdd:             parseNum('X'),                           // THR + BONUS + OVERTIME
 
       // Health & Wellness components                         
       bpjskesEmployer: parseNum('N'),                           // PREMI BPJSKES 4%
@@ -253,7 +253,7 @@ async function excelRangeToHtml(sheet, range) {
 
     let rowStyle = '';
     if (r === 4 || r === 10 || r === 13 || r === 23 || r === 32 || r === 35 || r === 36 || r === 37 ||
-        r === 40 || r === 41 || r === 42 || r === 43 || r === 44 || r === 45 || r === 46 || r === 47) {
+        r === 40 || r === 41 || r === 42 || r === 43 || r === 44 || r === 45 ) {
       rowStyle = ' style="height: 21px;"';
     }
     
@@ -511,8 +511,10 @@ export const fillTemplateAndConvertToPDF = async (employeeData, payrollData, per
   sheet.getCell('E29').value = 0     
 
   sheet.getCell('C30').value = "0.00%";
-  sheet.getCell('D30').value = payrollData.kompensasiA1;  
-  sheet.getCell('E30').value = payrollData.kompensasiA1; 
+  const kompensasiA1 = payrollData.kompensasiA1 || 0;
+  const formatted_kompensasiA1 = kompensasiA1 > 0 ? kompensasiA1: "(" + Math.abs(kompensasiA1) + ")";
+  sheet.getCell('D30').value = formatted_kompensasiA1;  
+  sheet.getCell('E30').value = formatted_kompensasiA1; 
 
   sheet.getCell('E31').value = (payrollData.pph21Adjust + payrollData.bpjstk + payrollData.bpjskes + payrollData.kompensasiA1);     // Column F
 
