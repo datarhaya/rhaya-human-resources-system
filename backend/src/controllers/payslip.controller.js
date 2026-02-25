@@ -1296,7 +1296,7 @@ export const generatePreviewStream = async (req, res) => {
 
         // Validate deductions
         const calculatedNet = (row.basicPay + row.overtimePay) - 
-                            (row.pph21Adjust + row.bpjstk + row.bpjskes + row.kompensasiA1);
+                           (row.pph21Adjust + row.bpjstk + row.bpjskes + row.kompensasiA1 + row.famInsurance + row.employeeLoan + row.othersDeduction);
         const deductionMismatch = Math.abs(calculatedNet - row.netPay) > 1; // Allow 1 IDR rounding difference
 
         // Format as IDR
@@ -1336,7 +1336,7 @@ export const generatePreviewStream = async (req, res) => {
           pdfBase64: pdfBuffer.toString('base64'),
           checked: true,
           deductionWarning: deductionMismatch 
-            ? `Deduction mismatch: Expected ${formatIDR(calculatedNet)} but got ${formatIDR(row.netPay)}` 
+            ? `Deduction mismatch: Calculated ${formatIDR(calculatedNet)} but got ${formatIDR(row.netPay)}` 
             : null,
         });
 

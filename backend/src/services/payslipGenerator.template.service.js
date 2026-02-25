@@ -169,6 +169,7 @@ export const parsePayrollSheet = async (excelBuffer, sheetName) => {
 
       // Health & Wellness components                         
       bpjskesEmployer: parseNum('N'),                           // PREMI BPJSKES 4%
+      aiaBill:         parseNum('O'),                           // PREMI AIA
       jkk:             parseNum('Q'),                           // PREMI JKK 0.24%
       jkm:             parseNum('R'),                           // PREMI JKM 0.3%
 
@@ -179,10 +180,13 @@ export const parsePayrollSheet = async (excelBuffer, sheetName) => {
       pph21Adjust:     parseNum('AF'),                          // PPh 21 ADJUST (not AF)
       bpjstk:          parseNum('T'),                           // PREMI JHTK 2%
       bpjskes:         parseNum('U'),                           // PREMI JKES 1%
+      famInsurance:    parseNum('AJ'),                          // FAMILY INSURANCE
+      employeeLoan:    parseNum('AK'),                          // EMPLOYEE LOAN
+      othersDeduction: parseNum('AL'),                          // OTHERS DEDUCTION
       
       // Totals
       grossPay:        parseNum('AC'),
-      netPay:          parseNum('AL'),
+      netPay:          parseNum('AN'),
     });
   });
   
@@ -231,11 +235,11 @@ async function excelRangeToHtml(sheet, range) {
   const gridRegions = [
     { startRow: 6, endRow: 9, startCol: 2, endCol: 5 },    // B6:E9
     { startRow: 14, endRow: 22, startCol: 2, endCol: 5 },  // B14:E22
-    { startRow: 24, endRow: 31, startCol: 2, endCol: 5 },  // B24:E31
-    { startRow: 33, endRow: 34, startCol: 2, endCol: 5 },  // B33:E34
+    { startRow: 24, endRow: 32, startCol: 2, endCol: 5 },  // B24:E31
+    { startRow: 34, endRow: 35, startCol: 2, endCol: 5 },  // B33:E34
   ];
   
-  const boldGridRows = [14, 22, 24, 31]; // Rows with bold borders
+  const boldGridRows = [14, 22, 24, 32]; // Rows with bold borders
   
   const hasGrid = (row, col) => {
     return gridRegions.some(region =>
@@ -252,8 +256,8 @@ async function excelRangeToHtml(sheet, range) {
   for (let r = startRow; r <= endRow; r++) {
 
     let rowStyle = '';
-    if (r === 4 || r === 10 || r === 13 || r === 23 || r === 32 || r === 35 || r === 36 || r === 37 ||
-        r === 40 || r === 41 || r === 42 || r === 43 || r === 44 || r === 45 ) {
+    if (r === 4 || r === 10 || r === 13 || r === 23 || r === 33 || r === 36 || r === 37 || r === 38 ||
+        r === 41 || r === 42 || r === 43 || r === 44 || r === 45 || r === 46 ) {
       rowStyle = ' style="height: 21px;"';
     }
     
@@ -479,8 +483,9 @@ export const fillTemplateAndConvertToPDF = async (employeeData, payrollData, per
   sheet.getCell('D18').value = payrollData.bdd;
   sheet.getCell('E18').value = payrollData.bdd;
   
-  // Health & Wellness = sum of columns N + Q + R (req #7)
+  // Health & Wellness
   const healthWellness = (payrollData.bpjskesEmployer || 0) + 
+                         (payrollData.aiaBill || 0) + 
                          (payrollData.jkk || 0) + 
                          (payrollData.jkm || 0);
   sheet.getCell('D20').value = healthWellness;
@@ -490,7 +495,7 @@ export const fillTemplateAndConvertToPDF = async (employeeData, payrollData, per
   
   // Deductions
   sheet.getCell('C25').value = `${payrollData.pph21Percentage.toFixed(2)}%`;
-  sheet.getCell('C25').numFmt = '@'; // Text format
+  sheet.getCell('C25').numFmt = '@';                    // Text format
   sheet.getCell('D25').value = payrollData.pph21Adjust; // AG column (adjust)
   sheet.getCell('E25').value = payrollData.pph21Adjust; // AG column (adjust)
   
@@ -503,24 +508,29 @@ export const fillTemplateAndConvertToPDF = async (employeeData, payrollData, per
   sheet.getCell('E27').value = payrollData.bpjskes;     // Column U
   
   sheet.getCell('C28').value = "0.00%";
-  sheet.getCell('D28').value = 0    
-  sheet.getCell('E28').value = 0     
+  sheet.getCell('D28').value = payrollData.famInsurance;  
+  sheet.getCell('E28').value = payrollData.famInsurance;
   
   sheet.getCell('C29').value = "0.00%";
-  sheet.getCell('D29').value = 0    
-  sheet.getCell('E29').value = 0     
+  sheet.getCell('D29').value = payrollData.employeeLoan;  
+  sheet.getCell('E29').value = payrollData.employeeLoan;
 
   sheet.getCell('C30').value = "0.00%";
-  const kompensasiA1 = payrollData.kompensasiA1 || 0;
-  const formatted_kompensasiA1 = kompensasiA1 > 0 ? kompensasiA1: "(" + Math.abs(kompensasiA1) + ")";
-  sheet.getCell('D30').value = formatted_kompensasiA1;  
-  sheet.getCell('E30').value = formatted_kompensasiA1; 
+  sheet.getCell('D30').value = payrollData.othersDeduction;  
+  sheet.getCell('E30').value = payrollData.othersDeduction;
 
-  sheet.getCell('E31').value = (payrollData.pph21Adjust + payrollData.bpjstk + payrollData.bpjskes + payrollData.kompensasiA1);     // Column F
+  sheet.getCell('C31').value = "0.00%";
+  const kompensasiA1 = payrollData.kompensasiA1 || 0;
+  const formatted_kompensasiA1 = kompensasiA1 >= 0 
+    ? kompensasiA1.toLocaleString('en-US') 
+    : "(" + Math.abs(kompensasiA1).toLocaleString('en-US') + ")";
+  sheet.getCell('D31').value = formatted_kompensasiA1;  
+  sheet.getCell('E31').value = formatted_kompensasiA1;
+  sheet.getCell('E32').value = (payrollData.pph21Adjust + payrollData.bpjstk + payrollData.bpjskes + payrollData.kompensasiA1 + payrollData.famInsurance + payrollData.employeeLoan + payrollData.othersDeduction);     // Column F
 
   // Take Home Pay
-  sheet.getCell('E33').value = ((payrollData.basicPay + payrollData.overtimePay) - 
-                                (payrollData.pph21Adjust + payrollData.bpjstk + payrollData.bpjskes + payrollData.kompensasiA1)); // Recalculate net pay to ensure consistency with deductions
+  sheet.getCell('E34').value = ((payrollData.basicPay + payrollData.overtimePay) - 
+                                (payrollData.pph21Adjust + payrollData.bpjstk + payrollData.bpjskes + payrollData.kompensasiA1 + payrollData.famInsurance + payrollData.employeeLoan + payrollData.othersDeduction)); // Recalculate net pay to ensure consistency with deductions
   
   // ── Convert to HTML ────────────────────────────────────────────────────────
   const htmlTable = await excelRangeToHtml(sheet, 'A1:F49');
@@ -685,7 +695,7 @@ export const generatePayslipsPreviewWithTemplate = async (excelBuffer, sheetName
       
       // Validate deductions (req #14)
       const calculatedNet = (row.basicPay + row.overtimePay) - 
-                           (row.pph21Adjust + row.bpjstk + row.bpjskes + row.kompensasiA1);
+                           (row.pph21Adjust + row.bpjstk + row.bpjskes + row.kompensasiA1 + row.famInsurance + row.employeeLoan + row.othersDeduction);
       const deductionMismatch = Math.abs(calculatedNet - row.netPay) > 1; // Allow 1 IDR rounding difference
       
       // Format as IDR (req #15)
@@ -724,7 +734,7 @@ export const generatePayslipsPreviewWithTemplate = async (excelBuffer, sheetName
           netPayFormatted: formatIDR(row.netPay),
           pdfBase64: pdfBuffer.toString('base64'),
           checked: true,
-          deductionWarning: deductionMismatch ? `Deduction mismatch: Expected ${formatIDR(calculatedNet)} but got ${formatIDR(row.netPay)}` : null,
+          deductionWarning: deductionMismatch ? `Deduction mismatch: Calculated ${formatIDR(calculatedNet)} but got ${formatIDR(row.netPay)}` : null,
         });
       
     } catch (err) {
