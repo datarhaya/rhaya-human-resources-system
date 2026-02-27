@@ -28,6 +28,7 @@ export default function OvertimeDetail() {
   const [error, setError] = useState('');
 
   const { user } = useAuth();
+  const [isOwner, setIsOwner] = useState(false);
   const [showAdminRejectModal, setShowAdminRejectModal] = useState(false);
   const [adminComment, setAdminComment] = useState('');
   const [confirmReject, setConfirmReject] = useState(false);
@@ -96,10 +97,26 @@ export default function OvertimeDetail() {
       setLoading(true);
       const data = await getOvertimeRequestById(requestId);
       setRequest(data);
+      if (data && user?.id) {
+        const ownershipResult = user.employeeId === data.employee?.employeeId;
+        setIsOwner(ownershipResult);
+        
+        // Optional: Debug log
+        console.log('Ownership check:', {
+          userEmployeeId: user.employeeId,
+          requestEmployeeId: data.employee?.id,
+          isOwner: ownershipResult,
+          userName: user.name,
+          requestEmployeeName: data.employee?.name
+        });
+      } else {
+        setIsOwner(false);
+      }
       setError('');
     } catch (err) {
       console.error('Fetch error:', err);
       setError(err.response?.data?.error || t('overtime.failedToLoad'));
+      setIsOwner(false);
     } finally {
       setLoading(false);
     }
@@ -389,7 +406,7 @@ export default function OvertimeDetail() {
           {event.type === 'ADMIN_REJECTED' && event.changes?.originalSupervisorComment && (
             <div className="mt-3 bg-yellow-50 rounded-lg p-3 border border-yellow-200">
               <p className="text-[10px] font-bold text-yellow-800 uppercase mb-1">
-                ⚠️ Original Approval (Overridden):
+                Original Approval (Overridden):
               </p>
               <p className="text-xs text-yellow-700 italic">
                 "{event.changes.originalSupervisorComment}"
@@ -460,7 +477,7 @@ export default function OvertimeDetail() {
       {/* Status & Actions - Mobile: Stack, Desktop: Row */}
       <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <StatusBadge status={request.status} />
-        {(request.status === 'PENDING' || request.status === 'REVISION_REQUESTED') && (
+        {isOwner && (request.status === 'PENDING' || request.status === 'REVISION_REQUESTED') && (
           <Link
             to={`/overtime/edit/${request.id}`}
             className="inline-flex items-center justify-center px-4 py-2.5 sm:py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors"
