@@ -1335,9 +1335,7 @@ export const generatePreviewStream = async (req, res) => {
           netPayFormatted: formatIDR(row.netPay),
           pdfBase64: pdfBuffer.toString('base64'),
           checked: true,
-          deductionWarning: deductionMismatch 
-            ? `Deduction mismatch: Calculated ${formatIDR(calculatedNet)} but got ${formatIDR(row.netPay)}` 
-            : null,
+          deductionWarning: deductionMismatch ? `Net Pay mismatch: Calculated: ${formatIDR(calculatedNet)} | Payslip: ${formatIDR(row.netPay)}` : null,
         });
 
       } catch (err) {

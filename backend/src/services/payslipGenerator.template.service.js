@@ -491,7 +491,9 @@ export const fillTemplateAndConvertToPDF = async (employeeData, payrollData, per
   sheet.getCell('D20').value = healthWellness;
   sheet.getCell('E20').value = healthWellness;
 
-  sheet.getCell('E22').value = (payrollData.basicPay + payrollData.overtimePay + healthWellness + payrollData.bdd);
+  // Gross Earnings
+  // sheet.getCell('E22').value = (payrollData.basicPay + payrollData.overtimePay + healthWellness + payrollData.bdd);
+  sheet.getCell('E22').value = payrollData.grossPay; // Use gross pay from Excel to ensure consistency with template calculations 
   
   // Deductions
   sheet.getCell('C25').value = `${payrollData.pph21Percentage.toFixed(2)}%`;
@@ -529,9 +531,10 @@ export const fillTemplateAndConvertToPDF = async (employeeData, payrollData, per
   sheet.getCell('E32').value = (payrollData.pph21Adjust + payrollData.bpjstk + payrollData.bpjskes + payrollData.kompensasiA1 + payrollData.famInsurance + payrollData.employeeLoan + payrollData.othersDeduction);     // Column F
 
   // Take Home Pay
-  sheet.getCell('E34').value = ((payrollData.basicPay + payrollData.overtimePay) - 
-                                (payrollData.pph21Adjust + payrollData.bpjstk + payrollData.bpjskes + payrollData.kompensasiA1 + payrollData.famInsurance + payrollData.employeeLoan + payrollData.othersDeduction)); // Recalculate net pay to ensure consistency with deductions
-  
+  // sheet.getCell('E34').value = ((payrollData.basicPay + payrollData.overtimePay) - 
+  //                               (payrollData.pph21Adjust + payrollData.bpjstk + payrollData.bpjskes + payrollData.kompensasiA1 + payrollData.famInsurance + payrollData.employeeLoan + payrollData.othersDeduction)); // Recalculate net pay to ensure consistency with deductions
+  sheet.getCell('E34').value = payrollData.netPay; // Use net pay from Excel to ensure consistency with template calculations
+
   // ── Convert to HTML ────────────────────────────────────────────────────────
   const htmlTable = await excelRangeToHtml(sheet, 'A1:F49');
   
@@ -693,7 +696,7 @@ export const generatePayslipsPreviewWithTemplate = async (excelBuffer, sheetName
         overtimeHours: dbOvertimeHours,
       }, row, period, selectedCompany);
       
-      // Validate deductions (req #14)
+      // Validate deductions
       const calculatedNet = (row.basicPay + row.overtimePay) - 
                            (row.pph21Adjust + row.bpjstk + row.bpjskes + row.kompensasiA1 + row.famInsurance + row.employeeLoan + row.othersDeduction);
       const deductionMismatch = Math.abs(calculatedNet - row.netPay) > 1; // Allow 1 IDR rounding difference
@@ -734,7 +737,7 @@ export const generatePayslipsPreviewWithTemplate = async (excelBuffer, sheetName
           netPayFormatted: formatIDR(row.netPay),
           pdfBase64: pdfBuffer.toString('base64'),
           checked: true,
-          deductionWarning: deductionMismatch ? `Deduction mismatch: Calculated ${formatIDR(calculatedNet)} but got ${formatIDR(row.netPay)}` : null,
+          deductionWarning: deductionMismatch ? `Net Pay mismatch: Calculated: ${formatIDR(calculatedNet)} | Payslip: ${formatIDR(row.netPay)}` : null,
         });
       
     } catch (err) {
