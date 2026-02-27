@@ -257,7 +257,7 @@ async function excelRangeToHtml(sheet, range) {
 
     let rowStyle = '';
     if (r === 4 || r === 10 || r === 13 || r === 23 || r === 33 || r === 36 || r === 37 || r === 38 ||
-        r === 41 || r === 42 || r === 43 || r === 44 || r === 45 || r === 46 ) {
+        r === 41 || r === 42 || r === 43 || r === 44 || r === 45 ) {
       rowStyle = ' style="height: 21px;"';
     }
     
