@@ -620,27 +620,21 @@ export default function OvertimeApproval() {
                     {/* Action Buttons - Right Side on Desktop, Below on Mobile */}
                     <div className="flex gap-2 sm:flex-col sm:justify-center sm:space-y-2 sm:gap-0 mt-3 sm:mt-0 sm:min-w-[200px]">
                       {/* View Details Button */}
-
-                        <Link
-                          to={`/overtime/detail/${request.id}`}
-                          className="flex-1 sm:flex-none px-3 py-2 sm:px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-center transition-colors flex items-center justify-center"
-                          title={t('overtime.viewDetails')}
-                        >
-                          {/* Mobile: Icon only */}
-                          {/* <svg className="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg> */}
-                          <img 
-                            src="/detail-icon.svg" 
-                            alt="" 
-                            className="w-5 h-5 sm:hidden brightness-0 invert" 
-                          />
-                          {/* Desktop: Custom icon + text */}
-                          <span className="hidden sm:flex items-center gap-2">
-                            <span className="text-sm">{t('overtime.viewDetails')}</span>
-                          </span>
-                        </Link>
+                      <Link
+                        to={`/overtime/detail/${request.id}`}
+                        className="flex-1 sm:flex-none px-3 py-2 sm:px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-center transition-colors flex items-center justify-center"
+                        title={t('overtime.viewDetails')}
+                      >
+                        <img 
+                          src="/detail-icon.svg" 
+                          alt="" 
+                          className="w-5 h-5 sm:hidden brightness-0 invert" 
+                        />
+                        {/* Desktop: Custom icon + text */}
+                        <span className="hidden sm:flex items-center gap-2">
+                          <span className="text-sm">{t('overtime.viewDetails')}</span>
+                        </span>
+                      </Link>
 
 
                       {/* Approval Action buttons */}
