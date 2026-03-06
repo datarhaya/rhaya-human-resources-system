@@ -1188,6 +1188,17 @@ export default function UserManagement() {
                           </svg>
                         </button>
 
+                        {/* Open in New Tab Button */}
+                        <button
+                          onClick={() => window.open(`/users/${u.id}`, '_blank')}
+                          className="text-indigo-600 hover:text-indigo-900 transition-colors"
+                          title="Open in New Tab"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </button>
+
                         {/* Edit Button */}
                         <button
                           onClick={() => openEditModal(u)}
@@ -2190,6 +2201,21 @@ export default function UserManagement() {
             {(modalMode === 'create' || modalMode === 'edit') && (
               <div className="px-6 py-4 border-t flex-shrink-0 bg-gray-50">
                 <div className="flex space-x-3">
+                  {modalMode === 'edit' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.open(`/users/${selectedUser.id}?mode=edit`, '_blank');
+                      }}
+                      disabled={isSubmitting}
+                      className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      Open in Edit Mode
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}
@@ -2222,6 +2248,18 @@ export default function UserManagement() {
             {modalMode === 'balance' && (
               <div className="px-6 py-4 border-t flex-shrink-0 bg-gray-50">
                 <div className="flex space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.open(`/users/${selectedUser.id}?mode=balance`, '_blank');
+                    }}
+                    className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    Open in Balance Mode
+                  </button>
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}

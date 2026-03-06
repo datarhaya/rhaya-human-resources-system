@@ -10,9 +10,15 @@ export default function UserDetail() {
   const navigate = useNavigate();
   const { user: currentUser, loading: authLoading } = useAuth();
 
+  // Check if opened in edit or balance mode via query param
+  const searchParams = new URLSearchParams(window.location.search);
+  const queryMode = searchParams.get('mode');
+  const initialMode = ['edit', 'balance'].includes(queryMode) ? queryMode : 'view';
+
   const [user, setUser] = useState(null);
   const [dataLoading, setDataLoading] = useState(false);  // separate loading state
-  const [mode, setMode] = useState('view'); // 'view' | 'edit' | 'balance'
+  const [mode, setMode] = useState(initialMode); // 'view' | 'edit' | 'balance'
+  // const [mode, setMode] = useState('view'); // 'view' | 'edit' | 'balance'
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'contracts' | 'overtime' | 'leave' | 'activity'
 
   // Dropdown data
@@ -790,7 +796,7 @@ export default function UserDetail() {
               </div>
               <div>
                 <p className="text-xs text-gray-600">Annual Leave {new Date().getFullYear()}</p>
-                <p className="text-lg font-bold text-gray-900">{user.leaveBalance?.annualQuota || 0} days <span className="text-sm text-gray-500">({user.leaveBalance?.annualRemaining || 0} rem.)</span></p>
+                <p className="text-lg font-bold text-gray-900">{user.leaveBalance?.annualQuota || 0} days <span className="text-sm text-gray-500">({user.leaveBalance?.annualRemaining || 0} days remaining)</span></p>
               </div>
               <div>
                 <p className="text-xs text-gray-600">TOIL</p>
