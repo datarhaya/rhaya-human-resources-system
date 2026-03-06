@@ -2036,7 +2036,7 @@ export default function UserManagement() {
                           </div>
                         )}
                         <p className="text-xs text-gray-500 mt-1">
-                          Select or create a plotting company for the employee
+                          💡 Select or create a plotting company for the employee
                         </p>
                       </div>
                       <div>
@@ -2057,7 +2057,7 @@ export default function UserManagement() {
                           noOptionsMessage={() => "No supervisors found"}
                         />
                         <p className="text-xs text-gray-500 mt-1">
-                          Type to search by name, NIP, or role
+                          💡 Type to search by name, NIP, or role
                         </p>
                       </div>
 
@@ -2241,13 +2241,25 @@ export default function UserManagement() {
             )}
             {modalMode === 'view' && (
               <div className="px-6 py-4 border-t flex-shrink-0 bg-gray-50">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Close
-                </button>
+                <div className="flex space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => window.open(`/users/${selectedUser.id}`, '_blank')}
+                    className="flex-1 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center justify-center"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    Open in New Tab
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             )}
           </div>

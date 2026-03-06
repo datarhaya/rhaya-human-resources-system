@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    historyApiFallback: true, 
     allowedHosts: [
       'polyphyodont-dannielle-semiadhesive.ngrok-free.dev',
       '.ngrok-free.app',  // Allow any ngrok-free.app domain

@@ -21,6 +21,7 @@ import MyPayslips from './pages/MyPayslips';
 import PayslipManagement from './pages/PayslipManagement';
 import UserProfile from './pages/UserProfile';
 import UserManagement from './pages/UserManagement';
+import UserDetail from './pages/UserDetail';
 import LeaveHistory from './pages/LeaveHistory';
 import LeaveApproval from './pages/LeaveApproval';
 import OvertimeRecapManagement from './pages/OvertimeRecapManagement';
@@ -191,6 +192,12 @@ function App() {
           <Route path="/users/manage" element={
             <ProtectedRoute requiredLevel={2}>
               <UserManagement />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/users/:userId" element={
+            <ProtectedRoute requiredLevel={2}>
+              <UserDetail />
             </ProtectedRoute>
           } />
 
