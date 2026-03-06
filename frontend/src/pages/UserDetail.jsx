@@ -4,6 +4,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import apiClient from '../api/client';
 import Select from 'react-select';
+import FilesTab from '../components/FilesTab';
+import PayslipsTab from '../components/PayslipsTab';
 
 export default function UserDetail() {
   const { userId } = useParams();
@@ -318,7 +320,7 @@ export default function UserDetail() {
           </button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{user.name}</h1>
-            <p className="text-sm text-gray-500">@{user.username} · {user.email}</p>
+            <p className="text-sm text-gray-500">@{user.nip} · {user.email}</p>
           </div>
         </div>
 
@@ -371,11 +373,12 @@ export default function UserDetail() {
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px">
               {[
-                { id: 'overview', label: 'Overview', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
-                { id: 'contracts', label: 'Contracts', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', badge: 0 },
-                { id: 'overtime', label: 'Overtime Recap', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', badge: 0 },
-                { id: 'leave', label: 'Leave History', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z', badge: 0 },
-                { id: 'activity', label: 'Activity Log', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+                { id: 'overview', label: 'Overview'},
+                { id: 'files', label: 'Files' },
+                { id: 'payslips', label: 'Payslips'},
+                { id: 'overtime', label: 'Overtime Recap', badge: 0 },
+                { id: 'leave', label: 'Leave History', badge: 0 },
+                { id: 'activity', label: 'Activity Log' },
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -386,9 +389,6 @@ export default function UserDetail() {
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tab.icon} />
-                  </svg>
                   {tab.label}
                   {tab.badge !== undefined && tab.badge > 0 && (
                     <span className="ml-2 px-2 py-0.5 text-xs font-bold rounded-full bg-red-100 text-red-600">
@@ -507,17 +507,14 @@ export default function UserDetail() {
         </div>
       )}
 
-      {/* ── CONTRACTS TAB ──────────────────────────────────────── */}
-      {mode === 'view' && activeTab === 'contracts' && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-center py-12">
-            <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Contract Files</h3>
-            <p className="text-gray-500">Contract file management coming soon</p>
-          </div>
-        </div>
+      {/* ── Files TAB */}
+      {mode === 'view' && activeTab === 'files' && (
+        <FilesTab userId={userId} isAdmin={currentUser.accessLevel === 1} />
+      )}
+
+      {/* Payslips Tab */}
+      {mode === 'view' && activeTab === 'payslips' && (
+        <PayslipsTab userId={userId} />
       )}
 
       {/* ── OVERTIME RECAP TAB ─────────────────────────────────── */}
