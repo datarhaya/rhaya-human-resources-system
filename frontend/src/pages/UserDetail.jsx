@@ -6,11 +6,14 @@ import apiClient from '../api/client';
 import Select from 'react-select';
 import FilesTab from '../components/FilesTab';
 import PayslipsTab from '../components/PayslipsTab';
+import OvertimeRecapTab from '../components/OvertimeRecapTab';
 
 export default function UserDetail() {
   const { userId } = useParams();
   const navigate = useNavigate();
   const { user: currentUser, loading: authLoading } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   // Check if opened in edit or balance mode via query param
   const searchParams = new URLSearchParams(window.location.search);
@@ -62,6 +65,21 @@ export default function UserDetail() {
     }
     fetchAll();
   }, [userId, authLoading, currentUser]);
+
+  if (authLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+  
+  if (!currentUser) {
+    navigate('/login');
+    return null;
+  }
+  
+  const isAdmin = currentUser.accessLevel <= 2;
 
   const fetchAll = async () => {
     setDataLoading(true);
@@ -519,15 +537,7 @@ export default function UserDetail() {
 
       {/* ── OVERTIME RECAP TAB ─────────────────────────────────── */}
       {mode === 'view' && activeTab === 'overtime' && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-center py-12">
-            <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Overtime Recap History</h3>
-            <p className="text-gray-500">Overtime recap records coming soon</p>
-          </div>
-        </div>
+        <OvertimeRecapTab userId={userId} isAdmin={isAdmin}/>
       )}
 
       {/* ── LEAVE HISTORY TAB ──────────────────────────────────── */}

@@ -982,29 +982,42 @@ export const requestRevision = async (req, res) => {
  * GET /api/overtime/admin/all-requests?status=PENDING&divisionId=xxx
  */
 export const getAllOvertimeRequests = async (req, res) => {
-  try {
-    // Check admin access
-    if (req.user.accessLevel > 2) {
-      return res.status(403).json({ error: 'Admin/HR access required' });
-    }
-
-    const { status, divisionId, employeeId, year, month } = req.query;
-
-    const filters = {};
-    if (status) filters.status = status;
-    if (divisionId) filters.divisionId = divisionId;
-    if (employeeId) filters.employeeId = employeeId;
-    if (year) filters.year = parseInt(year);
-    if (month) filters.month = parseInt(month);
-
-    const requests = await overtimeService.getOvertimeRequests(filters);
-
-    res.json({ data: requests });
-
-  } catch (error) {
-    console.error('Get all requests error:', error);
-    res.status(500).json({ error: error.message });
+  // Check admin access
+  if (req.user.accessLevel > 2) {
+    return res.status(403).json({ error: 'Admin/HR access required' });
   }
+  
+  const { status, employeeId, isRecapped } = req.query;
+  console.log('Query params:', req.query ); // DEBUG
+
+  const where = {};
+  if (status) where.status = status;
+  if (employeeId) where.employeeId = employeeId;
+  
+  if (isRecapped !== undefined) {
+    where.isRecapped = isRecapped === 'true';
+  }
+
+  const requests = await prisma.overtimeRequest.findMany({
+    where,
+    include: {
+      entries: { orderBy: { date: 'asc' } },
+      employee: {
+        select: { id: true, name: true, nip: true, email: true }
+      },
+      supervisor: { select: { id: true, name: true } },
+      divisionHead: { select: { id: true, name: true } },
+      finalApprover: { select: { id: true, name: true } }
+    },
+    orderBy: { submittedAt: 'desc' }
+  });
+
+  return res.json({ 
+    success: true,
+    count: requests.length,
+    totalHours: requests.reduce((sum, req) => sum + (req.totalHours || 0), 0),
+    data: requests 
+  });
 };
 
 /**

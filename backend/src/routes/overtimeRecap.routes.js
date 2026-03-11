@@ -3,6 +3,8 @@
 
 import express from 'express';
 import * as overtimeRecapController from '../controllers/overtimeRecap.controller.js';
+import { generateRecapPDF } from '../controllers/overtimeRecapPDF.controller.js';
+import { generateCombinedRecapPDF } from '../controllers/overtimeRecapCombinedPDF.controller.js';
 import { authenticate, requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -102,6 +104,20 @@ router.get(
   authenticate, 
   requireAdmin, 
   overtimeRecapController.getRecapDetail
+);
+
+// Download recap as PDF (must be accessible by employee or admin)
+router.get(
+  '/recap/:recapId/pdf',
+  authenticate,
+  generateRecapPDF
+);
+
+// Download combined PDF for year or all-time
+router.get(
+  '/combined-pdf',
+  authenticate,
+  generateCombinedRecapPDF
 );
 
 // Create individual recap for single employee
