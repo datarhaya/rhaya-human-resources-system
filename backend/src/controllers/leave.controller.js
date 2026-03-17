@@ -457,11 +457,14 @@ export const getPendingApprovalList = async (req, res) => {
  */
 export const getAllLeaveRequests = async (req, res) => {
   try {
-    const { status } = req.query;
+    const { status, employeeId } = req.query;
 
     const where = {};
     if (status) {
       where.status = status;
+    }
+    if (employeeId) {
+      where.employeeId = employeeId;
     }
 
     const requests = await prisma.leaveRequest.findMany({

@@ -7,6 +7,7 @@ import Select from 'react-select';
 import FilesTab from '../components/FilesTab';
 import PayslipsTab from '../components/PayslipsTab';
 import OvertimeRecapTab from '../components/OvertimeRecapTab';
+import LeaveHistoryTab from '../components/LeaveHistoryTab';
 
 export default function UserDetail() {
   const { userId } = useParams();
@@ -542,15 +543,7 @@ export default function UserDetail() {
 
       {/* ── LEAVE HISTORY TAB ──────────────────────────────────── */}
       {mode === 'view' && activeTab === 'leave' && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-center py-12">
-            <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Leave Request History</h3>
-            <p className="text-gray-500">Leave history records coming soon</p>
-          </div>
-        </div>
+        <LeaveHistoryTab userId={userId} />
       )}
 
       {/* ── ACTIVITY LOG TAB ───────────────────────────────────── */}
