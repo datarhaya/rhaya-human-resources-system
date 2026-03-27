@@ -55,7 +55,7 @@ export default function OvertimeRecapManagement() {
   
   // Filters
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
-  const [filterMonth, setFilterMonth] = useState('');
+  const [filterMonth, setFilterMonth] =  useState(new Date().getMonth() + 1);
   const [filterEmployee, setFilterEmployee] = useState('');
   const [filterEmployeeName, setFilterEmployeeName] = useState('');
   
