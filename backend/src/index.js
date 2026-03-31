@@ -17,6 +17,7 @@ import payslipRoutes from './routes/payslip.routes.js';
 import welcomeEmailRoutes from './routes/welcomeEmail.routes.js';
 import plottingCompanyRoutes from './routes/plottingCompany.routes.js';
 import documentRoutes from './routes/document.routes.js';
+import internalRoutes from './routes/internal.routes.js';
 
 // Import middleware
 import { authenticateToken } from './middleware/auth.js';
@@ -149,6 +150,8 @@ app.use('/api/users/:userId/documents', documentRoutes);
 
 // Static file serving for uploads (protected)
 app.use('/uploads', authenticateToken, express.static('uploads'));
+
+app.use('/internal', internalRoutes);
 
 // ============================================
 // ERROR HANDLING

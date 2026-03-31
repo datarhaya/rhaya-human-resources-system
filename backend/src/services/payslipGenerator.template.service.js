@@ -165,7 +165,8 @@ export const parsePayrollSheet = async (excelBuffer, sheetName) => {
       // Earnings
       basicPay:        parseNum('H'),                           // GAJI/PENSIUN
       overtimePay:     parseNum('Y'),                           // LEMBUR
-      bdd:             parseNum('X'),                           // THR + BONUS + OVERTIME
+      bdd:             parseNum('X'),                           // BONUS
+      prepaidTHR:      parseNum('Z'),                           // PREPAID BONUS (BDD + THR)
 
       // Health & Wellness components                         
       bpjskesEmployer: parseNum('N'),                           // PREMI BPJSKES 4%
@@ -480,9 +481,12 @@ export const fillTemplateAndConvertToPDF = async (employeeData, payrollData, per
       { text: ' THR: Bonus: Overtime' }
     ]
   };
-  sheet.getCell('D18').value = payrollData.bdd;
-  sheet.getCell('E18').value = payrollData.bdd;
-  
+  const prepaidTotal = (payrollData.prepaidTHR || 0) +
+                        (payrollData.bdd || 0);
+
+  sheet.getCell('D17').value = prepaidTotal;
+  sheet.getCell('E17').value = prepaidTotal;
+
   // Health & Wellness
   const healthWellness = (payrollData.bpjskesEmployer || 0) + 
                          (payrollData.aiaBill || 0) + 
