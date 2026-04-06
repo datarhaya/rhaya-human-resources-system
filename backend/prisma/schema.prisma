@@ -46,6 +46,10 @@ model User {
   divisionHeadLeaves                                    LeaveRequest[]         @relation("LeaveDivisionHead")
   leaveRequests                                         LeaveRequest[]
   supervisorLeaves                                      LeaveRequest[]         @relation("LeaveSupervisor")
+  offboardingsCreated                                   Offboarding[]          @relation("OffboardingCreator")
+  offboarding                                           Offboarding?           @relation("OffboardingEmployee")
+  offboardingsHRD                                       Offboarding[]          @relation("OffboardingHRD")
+  offboardingsSupervisor                                Offboarding[]          @relation("OffboardingSupervisor")
   overtimeBalance                                       OvertimeBalance?
   overtimeRecaps                                        OvertimeRecap[]
   recapsMade                                            OvertimeRecap[]        @relation("RecappedBy")
@@ -434,4 +438,59 @@ model EmployeeDocument {
   @@index([documentType])
   @@index([status])
   @@index([userId])
+}
+
+model Offboarding {
+  id                   String    @id @default(cuid())
+  employeeId           String    @unique
+  offboardingType      String
+  resignDate           DateTime?
+  lastWorkingDay       DateTime
+  resignReason         String?
+  reasonDetails        String?
+  handoverCompleted    Boolean   @default(false)
+  handoverNotes        String?
+  documentationDone    Boolean   @default(false)
+  documentationNotes   String?
+  accessTransferred    Boolean   @default(false)
+  accessNotes          String?
+  laptopReturned       Boolean   @default(false)
+  laptopNotes          String?
+  idCardReturned       Boolean   @default(false)
+  idCardNotes          String?
+  emailRevoked         Boolean   @default(false)
+  emailNotes           String?
+  otherAssetReturned   Boolean   @default(false)
+  otherAssetNotes      String?
+  loanSettled          Boolean   @default(false)
+  loanNotes            String?
+  reimbursementClaimed Boolean   @default(false)
+  reimbursementNotes   String?
+  finalPayrollDone     Boolean   @default(false)
+  finalPayrollNotes    String?
+  exitInterviewDone    Boolean   @default(false)
+  exitInterviewLink    String?
+  exitInterviewNotes   String?
+  employeeAcknowledged Boolean   @default(false)
+  employeeSignedAt     DateTime?
+  supervisorApproved   Boolean   @default(false)
+  supervisorSignedAt   DateTime?
+  supervisorId         String?
+  hrdApproved          Boolean   @default(false)
+  hrdSignedAt          DateTime?
+  hrdId                String?
+  status               String    @default("IN_PROGRESS")
+  completedAt          DateTime?
+  createdBy            String
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  creator              User      @relation("OffboardingCreator", fields: [createdBy], references: [id])
+  employee             User      @relation("OffboardingEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  hrd                  User?     @relation("OffboardingHRD", fields: [hrdId], references: [id])
+  supervisor           User?     @relation("OffboardingSupervisor", fields: [supervisorId], references: [id])
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([lastWorkingDay])
+  @@map("Offboarding")
 }

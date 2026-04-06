@@ -1,8 +1,12 @@
 // backend/src/routes/overtime.routes.js
-import express from 'express';
-import * as overtimeController from '../controllers/overtime.controller.js';
-import { authenticate, authorizeAdmin } from '../middleware/auth.js';
-import { checkRecapLock } from '../middleware/recapLock.middleware.js';
+import express from "express";
+import * as overtimeController from "../controllers/overtime.controller.js";
+import {
+  authenticate,
+  authorizeAdmin,
+  requireActiveUser,
+} from "../middleware/auth.js";
+import { checkRecapLock } from "../middleware/recapLock.middleware.js";
 
 const router = express.Router();
 
@@ -11,61 +15,130 @@ const router = express.Router();
 // ============================================
 
 // Submit new overtime request
-router.post('/submit', authenticate, overtimeController.submitOvertimeRequest);
+router.post(
+  "/submit",
+  authenticate,
+  requireActiveUser,
+  overtimeController.submitOvertimeRequest,
+);
 
 // Get my overtime requests (with filters)
-router.get('/my-requests', authenticate, overtimeController.getMyOvertimeRequests);
+router.get(
+  "/my-requests",
+  authenticate,
+  overtimeController.getMyOvertimeRequests,
+);
 
 // Get my overtime balance
-router.get('/my-balance', authenticate, overtimeController.getMyOvertimeBalance);
+router.get(
+  "/my-balance",
+  authenticate,
+  overtimeController.getMyOvertimeBalance,
+);
 
 // Edit pending overtime request
-router.put('/:requestId', authenticate, overtimeController.editOvertimeRequest);
+router.put(
+  "/:requestId",
+  authenticate,
+  requireActiveUser,
+  overtimeController.editOvertimeRequest,
+);
 
 // Delete pending overtime request
-router.delete('/:requestId', authenticate, overtimeController.deleteOvertimeRequest);
+router.delete(
+  "/:requestId",
+  authenticate,
+  requireActiveUser,
+  overtimeController.deleteOvertimeRequest,
+);
 
 // Get single overtime request details
-router.get('/:requestId', authenticate, overtimeController.getOvertimeRequestById);
+router.get(
+  "/:requestId",
+  authenticate,
+  overtimeController.getOvertimeRequestById,
+);
 
 // ============================================
 // APPROVER ROUTES
 // ============================================
 
 // Get requests pending my approval
-router.get('/pending-approval/list', authenticate, overtimeController.getPendingApprovals);
+router.get(
+  "/pending-approval/list",
+  authenticate,
+  overtimeController.getPendingApprovals,
+);
 
 // Approve overtime request
 // router.post('/:requestId/approve', authenticate, overtimeController.approveOvertimeRequest);
-router.post('/:requestId/approve', authenticate, checkRecapLock, overtimeController.approveOvertimeRequest);
+router.post(
+  "/:requestId/approve",
+  authenticate,
+  checkRecapLock,
+  overtimeController.approveOvertimeRequest,
+);
 
 // Reject overtime request
 // router.post('/:requestId/reject', authenticate, overtimeController.rejectOvertimeRequest);
-router.post('/:requestId/reject', authenticate, checkRecapLock, overtimeController.rejectOvertimeRequest);
-
+router.post(
+  "/:requestId/reject",
+  authenticate,
+  checkRecapLock,
+  overtimeController.rejectOvertimeRequest,
+);
 
 // Request revision
-router.post('/:requestId/request-revision', authenticate, overtimeController.requestRevision);
+router.post(
+  "/:requestId/request-revision",
+  authenticate,
+  overtimeController.requestRevision,
+);
 
 // ============================================
 // ADMIN/HR ROUTES
 // ============================================
 
 // Get all overtime requests (with filters)
-router.get('/admin/all-requests', authenticate, overtimeController.getAllOvertimeRequests);
+router.get(
+  "/admin/all-requests",
+  authenticate,
+  overtimeController.getAllOvertimeRequests,
+);
 
 // Process monthly balance (HR processes on 20th/4th week)
-router.post('/admin/process-balance', authenticate, overtimeController.processMonthlyBalance);
+router.post(
+  "/admin/process-balance",
+  authenticate,
+  overtimeController.processMonthlyBalance,
+);
 
 // Reset employee balance
-router.post('/admin/reset-balance/:userId', authenticate, overtimeController.resetEmployeeBalance);
+router.post(
+  "/admin/reset-balance/:userId",
+  authenticate,
+  overtimeController.resetEmployeeBalance,
+);
 
 // Get overtime statistics
-router.get('/admin/statistics', authenticate, overtimeController.getOvertimeStatistics);
+router.get(
+  "/admin/statistics",
+  authenticate,
+  overtimeController.getOvertimeStatistics,
+);
 
-router.post('/:requestId/admin-reject', authenticate, authorizeAdmin, overtimeController.adminRejectApprovedOvertime);
+router.post(
+  "/:requestId/admin-reject",
+  authenticate,
+  authorizeAdmin,
+  overtimeController.adminRejectApprovedOvertime,
+);
 
-router.put('/:requestId/admin-edit', authenticate, authorizeAdmin, overtimeController.adminEditOvertime);
-
+router.put(
+  "/:requestId/admin-edit",
+  authenticate,
+  authorizeAdmin,
+  overtimeController.adminEditOvertime,
+);
 
 export default router;

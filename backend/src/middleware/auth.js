@@ -1,7 +1,7 @@
 // backend/src/middleware/auth.js
 
-import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
+import jwt from "jsonwebtoken";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -10,52 +10,38 @@ const prisma = new PrismaClient();
  */
 export const authenticate = async (req, res, next) => {
   try {
-    // Get token from header: "Bearer <token>"
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'No token provided' });
+    const token = req.headers.authorization?.replace("Bearer ", "");
+
+    if (!token) {
+      return res.status(401).json({ error: "No token provided" });
     }
-    
-    const token = authHeader.split(' ')[1];
-    
-    // Verify token
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Get user from database
+
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       include: {
+        division: true,
         role: true,
-        division: true
-      }
+      },
     });
-    
-    if (!user || user.employeeStatus === 'Inactive') {
-      return res.status(401).json({ error: 'User not found or inactive' });
+
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
     }
-    
-    // Attach user to request (remove password)
-    const { password, ...userWithoutPassword } = user;
-    req.user = userWithoutPassword;
-    
+
+    req.user = user;
     next();
   } catch (error) {
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ error: 'Token expired' });
-    }
-    next(error);
+    return res.status(401).json({ error: "Invalid token" });
   }
 };
 
 export const authorizeAdmin = (req, res, next) => {
   // Check if user is System Administrator (Level 1)
   if (req.user.accessLevel !== 1) {
-    return res.status(403).json({ 
-      error: 'Access denied. System Administrator only.' 
+    return res.status(403).json({
+      error: "Access denied. System Administrator only.",
     });
   }
   next();
@@ -68,17 +54,17 @@ export const authorizeAdmin = (req, res, next) => {
 export const requireRole = (allowedLevels) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ error: 'Not authenticated' });
+      return res.status(401).json({ error: "Not authenticated" });
     }
-    
+
     if (!allowedLevels.includes(req.user.accessLevel)) {
-      return res.status(403).json({ 
-        error: 'Insufficient permissions',
+      return res.status(403).json({
+        error: "Insufficient permissions",
         required: allowedLevels,
-        current: req.user.accessLevel
+        current: req.user.accessLevel,
       });
     }
-    
+
     next();
   };
 };
@@ -93,29 +79,44 @@ export const requireMaxRoleLevel = (maxLevel) => {
     try {
       const user = await prisma.user.findUnique({
         where: { id: req.user.id },
-        include: { role: true }
+        include: { role: true },
       });
 
       if (!user || !user.role) {
-        return res.status(403).json({ message: 'User role not found' });
+        return res.status(403).json({ message: "User role not found" });
       }
 
       // Check if user's role level is <= maximum allowed level
       // Example: maxLevel=4 allows 1,2,3,4 but not 5
       if (user.role.level > maxLevel) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           message: `Access denied. Maximum role level ${maxLevel} required.`,
-          currentLevel: user.role.level
+          currentLevel: user.role.level,
         });
       }
 
       req.userRole = user.role;
       next();
     } catch (error) {
-      console.error('Role check error:', error);
-      res.status(500).json({ message: 'Error checking permissions' });
+      console.error("Role check error:", error);
+      res.status(500).json({ message: "Error checking permissions" });
     }
   };
+};
+
+/**
+ * Middleware to restrict inactive users from certain routes
+ * Inactive = employeeStatus === 'INACTIVE'
+ */
+export const requireActiveUser = (req, res, next) => {
+  if (req.user.employeeStatus === "INACTIVE") {
+    return res.status(403).json({
+      error: "Account is inactive",
+      message:
+        "Your account has been deactivated. You can only access payslips and profile information.",
+    });
+  }
+  next();
 };
 
 /**
