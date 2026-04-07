@@ -419,7 +419,7 @@ model PasswordReset {
 }
 
 model EmployeeDocument {
-  id                                         String    @id
+  id                                         String    @id @default(cuid())
   userId                                     String
   fileName                                   String
   fileUrl                                    String
