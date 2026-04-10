@@ -1,13 +1,18 @@
 // backend/src/routes/plottingCompany.routes.js
-import express from 'express';
-import { authenticate, authorizeAdmin } from '../middleware/auth.js';
+import express from "express";
+import {
+  authenticate,
+  authorizeAdmin,
+  requireRole,
+  authorizeHR,
+} from "../middleware/auth.js";
 import {
   getAllPlottingCompanies,
   getPlottingCompanyById,
   createPlottingCompany,
   updatePlottingCompany,
-  deletePlottingCompany
-} from '../controllers/plottingCompany.controller.js';
+  deletePlottingCompany,
+} from "../controllers/plottingCompany.controller.js";
 
 const router = express.Router();
 
@@ -15,14 +20,14 @@ const router = express.Router();
 router.use(authenticate);
 
 // Get all plotting companies (accessible to all authenticated users)
-router.get('/', getAllPlottingCompanies);
+router.get("/", getAllPlottingCompanies);
 
 // Get single plotting company
-router.get('/:id', getPlottingCompanyById);
+router.get("/:id", getPlottingCompanyById);
 
 // Admin-only routes
-router.post('/create', authorizeAdmin, createPlottingCompany);
-router.put('/:id', authorizeAdmin, updatePlottingCompany);
-router.delete('/:id', authorizeAdmin, deletePlottingCompany);
+router.post("/create", requireRole([1]), createPlottingCompany); // TODO confirm if level 2 can create entity
+router.put("/:id", requireRole([1, 2]), updatePlottingCompany);
+router.delete("/:id", requireRole([1, 2]), deletePlottingCompany);
 
 export default router;

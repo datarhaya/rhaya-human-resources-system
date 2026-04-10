@@ -140,7 +140,7 @@ export const getUserDocuments = async (req, res) => {
     const { userId } = req.params;
     const { type } = req.query;
     const requestingUserId = req.user.id;
-    const isAdmin = req.user.accessLevel === 1;
+    const isAdmin = req.user.accessLevel <= 2;
 
     // Check access: admin or user themselves
     if (!isAdmin && requestingUserId !== userId) {

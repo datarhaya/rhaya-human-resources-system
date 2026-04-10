@@ -1,38 +1,38 @@
 // backend/src/controllers/auth.controller.js
 // UPDATED: Login with NIP or Email
 
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { validationResult } from 'express-validator';
-import prisma from '../config/database.js';
-import { AppError } from '../middleware/errorHandler.js';
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { validationResult } from "express-validator";
+import prisma from "../config/database.js";
+import { AppError } from "../middleware/errorHandler.js";
 import {
   generateResetToken,
   hashToken,
   verifyToken,
-  getTokenExpiration
-} from '../services/passwordResetToken.service.js';
+  getTokenExpiration,
+} from "../services/passwordResetToken.service.js";
 import {
   sendPasswordResetEmail,
-  sendPasswordChangedEmail
-} from '../services/email.service.js';
-import { validatePassword } from '../utils/passwordValidator.js';
+  sendPasswordChangedEmail,
+} from "../services/email.service.js";
+import { validatePassword } from "../utils/passwordValidator.js";
 
-// Login with NIP or Email
+// Login with NIP or Email - WITH SCOPE SUPPORT
 export const login = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
-        error: 'Validation failed',
-        details: errors.array() 
+      return res.status(400).json({
+        error: "Validation failed",
+        details: errors.array(),
       });
     }
 
     const { identifier, password } = req.body;
 
     // Determine if identifier is email or NIP
-    const isEmail = identifier.includes('@');
+    const isEmail = identifier.includes("@");
 
     // Find user by NIP or Email
     let user = null;
@@ -43,23 +43,23 @@ export const login = async (req, res, next) => {
           role: true,
           division: true,
           supervisor: {
-            select: { id: true, name: true, email: true }
+            select: { id: true, name: true, email: true },
           },
           subordinates: {
             where: {
-              employeeStatus: { not: 'INACTIVE' }
+              employeeStatus: { not: "INACTIVE" },
             },
-            select: { 
-              id: true, 
-              name: true, 
+            select: {
+              id: true,
+              name: true,
               email: true,
               accessLevel: true,
               role: {
-                select: { name: true }
-              }
-            }
-          }
-        }
+                select: { name: true },
+              },
+            },
+          },
+        },
       });
     } else {
       user = await prisma.user.findUnique({
@@ -68,63 +68,94 @@ export const login = async (req, res, next) => {
           role: true,
           division: true,
           supervisor: {
-            select: { id: true, name: true, email: true }
+            select: { id: true, name: true, email: true },
           },
           subordinates: {
             where: {
-              employeeStatus: { not: 'INACTIVE' }
+              employeeStatus: { not: "INACTIVE" },
             },
-            select: { 
-              id: true, 
-              name: true, 
+            select: {
+              id: true,
+              name: true,
               email: true,
               accessLevel: true,
               role: {
-                select: { name: true }
-              }
-            }
-          }
-        }
+                select: { name: true },
+              },
+            },
+          },
+        },
       });
     }
 
     // User not found - use generic message for security
     if (!user) {
-      console.log(`❌ Login failed: User not found (${isEmail ? 'Email' : 'NIP'}: ${identifier})`);
-      return res.status(401).json({ 
-        error: 'Invalid NIP/Email or password. Please check your credentials and try again.' 
+      console.log(
+        `❌ Login failed: User not found (${isEmail ? "Email" : "NIP"}: ${identifier})`,
+      );
+      return res.status(401).json({
+        error:
+          "Invalid NIP/Email or password. Please check your credentials and try again.",
       });
     }
 
     // Check if user is inactive - specific message
-    if (user.employeeStatus === 'Inactive') {
-      console.log(`⚠️ Login attempt by inactive user: ${user.name} (${identifier})`);
-      return res.status(403).json({ 
-        error: 'Your account has been deactivated. Please contact HR for assistance.' 
+    // KEPT YOUR ORIGINAL LOGIC (case-sensitive 'Inactive')
+    // TODO Change the INACTIVE or other status for inactive user > 1 month (30 Days)
+    if (user.employeeStatus === "Inactive") {
+      console.log(
+        ` Login attempt by inactive user: ${user.name} (${identifier})`,
+      );
+      return res.status(403).json({
+        error:
+          "Your account has been deactivated. Please contact HR for assistance.",
       });
     }
 
     // Check password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      console.log(`❌ Login failed: Invalid password for user ${user.name} (${identifier})`);
-      return res.status(401).json({ 
-        error: 'Invalid NIP/Email or password. Please check your credentials and try again.' 
+      console.log(
+        `❌ Login failed: Invalid password for user ${user.name} (${identifier})`,
+      );
+      return res.status(401).json({
+        error:
+          "Invalid NIP/Email or password. Please check your credentials and try again.",
       });
     }
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.id },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    );
+    // NEW: Generate JWT token with scope support
+    const tokenPayload = {
+      userId: user.id,
+    };
+
+    if (user.accessLevel === 2) {
+      tokenPayload.scopeEntityIds = user.scopeEntityIds || [];
+
+      console.log(
+        `[SCOPE] Level 2 admin login: ${user.name}, scope: ${JSON.stringify(user.scopeEntityIds || [])}`,
+      );
+
+      // Warn if no entities assigned
+      if (!user.scopeEntityIds || user.scopeEntityIds.length === 0) {
+        console.warn(
+          `[SCOPE] Level 2 admin ${user.email} has no scopeEntityIds assigned!`,
+        );
+      }
+    }
+
+    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+    });
 
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
 
-    console.log(`✅ Login successful: ${user.name} (${isEmail ? 'Email' : 'NIP'}: ${identifier})`);
+    console.log(
+      `Login successful: ${user.name} (${isEmail ? "Email" : "NIP"}: ${identifier})`,
+    );
 
+    // KEPT YOUR ORIGINAL RESPONSE STRUCTURE
     res.json({
       token,
       user: {
@@ -140,26 +171,20 @@ export const login = async (req, res, next) => {
         role: user.role,
         division: user.division,
         supervisor: user.supervisor,
-        subordinates: user.subordinates
-      }
+        subordinates: user.subordinates,
+        scopeEntityIds: user.scopeEntityIds || [],
+      },
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     // Generic error message for security
-    res.status(500).json({ 
-      error: 'An error occurred during login. Please try again later.' 
+    res.status(500).json({
+      error: "An error occurred during login. Please try again later.",
     });
   }
 };
 
-
-// Logout (client-side handles token removal, this is just for logging)
-export const logout = async (req, res) => {
-  console.log(`📤 User logged out: ${req.user?.name || 'Unknown'}`);
-  res.json({ message: 'Logged out successfully' });
-};
-
-// Get current user
+// Get current user - WITH SCOPE SUPPORT
 export const getCurrentUser = async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({
@@ -168,41 +193,49 @@ export const getCurrentUser = async (req, res, next) => {
         role: true,
         division: true,
         supervisor: {
-          select: { id: true, name: true, email: true }
+          select: { id: true, name: true, email: true },
         },
         subordinates: {
           where: {
-            employeeStatus: { not: 'INACTIVE' }
+            employeeStatus: { not: "INACTIVE" },
           },
-          select: { 
-            id: true, 
-            name: true, 
+          select: {
+            id: true,
+            name: true,
             email: true,
             accessLevel: true,
             role: {
-              select: { name: true }
-            }
-          }
-        }
-      }
+              select: { name: true },
+            },
+          },
+        },
+      },
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: "User not found" });
     }
 
-    if (user.employeeStatus === 'Inactive') {
-      return res.status(403).json({ 
-        error: 'Your account has been deactivated. Please contact HR for assistance.' 
+    if (user.employeeStatus === "Inactive") {
+      return res.status(403).json({
+        error:
+          "Your account has been deactivated. Please contact HR for assistance.",
       });
     }
 
     const { password: _, ...userWithoutPassword } = user;
+
     res.json(userWithoutPassword);
   } catch (error) {
-    console.error('Get current user error:', error);
-    res.status(500).json({ error: 'Failed to fetch user information' });
+    console.error("Get current user error:", error);
+    res.status(500).json({ error: "Failed to fetch user information" });
   }
+};
+
+// Logout (client-side handles token removal, this is just for logging)
+export const logout = async (req, res) => {
+  console.log(`📤 User logged out: ${req.user?.name || "Unknown"}`);
+  res.json({ message: "Logged out successfully" });
 };
 
 // Change password
@@ -210,9 +243,9 @@ export const changePassword = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
-        error: 'Validation failed',
-        details: errors.array() 
+      return res.status(400).json({
+        error: "Validation failed",
+        details: errors.array(),
       });
     }
 
@@ -221,34 +254,34 @@ export const changePassword = async (req, res, next) => {
     // Validate new password strength
     const passwordValidation = validatePassword(newPassword);
     if (!passwordValidation.valid) {
-      return res.status(400).json({ 
-        error: 'Password does not meet security requirements',
-        details: passwordValidation.errors
+      return res.status(400).json({
+        error: "Password does not meet security requirements",
+        details: passwordValidation.errors,
       });
     }
 
     // Get user with password
     const user = await prisma.user.findUnique({
-      where: { id: req.user.id }
+      where: { id: req.user.id },
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: "User not found" });
     }
 
     // Verify current password
     const isValid = await bcrypt.compare(currentPassword, user.password);
     if (!isValid) {
-      return res.status(400).json({ 
-        error: 'Current password is incorrect' 
+      return res.status(400).json({
+        error: "Current password is incorrect",
       });
     }
 
     // Check if new password is same as current
     const isSamePassword = await bcrypt.compare(newPassword, user.password);
     if (isSamePassword) {
-      return res.status(400).json({ 
-        error: 'New password must be different from current password' 
+      return res.status(400).json({
+        error: "New password must be different from current password",
       });
     }
 
@@ -258,10 +291,10 @@ export const changePassword = async (req, res, next) => {
     // Update password
     await prisma.user.update({
       where: { id: req.user.id },
-      data: { 
+      data: {
         password: hashedPassword,
-        lastPasswordChange: new Date()
-      }
+        lastPasswordChange: new Date(),
+      },
     });
 
     // Send confirmation email
@@ -269,17 +302,19 @@ export const changePassword = async (req, res, next) => {
       await sendPasswordChangedEmail(user);
       console.log(`✅ Password change confirmation sent to: ${user.email}`);
     } catch (emailError) {
-      console.error(`⚠️ Failed to send password change email: ${emailError.message}`);
+      console.error(
+        `⚠️ Failed to send password change email: ${emailError.message}`,
+      );
       // Don't fail the request if email fails
     }
 
     console.log(`✅ Password changed successfully for user: ${user.name}`);
 
-    res.json({ message: 'Password changed successfully' });
+    res.json({ message: "Password changed successfully" });
   } catch (error) {
-    console.error('Change password error:', error);
-    res.status(500).json({ 
-      error: 'Failed to change password. Please try again later.' 
+    console.error("Change password error:", error);
+    res.status(500).json({
+      error: "Failed to change password. Please try again later.",
     });
   }
 };
@@ -289,20 +324,21 @@ export const requestPasswordReset = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
-        error: 'Validation failed',
-        details: errors.array() 
+      return res.status(400).json({
+        error: "Validation failed",
+        details: errors.array(),
       });
     }
 
     const { email } = req.body;
 
     // Always return success message to prevent email enumeration
-    const successMessage = 'If an account with that email exists, a password reset link has been sent.';
+    const successMessage =
+      "If an account with that email exists, a password reset link has been sent.";
 
     // Find user by email
     const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() }
+      where: { email: email.toLowerCase() },
     });
 
     // If user doesn't exist, still return success (security)
@@ -312,7 +348,7 @@ export const requestPasswordReset = async (req, res, next) => {
     }
 
     // Check if user is active
-    if (user.employeeStatus === 'Inactive') {
+    if (user.employeeStatus === "Inactive") {
       console.log(`[Password Reset] Inactive user attempted reset: ${email}`);
       return res.json({ message: successMessage });
     }
@@ -327,9 +363,9 @@ export const requestPasswordReset = async (req, res, next) => {
       where: {
         userId: user.id,
         used: false,
-        expiresAt: { gt: new Date() }
+        expiresAt: { gt: new Date() },
       },
-      data: { used: true, usedAt: new Date() }
+      data: { used: true, usedAt: new Date() },
     });
 
     // Create new reset token record
@@ -338,8 +374,8 @@ export const requestPasswordReset = async (req, res, next) => {
         userId: user.id,
         token: hashedToken,
         expiresAt: expiresAt,
-        ipAddress: req.ip || req.connection.remoteAddress
-      }
+        ipAddress: req.ip || req.connection.remoteAddress,
+      },
     });
 
     // Send reset email
@@ -347,15 +383,18 @@ export const requestPasswordReset = async (req, res, next) => {
       await sendPasswordResetEmail(user, plainToken);
       console.log(`✅ Password reset email sent to: ${user.email}`);
     } catch (emailError) {
-      console.error(`❌ Failed to send password reset email: ${emailError.message}`);
+      console.error(
+        `❌ Failed to send password reset email: ${emailError.message}`,
+      );
       // Don't throw error, still return success message
     }
 
     res.json({ message: successMessage });
   } catch (error) {
-    console.error('Password reset request error:', error);
-    res.status(500).json({ 
-      error: 'Failed to process password reset request. Please try again later.' 
+    console.error("Password reset request error:", error);
+    res.status(500).json({
+      error:
+        "Failed to process password reset request. Please try again later.",
     });
   }
 };
@@ -366,9 +405,9 @@ export const verifyResetToken = async (req, res, next) => {
     const { token } = req.params;
 
     if (!token) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         valid: false,
-        message: 'Token is required' 
+        message: "Token is required",
       });
     }
 
@@ -376,19 +415,19 @@ export const verifyResetToken = async (req, res, next) => {
     const resetRecords = await prisma.passwordReset.findMany({
       where: {
         used: false,
-        expiresAt: { gt: new Date() }
+        expiresAt: { gt: new Date() },
       },
       include: {
         users: {
-          select: { id: true, email: true, employeeStatus: true }
-        }
-      }
+          select: { id: true, email: true, employeeStatus: true },
+        },
+      },
     });
 
     if (!resetRecords || resetRecords.length === 0) {
       return res.status(400).json({
         valid: false,
-        message: 'Invalid or expired reset token'
+        message: "Invalid or expired reset token",
       });
     }
 
@@ -396,23 +435,23 @@ export const verifyResetToken = async (req, res, next) => {
     for (const record of resetRecords) {
       try {
         const isValid = await verifyToken(token, record.token);
-        
+
         if (isValid) {
           // Check if user is still active
-          if (record.users.employeeStatus === 'Inactive') {
+          if (record.users.employeeStatus === "Inactive") {
             return res.status(400).json({
               valid: false,
-              message: 'User account is inactive'
+              message: "User account is inactive",
             });
           }
 
           return res.json({
             valid: true,
-            email: record.users.email
+            email: record.users.email,
           });
         }
       } catch (verifyError) {
-        console.error('Token verification error:', verifyError);
+        console.error("Token verification error:", verifyError);
         continue;
       }
     }
@@ -420,13 +459,13 @@ export const verifyResetToken = async (req, res, next) => {
     // Token not found or invalid
     return res.status(400).json({
       valid: false,
-      message: 'Invalid or expired reset token'
+      message: "Invalid or expired reset token",
     });
   } catch (error) {
-    console.error('Verify reset token error:', error);
+    console.error("Verify reset token error:", error);
     return res.status(500).json({
       valid: false,
-      message: 'Server error verifying token'
+      message: "Server error verifying token",
     });
   }
 };
@@ -436,26 +475,26 @@ export const resetPassword = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
-        error: 'Validation failed',
-        details: errors.array() 
+      return res.status(400).json({
+        error: "Validation failed",
+        details: errors.array(),
       });
     }
 
     const { token, newPassword } = req.body;
 
     if (!token || !newPassword) {
-      return res.status(400).json({ 
-        error: 'Token and new password are required' 
+      return res.status(400).json({
+        error: "Token and new password are required",
       });
     }
 
     // Validate new password strength
     const passwordValidation = validatePassword(newPassword);
     if (!passwordValidation.valid) {
-      return res.status(400).json({ 
-        error: 'Password does not meet security requirements',
-        details: passwordValidation.errors
+      return res.status(400).json({
+        error: "Password does not meet security requirements",
+        details: passwordValidation.errors,
       });
     }
 
@@ -463,11 +502,11 @@ export const resetPassword = async (req, res, next) => {
     const resetRecords = await prisma.passwordReset.findMany({
       where: {
         used: false,
-        expiresAt: { gt: new Date() }
+        expiresAt: { gt: new Date() },
       },
       include: {
-        users: true
-      }
+        users: true,
+      },
     });
 
     let validRecord = null;
@@ -475,7 +514,7 @@ export const resetPassword = async (req, res, next) => {
     // Check each token hash
     for (const record of resetRecords) {
       const isValid = await verifyToken(token, record.token);
-      
+
       if (isValid) {
         validRecord = record;
         break;
@@ -483,15 +522,16 @@ export const resetPassword = async (req, res, next) => {
     }
 
     if (!validRecord) {
-      return res.status(400).json({ 
-        error: 'Invalid or expired reset token. Please request a new password reset.' 
+      return res.status(400).json({
+        error:
+          "Invalid or expired reset token. Please request a new password reset.",
       });
     }
 
     // Check if user is still active
-    if (validRecord.users.employeeStatus === 'Inactive') {
-      return res.status(403).json({ 
-        error: 'User account is inactive. Please contact HR for assistance.' 
+    if (validRecord.users.employeeStatus === "Inactive") {
+      return res.status(403).json({
+        error: "User account is inactive. Please contact HR for assistance.",
       });
     }
 
@@ -505,37 +545,44 @@ export const resetPassword = async (req, res, next) => {
         where: { id: validRecord.userId },
         data: {
           password: hashedPassword,
-          lastPasswordChange: new Date()
-        }
+          lastPasswordChange: new Date(),
+        },
       }),
       // Mark token as used
       prisma.passwordReset.update({
         where: { id: validRecord.id },
         data: {
           used: true,
-          usedAt: new Date()
-        }
-      })
+          usedAt: new Date(),
+        },
+      }),
     ]);
 
     // Send confirmation email
     try {
       await sendPasswordChangedEmail(validRecord.users);
-      console.log(`✅ Password changed confirmation sent to: ${validRecord.users.email}`);
+      console.log(
+        `✅ Password changed confirmation sent to: ${validRecord.users.email}`,
+      );
     } catch (emailError) {
-      console.error(`❌ Failed to send password changed email: ${emailError.message}`);
+      console.error(
+        `❌ Failed to send password changed email: ${emailError.message}`,
+      );
       // Don't throw error, password was changed successfully
     }
 
-    console.log(`✅ Password reset successfully for user: ${validRecord.users.name}`);
+    console.log(
+      `✅ Password reset successfully for user: ${validRecord.users.name}`,
+    );
 
-    res.json({ 
-      message: 'Password reset successfully. You can now log in with your new password.' 
+    res.json({
+      message:
+        "Password reset successfully. You can now log in with your new password.",
     });
   } catch (error) {
-    console.error('Reset password error:', error);
-    res.status(500).json({ 
-      error: 'Failed to reset password. Please try again later.' 
+    console.error("Reset password error:", error);
+    res.status(500).json({
+      error: "Failed to reset password. Please try again later.",
     });
   }
 };
@@ -547,5 +594,5 @@ export default {
   changePassword,
   requestPasswordReset,
   verifyResetToken,
-  resetPassword
+  resetPassword,
 };

@@ -37,6 +37,7 @@ model User {
   plottingCompanyId                                     String?
   nik                                                   String?                @unique
   npwp                                                  String?                @unique
+  scopeEntityIds                                        String[]               @default([])
   adjustmentsMade                                       BalanceAdjustmentLog[] @relation("AdjustedBy")
   balanceAdjustments                                    BalanceAdjustmentLog[]
   EmployeeDocument_EmployeeDocument_uploadedByIdTousers EmployeeDocument[]     @relation("EmployeeDocument_uploadedByIdTousers")
@@ -81,6 +82,7 @@ model User {
   @@index([nip], map: "idx_users_nip")
   @@index([nik], map: "idx_users_nik")
   @@index([npwp], map: "idx_users_npwp")
+  @@index([scopeEntityIds], map: "idx_users_scopeEntityIds", type: Gin)
   @@map("users")
 }
 

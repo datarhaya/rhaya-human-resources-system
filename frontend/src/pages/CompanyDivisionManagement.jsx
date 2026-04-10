@@ -1,8 +1,8 @@
 // frontend/src/pages/CompanyDivisionManagement.jsx
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-import apiClient from '../api/client';
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import apiClient from "../api/client";
 
 export default function CompanyDivisionManagement() {
   const { user, loading } = useAuth();
@@ -10,7 +10,7 @@ export default function CompanyDivisionManagement() {
   const hasCheckedAccess = useRef(false);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState('companies'); // 'companies' or 'divisions'
+  const [activeTab, setActiveTab] = useState("companies"); // 'companies' or 'divisions'
 
   // Data state
   const [plottingCompanies, setPlottingCompanies] = useState([]);
@@ -19,19 +19,19 @@ export default function CompanyDivisionManagement() {
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
-  const [modalType, setModalType] = useState('company'); // 'company' or 'division'
+  const [modalMode, setModalMode] = useState("create"); // 'create' or 'edit'
+  const [modalType, setModalType] = useState("company"); // 'company' or 'division'
   const [selectedItem, setSelectedItem] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
-    code: '',
-    name: '',
-    description: ''
+    code: "",
+    name: "",
+    description: "",
   });
 
   // Search state
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Submitting state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,14 +42,14 @@ export default function CompanyDivisionManagement() {
     if (loading) return;
 
     if (!user) {
-      navigate('/login');
+      navigate("/login");
       return;
     }
 
-    if (user.accessLevel !== 1) {
+    if (user.accessLevel > 2) {
       hasCheckedAccess.current = true;
-      alert('Access denied. Only System Administrators can access this page.');
-      navigate('/');
+      alert("Access denied. Only System Administrators can access this page.");
+      navigate("/");
       return;
     }
 
@@ -62,15 +62,18 @@ export default function CompanyDivisionManagement() {
     try {
       setDataLoading(true);
       const [companiesRes, divisionsRes] = await Promise.all([
-        apiClient.get('/plotting-companies'),
-        apiClient.get('/divisions')
+        apiClient.get("/plotting-companies"),
+        apiClient.get("/divisions"),
       ]);
 
       setPlottingCompanies(companiesRes.data.data || []);
       setDivisions(divisionsRes.data.data || []);
     } catch (error) {
-      console.error('Fetch error:', error);
-      alert('Failed to load data: ' + (error.response?.data?.error || error.message));
+      console.error("Fetch error:", error);
+      alert(
+        "Failed to load data: " +
+          (error.response?.data?.error || error.message),
+      );
     } finally {
       setDataLoading(false);
     }
@@ -79,9 +82,9 @@ export default function CompanyDivisionManagement() {
   // Reset form
   const resetForm = () => {
     setFormData({
-      code: '',
-      name: '',
-      description: ''
+      code: "",
+      name: "",
+      description: "",
     });
     setSelectedItem(null);
   };
@@ -89,65 +92,80 @@ export default function CompanyDivisionManagement() {
   // Open modals
   const openCreateModal = (type) => {
     setModalType(type);
-    setModalMode('create');
+    setModalMode("create");
     resetForm();
     setShowModal(true);
   };
 
   const openEditModal = (item, type) => {
     setModalType(type);
-    setModalMode('edit');
+    setModalMode("edit");
     setSelectedItem(item);
-    
-    if (type === 'company') {
+
+    if (type === "company") {
       setFormData({
-        code: item.code || '',
-        name: item.name || '',
-        description: item.description || ''
+        code: item.code || "",
+        name: item.name || "",
+        description: item.description || "",
       });
     } else {
       setFormData({
-        code: '',
-        name: item.name || '',
-        description: item.description || ''
+        code: "",
+        name: item.name || "",
+        description: item.description || "",
       });
     }
-    
+
     setShowModal(true);
   };
 
   // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (isSubmitting) return;
     setIsSubmitting(true);
 
     try {
-      const endpoint = modalType === 'company' ? '/plotting-companies' : '/divisions';
-      
-      if (modalMode === 'create') {
-        const payload = modalType === 'company' 
-          ? { code: formData.code.toUpperCase(), name: formData.name, description: formData.description }
-          : { name: formData.name, description: formData.description };
+      const endpoint =
+        modalType === "company" ? "/plotting-companies" : "/divisions";
+
+      if (modalMode === "create") {
+        const payload =
+          modalType === "company"
+            ? {
+                code: formData.code.toUpperCase(),
+                name: formData.name,
+                description: formData.description,
+              }
+            : { name: formData.name, description: formData.description };
 
         await apiClient.post(`${endpoint}/create`, payload);
-        alert(`${modalType === 'company' ? 'Plotting Company' : 'Division'} created successfully!`);
+        alert(
+          `${modalType === "company" ? "Plotting Company" : "Division"} created successfully!`,
+        );
       } else {
-        const payload = modalType === 'company'
-          ? { code: formData.code.toUpperCase(), name: formData.name, description: formData.description }
-          : { name: formData.name, description: formData.description };
+        const payload =
+          modalType === "company"
+            ? {
+                code: formData.code.toUpperCase(),
+                name: formData.name,
+                description: formData.description,
+              }
+            : { name: formData.name, description: formData.description };
 
         await apiClient.put(`${endpoint}/${selectedItem.id}`, payload);
-        alert(`${modalType === 'company' ? 'Plotting Company' : 'Division'} updated successfully!`);
+        alert(
+          `${modalType === "company" ? "Plotting Company" : "Division"} updated successfully!`,
+        );
       }
 
       setShowModal(false);
       fetchData();
       resetForm();
     } catch (error) {
-      console.error('Submit error:', error);
-      alert(error.response?.data?.error || 'Failed to save');
+      console.error("Submit error:", error);
+      alert(error.response?.data?.error || "Failed to save");
     } finally {
       setIsSubmitting(false);
     }
@@ -155,31 +173,40 @@ export default function CompanyDivisionManagement() {
 
   // Delete/Deactivate
   const handleDelete = async (item, type) => {
-    const itemName = type === 'company' ? `${item.code} - ${item.name}` : item.name;
-    
-    if (!confirm(`Are you sure you want to ${type === 'company' ? 'deactivate' : 'delete'} "${itemName}"?`)) {
+    const itemName =
+      type === "company" ? `${item.code} - ${item.name}` : item.name;
+
+    if (
+      !confirm(
+        `Are you sure you want to ${type === "company" ? "deactivate" : "delete"} "${itemName}"?`,
+      )
+    ) {
       return;
     }
 
     try {
-      const endpoint = type === 'company' ? '/plotting-companies' : '/divisions';
+      const endpoint =
+        type === "company" ? "/plotting-companies" : "/divisions";
       await apiClient.delete(`${endpoint}/${item.id}`);
-      alert(`${type === 'company' ? 'Plotting Company deactivated' : 'Division deleted'} successfully!`);
+      alert(
+        `${type === "company" ? "Plotting Company deactivated" : "Division deleted"} successfully!`,
+      );
       fetchData();
     } catch (error) {
-      console.error('Delete error:', error);
-      alert(error.response?.data?.error || 'Failed to delete');
+      console.error("Delete error:", error);
+      alert(error.response?.data?.error || "Failed to delete");
     }
   };
 
   // Filter data
-  const filteredCompanies = plottingCompanies.filter(company =>
-    company.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    company.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCompanies = plottingCompanies.filter(
+    (company) =>
+      company.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      company.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  const filteredDivisions = divisions.filter(division =>
-    division.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredDivisions = divisions.filter((division) =>
+    division.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   if (loading || dataLoading) {
@@ -198,8 +225,12 @@ export default function CompanyDivisionManagement() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Company & Division Management</h1>
-          <p className="text-gray-600 mt-2">Manage plotting companies and divisions</p>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Company & Division Management
+          </h1>
+          <p className="text-gray-600 mt-2">
+            Manage plotting companies and divisions
+          </p>
         </div>
 
         {/* Tabs */}
@@ -207,21 +238,21 @@ export default function CompanyDivisionManagement() {
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px">
               <button
-                onClick={() => setActiveTab('companies')}
+                onClick={() => setActiveTab("companies")}
                 className={`px-6 py-4 text-sm font-medium border-b-2 ${
-                  activeTab === 'companies'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  activeTab === "companies"
+                    ? "border-blue-600 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               >
                 Plotting Companies ({plottingCompanies.length})
               </button>
               <button
-                onClick={() => setActiveTab('divisions')}
+                onClick={() => setActiveTab("divisions")}
                 className={`px-6 py-4 text-sm font-medium border-b-2 ${
-                  activeTab === 'divisions'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  activeTab === "divisions"
+                    ? "border-blue-600 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               >
                 Divisions ({divisions.length})
@@ -235,21 +266,25 @@ export default function CompanyDivisionManagement() {
             <div className="flex justify-between items-center mb-6">
               <input
                 type="text"
-                placeholder={`Search ${activeTab === 'companies' ? 'companies' : 'divisions'}...`}
+                placeholder={`Search ${activeTab === "companies" ? "companies" : "divisions"}...`}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               />
               <button
-                onClick={() => openCreateModal(activeTab === 'companies' ? 'company' : 'division')}
+                onClick={() =>
+                  openCreateModal(
+                    activeTab === "companies" ? "company" : "division",
+                  )
+                }
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
               >
-                + Add {activeTab === 'companies' ? 'Company' : 'Division'}
+                + Add {activeTab === "companies" ? "Company" : "Division"}
               </button>
             </div>
 
             {/* Plotting Companies Table */}
-            {activeTab === 'companies' && (
+            {activeTab === "companies" && (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
@@ -274,7 +309,10 @@ export default function CompanyDivisionManagement() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredCompanies.length === 0 ? (
                       <tr>
-                        <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
+                        <td
+                          colSpan="5"
+                          className="px-6 py-8 text-center text-gray-500"
+                        >
                           No companies found
                         </td>
                       </tr>
@@ -287,28 +325,40 @@ export default function CompanyDivisionManagement() {
                             </span>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="text-sm font-medium text-gray-900">{company.name}</div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {company.name}
+                            </div>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="text-sm text-gray-500">{company.description || '-'}</div>
+                            <div className="text-sm text-gray-500">
+                              {company.description || "-"}
+                            </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="text-sm text-gray-900">{company._count?.users || 0}</span>
+                            <span className="text-sm text-gray-900">
+                              {company._count?.users || 0}
+                            </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
                             <button
-                              onClick={() => openEditModal(company, 'company')}
+                              onClick={() => openEditModal(company, "company")}
                               className="text-blue-600 hover:text-blue-800 mr-4"
                             >
                               Edit
                             </button>
                             <button
-                              onClick={() => handleDelete(company, 'company')}
+                              onClick={() => handleDelete(company, "company")}
                               className="text-red-600 hover:text-red-800"
                               disabled={company._count?.users > 0}
-                              title={company._count?.users > 0 ? 'Cannot deactivate company with employees' : ''}
+                              title={
+                                company._count?.users > 0
+                                  ? "Cannot deactivate company with employees"
+                                  : ""
+                              }
                             >
-                              {company._count?.users > 0 ? 'Deactivate' : 'Deactivate'}
+                              {company._count?.users > 0
+                                ? "Deactivate"
+                                : "Deactivate"}
                             </button>
                           </td>
                         </tr>
@@ -320,7 +370,7 @@ export default function CompanyDivisionManagement() {
             )}
 
             {/* Divisions Table */}
-            {activeTab === 'divisions' && (
+            {activeTab === "divisions" && (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
@@ -342,7 +392,10 @@ export default function CompanyDivisionManagement() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredDivisions.length === 0 ? (
                       <tr>
-                        <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
+                        <td
+                          colSpan="4"
+                          className="px-6 py-8 text-center text-gray-500"
+                        >
                           No divisions found
                         </td>
                       </tr>
@@ -350,28 +403,40 @@ export default function CompanyDivisionManagement() {
                       filteredDivisions.map((division) => (
                         <tr key={division.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4">
-                            <div className="text-sm font-medium text-gray-900">{division.name}</div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {division.name}
+                            </div>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="text-sm text-gray-500">{division.description || '-'}</div>
+                            <div className="text-sm text-gray-500">
+                              {division.description || "-"}
+                            </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="text-sm text-gray-900">{division._count?.users || 0}</span>
+                            <span className="text-sm text-gray-900">
+                              {division._count?.users || 0}
+                            </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
                             <button
-                              onClick={() => openEditModal(division, 'division')}
+                              onClick={() =>
+                                openEditModal(division, "division")
+                              }
                               className="text-blue-600 hover:text-blue-800 mr-4"
                             >
                               Edit
                             </button>
                             <button
-                              onClick={() => handleDelete(division, 'division')}
+                              onClick={() => handleDelete(division, "division")}
                               className="text-red-600 hover:text-red-800"
                               disabled={division._count?.users > 0}
-                              title={division._count?.users > 0 ? 'Cannot delete division with employees' : ''}
+                              title={
+                                division._count?.users > 0
+                                  ? "Cannot delete division with employees"
+                                  : ""
+                              }
                             >
-                              {division._count?.users > 0 ? 'Delete' : 'Delete'}
+                              {division._count?.users > 0 ? "Delete" : "Delete"}
                             </button>
                           </td>
                         </tr>
@@ -391,13 +456,14 @@ export default function CompanyDivisionManagement() {
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">
-                {modalMode === 'create' ? 'Create' : 'Edit'} {modalType === 'company' ? 'Plotting Company' : 'Division'}
+                {modalMode === "create" ? "Create" : "Edit"}{" "}
+                {modalType === "company" ? "Plotting Company" : "Division"}
               </h2>
             </div>
 
             <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
               {/* Code field (only for companies) */}
-              {modalType === 'company' && (
+              {modalType === "company" && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Company Code <span className="text-red-500">*</span>
@@ -407,25 +473,39 @@ export default function CompanyDivisionManagement() {
                     required
                     maxLength="10"
                     value={formData.code}
-                    onChange={(e) => setFormData({...formData, code: e.target.value.toUpperCase()})}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        code: e.target.value.toUpperCase(),
+                      })
+                    }
                     placeholder="e.g., RFI, RG"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Max 10 characters, auto-uppercase</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Max 10 characters, auto-uppercase
+                  </p>
                 </div>
               )}
 
               {/* Name field */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {modalType === 'company' ? 'Company Name' : 'Division Name'} <span className="text-red-500">*</span>
+                  {modalType === "company" ? "Company Name" : "Division Name"}{" "}
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   required
                   value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  placeholder={modalType === 'company' ? 'e.g., PT Rhayakan Film Indonesia' : 'e.g., Human Resources'}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  placeholder={
+                    modalType === "company"
+                      ? "e.g., PT Rhayakan Film Indonesia"
+                      : "e.g., Human Resources"
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -437,7 +517,9 @@ export default function CompanyDivisionManagement() {
                 </label>
                 <textarea
                   value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
                   rows="3"
                   placeholder="Optional description..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -461,14 +543,32 @@ export default function CompanyDivisionManagement() {
                 >
                   {isSubmitting ? (
                     <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      <svg
+                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
                       </svg>
                       Saving...
                     </>
+                  ) : modalMode === "create" ? (
+                    "Create"
                   ) : (
-                    modalMode === 'create' ? 'Create' : 'Update'
+                    "Update"
                   )}
                 </button>
               </div>

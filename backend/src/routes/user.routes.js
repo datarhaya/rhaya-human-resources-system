@@ -4,6 +4,8 @@ import {
   authenticate,
   authorizeAdmin,
   requireActiveUser,
+  requireRole,
+  authorizeHR,
 } from "../middleware/auth.js";
 import {
   getAllUsers,
@@ -16,7 +18,9 @@ import {
   getUserProfile,
   updateUserProfile,
   hasSubordinates,
+  getAccessibleEntities,
 } from "../controllers/user.controller.js";
+import { assignScopeToAdmin } from "../controllers/admin.controller.js";
 
 const router = express.Router();
 
@@ -28,27 +32,42 @@ router.get("/profile", getUserProfile);
 router.put("/profile", requireActiveUser, updateUserProfile);
 
 // Get all users
-router.get("/", authorizeAdmin, getAllUsers);
+router.get("/", requireRole([1, 2]), getAllUsers);
 
 // Check if user has subordinates
 router.get("/has-subordinates", authenticate, hasSubordinates);
 
+// router.get("/accessible-entities", authenticate, getAccessibleEntities);
+router.get(
+  "/accessible-entities",
+  authenticate,
+  authorizeHR,
+  getAccessibleEntities,
+);
+
 // Get single user
-router.get("/:userId", authorizeAdmin, getUserById);
+router.get("/:userId", requireRole([1, 2]), getUserById);
 
 // Create user
-router.post("/create", authorizeAdmin, createUser);
+router.post("/create", requireRole([1, 2]), createUser);
 
 // Update user
-router.put("/:userId", authorizeAdmin, updateUser);
+router.put("/:userId", requireRole([1, 2]), updateUser);
 
 // Soft delete (deactivate)
-router.put("/:userId/deactivate", authorizeAdmin, deactivateUser);
+router.put("/:userId/deactivate", requireRole([1, 2]), deactivateUser);
 
 // Hard delete (permanent)
 router.delete("/:userId/permanent", authorizeAdmin, permanentDeleteUser);
 
 // Adjust balance
-router.post("/:userId/adjust-balance", authorizeAdmin, adjustUserBalance);
+router.post("/:userId/adjust-balance", requireRole([1, 2]), adjustUserBalance);
+
+router.put(
+  "/:userId/scope",
+  authenticate,
+  requireRole([1]),
+  assignScopeToAdmin,
+);
 
 export default router;

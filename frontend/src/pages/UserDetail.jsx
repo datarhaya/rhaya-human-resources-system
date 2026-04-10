@@ -46,6 +46,9 @@ export default function UserDetail() {
   const [newPlottingCompanyCode, setNewPlottingCompanyCode] = useState("");
   const [newPlottingCompanyName, setNewPlottingCompanyName] = useState("");
 
+  const [availableEntities, setAvailableEntities] = useState([]);
+  const [scopeEntityIds, setScopeEntityIds] = useState([]);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedSupervisor, setSelectedSupervisor] = useState(null);
   const [selectedPlottingCompany, setSelectedPlottingCompany] = useState(null);
@@ -70,7 +73,7 @@ export default function UserDetail() {
 
   useEffect(() => {
     if (authLoading) return; // wait for auth to resolve
-    if (!currentUser || currentUser.accessLevel !== 1) {
+    if (!currentUser || currentUser.accessLevel > 2) {
       navigate("/");
       return;
     }
@@ -109,6 +112,7 @@ export default function UserDetail() {
       setRoles(rolesRes.data.data || []);
       setDivisions(divisionsRes.data.data || []);
       setPlottingCompanies(companiesRes.data.data || []);
+      setAvailableEntities(companiesRes.data.data || []);
 
       const allUsers = usersRes.data.data || [];
       setPotentialSupervisors(
@@ -183,6 +187,7 @@ export default function UserDetail() {
           }
         : null,
     );
+    setScopeEntityIds(u.scopeEntityIds || []);
   };
 
   // ── Utilities ──────────────────────────────────────────────
@@ -318,6 +323,7 @@ export default function UserDetail() {
         ...formData,
         accessLevel: parseInt(formData.accessLevel),
         overtimeRate: parseFloat(formData.overtimeRate || 0),
+        scopeEntityIds: scopeEntityIds,
         dateOfBirth: formData.dateOfBirth || null,
         joinDate: formData.joinDate || null,
         contractStartDate: formData.contractStartDate || null,
@@ -748,12 +754,97 @@ export default function UserDetail() {
               ))}
             </div>
           </div>
+          {user.accessLevel === 2 && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center mb-4 border-b pb-2">
+                <svg
+                  className="w-5 h-5 text-blue-600 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                  />
+                </svg>
+                <h3 className="font-semibold text-gray-900">
+                  Entity Access Scope
+                </h3>
+              </div>
+
+              {user.scopeEntityIds && user.scopeEntityIds.length > 0 ? (
+                <div>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Has access to <strong>{user.scopeEntityIds.length}</strong>{" "}
+                    {user.scopeEntityIds.length === 1 ? "entity" : "entities"}:
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {plottingCompanies
+                      .filter((pc) => user.scopeEntityIds.includes(pc.id))
+                      .map((entity) => (
+                        <div
+                          key={entity.id}
+                          className="flex items-center p-3 bg-blue-50 border border-blue-200 rounded-lg"
+                        >
+                          <div className="flex-1">
+                            <div className="text-sm font-semibold text-gray-900">
+                              {entity.name}
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              Code: {entity.code}
+                            </div>
+                          </div>
+                          <svg
+                            className="w-5 h-5 text-blue-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <div className="flex items-center">
+                    <svg
+                      className="w-5 h-5 text-yellow-600 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                      />
+                    </svg>
+                    <span className="text-sm text-yellow-800">
+                      No entities assigned - cannot access any data
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
       {/* ── Files TAB */}
       {mode === "view" && activeTab === "files" && (
-        <FilesTab userId={userId} isAdmin={currentUser.accessLevel === 1} />
+        <FilesTab userId={userId} isAdmin={currentUser.accessLevel <= 2} />
       )}
 
       {/* Payslips Tab */}
@@ -1154,6 +1245,67 @@ export default function UserDetail() {
                   <option value="5">Level 5 - Intern</option>
                 </select>
               </div>
+
+              {/* ✅ ADD THIS: Scope Assignment for Level 2 */}
+              {formData.accessLevel === "2" && (
+                <div className="col-span-2 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-blue-900 mb-2">
+                    Entity Access Scope
+                  </h4>
+
+                  <div className="flex justify-between mb-2">
+                    <span className="text-sm text-gray-700">
+                      {scopeEntityIds.length} of {availableEntities.length}{" "}
+                      selected
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setScopeEntityIds(availableEntities.map((e) => e.id))
+                        }
+                        className="text-xs text-blue-600"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setScopeEntityIds([])}
+                        className="text-xs text-blue-600"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="max-h-48 overflow-y-auto bg-white border rounded-lg p-3 space-y-2">
+                    {availableEntities.map((entity) => (
+                      <label
+                        key={entity.id}
+                        className="flex items-center p-2 hover:bg-blue-50 rounded cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={scopeEntityIds.includes(entity.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setScopeEntityIds([...scopeEntityIds, entity.id]);
+                            } else {
+                              setScopeEntityIds(
+                                scopeEntityIds.filter((id) => id !== entity.id),
+                              );
+                            }
+                          }}
+                          className="w-4 h-4 text-blue-600 rounded"
+                        />
+                        <span className="ml-3 text-sm">
+                          {entity.code} - {entity.name}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -4,6 +4,7 @@ import {
   authenticate,
   authorizeAdmin,
   requireActiveUser,
+  requireRole,
 } from "../middleware/auth.js";
 import {
   submitLeaveRequest,
@@ -46,7 +47,7 @@ router.post("/:requestId/approve", approveLeaveRequest);
 router.post("/:requestId/reject", rejectLeaveRequest);
 
 // Admin routes (Level 1)
-router.get("/admin/all-requests", authorizeAdmin, getAllLeaveRequests);
+router.get("/admin/all-requests", requireRole([1, 2]), getAllLeaveRequests);
 
 router.get("/balance/:year", authenticate, getLeaveBalanceByYear);
 

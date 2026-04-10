@@ -1,8 +1,13 @@
 // backend/src/controllers/user.controller.js
-import bcrypt from 'bcryptjs';
-import { PrismaClient } from '@prisma/client';
-import { sendWelcomeEmailWithSetup } from '../services/welcomeEmail.service.js';
-import { generateResetToken, hashToken, getTokenExpiration } from '../services/passwordResetToken.service.js';
+import bcrypt from "bcryptjs";
+import { PrismaClient } from "@prisma/client";
+import { sendWelcomeEmailWithSetup } from "../services/welcomeEmail.service.js";
+import {
+  generateResetToken,
+  hashToken,
+  getTokenExpiration,
+} from "../services/passwordResetToken.service.js";
+import { applyScopeFilter } from "../utils/scopeHelper.js";
 
 const prisma = new PrismaClient();
 
@@ -10,64 +15,70 @@ const prisma = new PrismaClient();
  * Get all users
  * GET /api/users
  */
+// backend/src/controllers/user.controller.js
+
 export const getAllUsers = async (req, res) => {
   try {
-    console.log('Fetching all users...');
-    
-    const currentYear = new Date().getFullYear();
-    
+    const { search, divisionId, roleId, status } = req.query;
+    const { accessLevel, scopeEntityIds } = req.user;
+
+    let where = {};
+
+    if (accessLevel === 2) {
+      if (!scopeEntityIds || scopeEntityIds.length === 0) {
+        // No scope = no access
+        return res.json({
+          success: true,
+          count: 0,
+          data: [],
+          message: "No entities assigned to your account",
+        });
+      }
+
+      // Filter by scope
+      where.plottingCompanyId = { in: scopeEntityIds };
+
+      console.log(
+        `[SCOPE] Level 2 user ${req.user.id} fetching users for entities:`,
+        scopeEntityIds,
+      );
+    }
+
+    // Apply other filters
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
+        { nip: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    if (divisionId) where.divisionId = divisionId;
+    if (roleId) where.roleId = roleId;
+    if (status) where.employeeStatus = status;
+
     const users = await prisma.user.findMany({
+      where,
       include: {
-        role: { select: { id: true, name: true } },
-        division: { select: { id: true, name: true } },
-        supervisor: { select: { id: true, name: true, email: true } },
-        plottingCompany: { select: { id: true, code: true, name: true } },
-        overtimeBalance: {
-          select: {
-            currentBalance: true,
-            pendingHours: true,
-            totalPaid: true
-          }
-        },
-        leaveBalances: {  // ← Changed to plural!
-          where: { year: currentYear },
-          select: {
-            year: true,
-            annualQuota: true,
-            annualUsed: true,
-            annualRemaining: true,
-            sickLeaveUsed: true,
-            menstrualLeaveUsed: true,
-            toilBalance: true,
-            toilUsed: true
-          },
-          take: 1
-        }
+        role: true,
+        division: true,
+        plottingCompany: true,
       },
-      orderBy: { name: 'asc' }
+      orderBy: { name: "asc" },
     });
 
-    // Handle leaveBalances format - it's an array, take first element
-    const usersWithFormattedBalance = users.map(user => ({
-      ...user,
-      leaveBalance: user.leaveBalances && user.leaveBalances.length > 0  // ← Changed to plural
-        ? user.leaveBalances[0]  // ← Changed to plural
-        : null,
-      leaveBalances: undefined  // Remove the array, keep only leaveBalance (singular) for frontend
-    }));
-
-    console.log(`✅ Fetched ${usersWithFormattedBalance.length} users for year ${currentYear}`);
+    console.log(
+      `[USERS] Fetched ${users.length} users for Level ${accessLevel} admin`,
+    );
 
     return res.json({
       success: true,
-      data: usersWithFormattedBalance
+      count: users.length,
+      data: users,
     });
   } catch (error) {
-    console.error('Get users error:', error.message);
-    return res.status(500).json({
-      error: 'Failed to fetch users',
-      message: error.message
-    });
+    console.error("Get all users error:", error);
+    return res.status(500).json({ error: "Failed to fetch users" });
   }
 };
 
@@ -78,6 +89,13 @@ export const getAllUsers = async (req, res) => {
 export const getUserById = async (req, res) => {
   try {
     const { userId } = req.params;
+    const { accessLevel, scopeEntityIds } = req.user;
+
+    console.log("getUserById called:", {
+      userId,
+      adminLevel: accessLevel,
+      adminScope: scopeEntityIds,
+    });
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -85,39 +103,39 @@ export const getUserById = async (req, res) => {
         role: {
           select: {
             id: true,
-            name: true
-          }
+            name: true,
+          },
         },
         division: {
           select: {
             id: true,
-            name: true
-          }
+            name: true,
+          },
         },
         supervisor: {
           select: {
             id: true,
             name: true,
-            email: true
-          }
+            email: true,
+          },
         },
         plottingCompany: {
           select: {
             id: true,
             code: true,
-            name: true
-          }
+            name: true,
+          },
         },
         overtimeBalance: {
           select: {
             currentBalance: true,
             pendingHours: true,
-            totalPaid: true
-          }
+            totalPaid: true,
+          },
         },
-        leaveBalances: {  // ← Changed to plural!
+        leaveBalances: {
           where: {
-            year: new Date().getFullYear()
+            year: new Date().getFullYear(),
           },
           select: {
             year: true,
@@ -126,55 +144,96 @@ export const getUserById = async (req, res) => {
             annualRemaining: true,
             sickLeaveUsed: true,
             menstrualLeaveUsed: true,
-            toilBalance: true,        
-            toilUsed: true,           
-            toilExpired: true         
+            toilBalance: true,
+            toilUsed: true,
+            toilExpired: true,
           },
-          take: 1
+          take: 1,
         },
-        // Optional: Get subordinates
         subordinates: {
-          where: { 
-            employeeStatus: { not: 'INACTIVE' }
+          where: {
+            employeeStatus: { not: "INACTIVE" },
           },
           select: {
             id: true,
             name: true,
             email: true,
             role: {
-              select: { name: true }
-            }
-          }
-        }
-      }
+              select: { name: true },
+            },
+          },
+        },
+      },
     });
 
     if (!user) {
       return res.status(404).json({
-        error: 'User not found'
+        error: "User not found",
       });
     }
+
+    console.log("User found:", {
+      id: user.id,
+      name: user.name,
+      plottingCompanyId: user.plottingCompanyId,
+    });
+
+    if (accessLevel === 2) {
+      // Check if user's plottingCompanyId is in scope
+      if (
+        user.plottingCompanyId &&
+        !scopeEntityIds?.includes(user.plottingCompanyId)
+      ) {
+        console.warn(
+          `[SCOPE] Access denied: Level 2 admin ${req.user.id} tried to access user ${userId} outside scope`,
+        );
+        console.warn(
+          `[SCOPE] User's entity: ${user.plottingCompanyId}, Admin's scope: ${JSON.stringify(scopeEntityIds)}`,
+        );
+
+        return res.status(403).json({
+          error: "Access denied",
+          message: "You do not have permission to access this user",
+        });
+      }
+      // If user has no plottingCompanyId (admin user), also deny access
+      if (!user.plottingCompanyId) {
+        console.warn(
+          `[SCOPE] Access denied: Level 2 admin tried to access admin user ${userId}`,
+        );
+        return res.status(403).json({
+          error: "Access denied",
+          message: "You cannot access admin users",
+        });
+      }
+    }
+
+    console.log(
+      `[ACCESS] User ${userId} accessed by admin ${req.user.id} (Level ${accessLevel})`,
+    );
 
     // Format the response
     const formattedUser = {
       ...user,
-      leaveBalance: user.leaveBalances && user.leaveBalances.length > 0 ? user.leaveBalances[0] : null,  // ← Changed to plural
-      leaveBalances: undefined  // Remove array from response
+      leaveBalance:
+        user.leaveBalances && user.leaveBalances.length > 0
+          ? user.leaveBalances[0]
+          : null, // ← Changed to plural
+      leaveBalances: undefined, // Remove array from response
     };
 
     return res.json({
       success: true,
-      data: formattedUser
+      data: formattedUser,
     });
   } catch (error) {
-    console.error('Get user error:', error);
+    console.error("Get user error:", error);
     return res.status(500).json({
-      error: 'Failed to fetch user',
-      message: error.message
+      error: "Failed to fetch user",
+      message: error.message,
     });
   }
 };
-
 
 /**
  * Create new user
@@ -208,8 +267,12 @@ export const createUser = async (req, res) => {
       contractStartDate,
       contractEndDate,
       companyType,
-      sendActivationEmail
+      sendActivationEmail,
+      scopeEntityIds,
     } = req.body;
+
+    console.log("Creating user with accessLevel:", accessLevel);
+    console.log("scopeEntityIds received:", scopeEntityIds);
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -230,7 +293,7 @@ export const createUser = async (req, res) => {
           dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
           placeOfBirth,
           address,
-          gender: gender || 'Male',                                    
+          gender: gender || "Male",
           bpjsHealth,
           bpjsEmployment,
           overtimeRate: overtimeRate || 300000,
@@ -238,12 +301,18 @@ export const createUser = async (req, res) => {
           roleId,
           divisionId,
           supervisorId: supervisorId || null,
-          employeeStatus: employeeStatus || 'PKWT',                        
+          employeeStatus: employeeStatus || "PKWT",
           joinDate: joinDate ? new Date(joinDate) : new Date(),
-          plottingCompanyId: plottingCompanyId || null, 
-          contractStartDate: contractStartDate ? new Date(contractStartDate) : null,  
-          contractEndDate: contractEndDate ? new Date(contractEndDate) : null,        
-          companyType: companyType || 'parent'
+          plottingCompanyId: plottingCompanyId || null,
+          contractStartDate: contractStartDate
+            ? new Date(contractStartDate)
+            : null,
+          contractEndDate: contractEndDate ? new Date(contractEndDate) : null,
+          companyType: companyType || "parent",
+          scopeEntityIds:
+            parseInt(accessLevel) === 2 && Array.isArray(scopeEntityIds)
+              ? scopeEntityIds
+              : [],
         },
         include: {
           role: true,
@@ -252,13 +321,18 @@ export const createUser = async (req, res) => {
             select: {
               id: true,
               name: true,
-              email: true
-            }
-          }
-        }
+              email: true,
+            },
+          },
+        },
       });
 
-      console.log(`✅ Created user: ${newUser.name}`);
+      console.log(
+        `Created user: ${newUser.name} (Level ${newUser.accessLevel})`,
+      );
+      console.log(
+        `scopeEntityIds saved: ${JSON.stringify(newUser.scopeEntityIds)}`,
+      );
 
       // 2. Create overtime balance
       const overtimeBalance = await tx.overtimeBalance.create({
@@ -266,11 +340,11 @@ export const createUser = async (req, res) => {
           employeeId: newUser.id,
           currentBalance: 0,
           pendingHours: 0,
-          totalPaid: 0
-        }
+          totalPaid: 0,
+        },
       });
 
-      console.log(`✅ Created overtime balance for ${newUser.name}`);
+      console.log(`Created overtime balance for ${newUser.name}`);
 
       // 3. Create leave balance for current year
       const currentYear = new Date().getFullYear();
@@ -279,15 +353,16 @@ export const createUser = async (req, res) => {
       // Calculate annual quota based on employee status
       let annualQuota = 0;
 
-      if (employeeStatus === 'PKWTT') {
+      if (employeeStatus === "PKWTT") {
         // PKWTT automatically gets 14 days
         annualQuota = 14;
-      } else if (employeeStatus === 'PKWT') {
+      } else if (employeeStatus === "PKWT") {
         // Calculate months since joining
         const now = new Date();
-        const monthsSinceJoining = (now.getFullYear() - joinDateTime.getFullYear()) * 12 + 
-                                  (now.getMonth() - joinDateTime.getMonth());
-        
+        const monthsSinceJoining =
+          (now.getFullYear() - joinDateTime.getFullYear()) * 12 +
+          (now.getMonth() - joinDateTime.getMonth());
+
         if (monthsSinceJoining >= 12) {
           // PKWT with 12+ months gets 14 days
           annualQuota = 14;
@@ -307,16 +382,18 @@ export const createUser = async (req, res) => {
           annualRemaining: annualQuota,
           sickLeaveUsed: 0,
           menstrualLeaveUsed: 0,
-          unpaidLeaveUsed: 0
-        }
+          unpaidLeaveUsed: 0,
+        },
       });
 
-      console.log(`✅ Created leave balance for ${newUser.name} (status: ${employeeStatus}, quota: ${annualQuota} days)`);
+      console.log(
+        `Created leave balance for ${newUser.name} (status: ${employeeStatus}, quota: ${annualQuota} days)`,
+      );
 
       return {
         user: newUser,
         overtimeBalance,
-        leaveBalance
+        leaveBalance,
       };
     });
 
@@ -324,7 +401,7 @@ export const createUser = async (req, res) => {
     if (sendActivationEmail) {
       try {
         console.log(`📧 Sending activation email to ${result.user.email}...`);
-        
+
         // Generate password reset token
         const plainToken = generateResetToken();
         const hashedToken = await hashToken(plainToken);
@@ -336,8 +413,8 @@ export const createUser = async (req, res) => {
             userId: result.user.id,
             token: hashedToken,
             expiresAt: expiresAt,
-            ipAddress: 'system-user-creation'
-          }
+            ipAddress: "system-user-creation",
+          },
         });
 
         // Send welcome email
@@ -345,50 +422,85 @@ export const createUser = async (req, res) => {
           {
             name: result.user.name,
             email: result.user.email,
-            nip: result.user.nip
+            nip: result.user.nip,
           },
-          plainToken
+          plainToken,
         );
 
         if (emailResult.success) {
-          console.log(`✅ Activation email sent to ${result.user.email}`);
+          console.log(`Activation email sent to ${result.user.email}`);
         } else {
-          console.error(`❌ Failed to send activation email: ${emailResult.error}`);
+          console.error(
+            `❌ Failed to send activation email: ${emailResult.error}`,
+          );
         }
       } catch (emailError) {
-        console.error('Error sending activation email:', emailError);
+        console.error("Error sending activation email:", emailError);
         // Don't fail the user creation if email fails
       }
     }
 
     return res.status(201).json({
       success: true,
-      message: 'User created successfully' + (sendActivationEmail ? ' and activation email sent' : ''),
-      data: result.user
+      message:
+        "User created successfully" +
+        (sendActivationEmail ? " and activation email sent" : ""),
+      data: result.user,
     });
-
   } catch (error) {
-    console.error('Create user error:', error);
-    
-    if (error.code === 'P2002') {
+    console.error("Create user error:", error);
+
+    if (error.code === "P2002") {
       return res.status(400).json({
-        error: 'Username or email already exists'
+        error: "Username or email already exists",
       });
     }
 
     return res.status(500).json({
-      error: 'Failed to create user',
-      message: error.message
+      error: "Failed to create user",
+      message: error.message,
     });
+  }
+};
+
+/**
+ * Get accessible entities for current user
+ * GET /api/users/accessible-entities
+ */
+export const getAccessibleEntities = async (req, res) => {
+  try {
+    const { accessLevel, scopeEntityIds } = req.user;
+
+    let where = { isActive: true };
+
+    // Level 2: Filter by scope
+    if (accessLevel === 2) {
+      if (!scopeEntityIds || scopeEntityIds.length === 0) {
+        return res.json({ success: true, count: 0, data: [] });
+      }
+      where.id = { in: scopeEntityIds };
+    }
+
+    // Fetch entities
+    const entities = await prisma.plottingCompany.findMany({
+      where,
+      orderBy: { name: "asc" },
+      select: { id: true, code: true, name: true, isActive: true },
+    });
+
+    return res.json({ success: true, count: entities.length, data: entities });
+  } catch (error) {
+    console.error("Get accessible entities error:", error);
+    return res.status(500).json({ error: "Failed to fetch entities" });
   }
 };
 
 export const hasSubordinates = async (req, res) => {
   const count = await prisma.user.count({
-    where: { 
+    where: {
       supervisorId: req.user.id,
-      employeeStatus: { notIn: ['INACTIVE', 'ADMIN'] }
-    }
+      employeeStatus: { notIn: ["INACTIVE", "ADMIN"] },
+    },
   });
   return res.json({ hasSubordinates: count > 0 });
 };
@@ -412,7 +524,7 @@ export const updateUser = async (req, res) => {
       dateOfBirth,
       placeOfBirth,
       address,
-      gender,              
+      gender,
       bpjsHealth,
       bpjsEmployment,
       overtimeRate,
@@ -422,17 +534,48 @@ export const updateUser = async (req, res) => {
       supervisorId,
       employeeStatus,
       joinDate,
-      plottingCompanyId,     
-      contractStartDate,   
-      contractEndDate      
+      plottingCompanyId,
+      contractStartDate,
+      contractEndDate,
+      scopeEntityIds,
     } = req.body;
+
+    console.log("Updating user:", userId);
+    console.log("New accessLevel:", accessLevel);
+    console.log("New scopeEntityIds:", scopeEntityIds);
+
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
-      where: { id: userId }
+      where: { id: userId },
     });
 
     if (!existingUser) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    if (accessLevel === 2) {
+      if (
+        existingUser.plottingCompanyId &&
+        !scopeEntityIds?.includes(existingUser.plottingCompanyId)
+      ) {
+        console.warn(
+          `[SCOPE] Update denied: Level 2 admin tried to update user ${userId} outside scope`,
+        );
+        return res.status(403).json({
+          error: "Access denied",
+          message: "You cannot update users outside your scope",
+        });
+      }
+
+      if (!existingUser.plottingCompanyId) {
+        console.warn(
+          `[SCOPE] Update denied: Level 2 admin tried to update admin user`,
+        );
+        return res.status(403).json({
+          error: "Access denied",
+          message: "You cannot update admin users",
+        });
+      }
     }
 
     // Prepare update data
@@ -447,7 +590,7 @@ export const updateUser = async (req, res) => {
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
       placeOfBirth,
       address,
-      gender,                                                                  
+      gender,
       bpjsHealth,
       bpjsEmployment,
       overtimeRate,
@@ -457,13 +600,34 @@ export const updateUser = async (req, res) => {
       supervisorId: supervisorId || null,
       employeeStatus,
       joinDate: joinDate ? new Date(joinDate) : undefined,
-      plottingCompanyId: plottingCompanyId || null,                                                          
-      contractStartDate: contractStartDate ? new Date(contractStartDate) : undefined,  
-      contractEndDate: contractEndDate ? new Date(contractEndDate) : undefined         
+      plottingCompanyId: plottingCompanyId || null,
+      contractStartDate: contractStartDate
+        ? new Date(contractStartDate)
+        : undefined,
+      contractEndDate: contractEndDate ? new Date(contractEndDate) : undefined,
     };
 
+    if (accessLevel !== undefined) {
+      const newAccessLevel = parseInt(accessLevel);
+
+      if (newAccessLevel === 2) {
+        // Level 2: Set scope (use provided or empty array)
+        updateData.scopeEntityIds = Array.isArray(scopeEntityIds)
+          ? scopeEntityIds
+          : [];
+        console.log(
+          "Setting scopeEntityIds for Level 2:",
+          updateData.scopeEntityIds,
+        );
+      } else {
+        // Non-Level 2: Clear scope
+        updateData.scopeEntityIds = [];
+        console.log("Clearing scopeEntityIds for Level", newAccessLevel);
+      }
+    }
+
     // If password provided, hash it
-    if (password && password.trim() !== '') {
+    if (password && password.trim() !== "") {
       const hashedPassword = await bcrypt.hash(password, 10);
       updateData.password = hashedPassword;
     }
@@ -482,10 +646,10 @@ export const updateUser = async (req, res) => {
             select: {
               id: true,
               name: true,
-              email: true
-            }
-          }
-        }
+              email: true,
+            },
+          },
+        },
       });
 
       // 2. Ensure overtime balance exists
@@ -496,8 +660,8 @@ export const updateUser = async (req, res) => {
           employeeId: userId,
           currentBalance: 0,
           pendingHours: 0,
-          totalPaid: 0
-        }
+          totalPaid: 0,
+        },
       });
 
       // 3. Ensure leave balance exists for current year
@@ -506,8 +670,8 @@ export const updateUser = async (req, res) => {
         where: {
           employeeId_year: {
             employeeId: userId,
-            year: currentYear
-          }
+            year: currentYear,
+          },
         },
         update: {},
         create: {
@@ -518,11 +682,14 @@ export const updateUser = async (req, res) => {
           annualRemaining: 14,
           sickLeaveUsed: 0,
           menstrualLeaveUsed: 0,
-          unpaidLeaveUsed: 0
-        }
+          unpaidLeaveUsed: 0,
+        },
       });
 
-      console.log(`✅ Updated user: ${updatedUser.name}`);
+      console.log(
+        `✅ Updated user: ${updatedUser.name} (Level ${updatedUser.accessLevel})`,
+      );
+      console.log(`✅ scopeEntityIds:`, updatedUser.scopeEntityIds);
       console.log(`✅ Ensured balances exist`);
 
       return updatedUser;
@@ -530,22 +697,21 @@ export const updateUser = async (req, res) => {
 
     return res.json({
       success: true,
-      message: 'User updated successfully',
-      data: result
+      message: "User updated successfully",
+      data: result,
     });
-
   } catch (error) {
-    console.error('Update user error:', error);
-    
-    if (error.code === 'P2002') {
+    console.error("Update user error:", error);
+
+    if (error.code === "P2002") {
       return res.status(400).json({
-        error: 'Username or email already exists'
+        error: "Username or email already exists",
       });
     }
 
     return res.status(500).json({
-      error: 'Failed to update user',
-      message: error.message
+      error: "Failed to update user",
+      message: error.message,
     });
   }
 };
@@ -565,7 +731,8 @@ export const getUserProfile = async (req, res) => {
         division: { select: { id: true, name: true } },
         supervisor: { select: { id: true, name: true, email: true } },
         overtimeBalance: true,
-        leaveBalances: {  // ✅ Changed to plural
+        leaveBalances: {
+          // ✅ Changed to plural
           where: { year: new Date().getFullYear() },
           select: {
             year: true,
@@ -575,17 +742,17 @@ export const getUserProfile = async (req, res) => {
             sickLeaveUsed: true,
             menstrualLeaveUsed: true,
             unpaidLeaveUsed: true,
-            toilBalance: true,      // ✅ Added TOIL
-            toilUsed: true,         // ✅ Added TOIL
-            toilExpired: true       // ✅ Added TOIL
+            toilBalance: true, // ✅ Added TOIL
+            toilUsed: true, // ✅ Added TOIL
+            toilExpired: true, // ✅ Added TOIL
           },
-          take: 1
-        }
-      }
+          take: 1,
+        },
+      },
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: "User not found" });
     }
 
     const { password, ...userWithoutPassword } = user;
@@ -594,16 +761,15 @@ export const getUserProfile = async (req, res) => {
       success: true,
       data: {
         ...userWithoutPassword,
-        leaveBalance: user.leaveBalances?.[0] || null,  // ✅ Changed to plural with safe access
-        leaveBalances: undefined  // Remove array from response
-      }
+        leaveBalance: user.leaveBalances?.[0] || null, // ✅ Changed to plural with safe access
+        leaveBalances: undefined, // Remove array from response
+      },
     });
-
   } catch (error) {
-    console.error('Get profile error:', error);
+    console.error("Get profile error:", error);
     return res.status(500).json({
-      error: 'Failed to fetch profile',
-      message: error.message
+      error: "Failed to fetch profile",
+      message: error.message,
     });
   }
 };
@@ -627,18 +793,21 @@ export const updateUserProfile = async (req, res) => {
     if (password) {
       if (!currentPassword) {
         return res.status(400).json({
-          error: 'Current password is required to set new password'
+          error: "Current password is required to set new password",
         });
       }
 
       const user = await prisma.user.findUnique({
-        where: { id: userId }
+        where: { id: userId },
       });
 
-      const validPassword = await bcrypt.compare(currentPassword, user.password);
+      const validPassword = await bcrypt.compare(
+        currentPassword,
+        user.password,
+      );
       if (!validPassword) {
         return res.status(400).json({
-          error: 'Current password is incorrect'
+          error: "Current password is incorrect",
         });
       }
 
@@ -652,23 +821,22 @@ export const updateUserProfile = async (req, res) => {
       include: {
         role: { select: { id: true, name: true } },
         division: { select: { id: true, name: true } },
-        supervisor: { select: { id: true, name: true } }
-      }
+        supervisor: { select: { id: true, name: true } },
+      },
     });
 
     const { password: _, ...userWithoutPassword } = updatedUser;
 
     return res.json({
       success: true,
-      message: 'Profile updated successfully',
-      data: userWithoutPassword
+      message: "Profile updated successfully",
+      data: userWithoutPassword,
     });
-
   } catch (error) {
-    console.error('Update profile error:', error);
+    console.error("Update profile error:", error);
     return res.status(500).json({
-      error: 'Failed to update profile',
-      message: error.message
+      error: "Failed to update profile",
+      message: error.message,
     });
   }
 };
@@ -681,7 +849,7 @@ export const deactivateUser = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    console.log('Deactivate request for user:', userId);
+    console.log("Deactivate request for user:", userId);
 
     // Check if user exists
     const user = await prisma.user.findUnique({
@@ -690,30 +858,42 @@ export const deactivateUser = async (req, res) => {
         id: true,
         name: true,
         email: true,
-        employeeStatus: true
-      }
+        employeeStatus: true,
+      },
     });
 
     if (!user) {
-      console.log('❌ User not found:', userId);
+      console.log("❌ User not found:", userId);
       return res.status(404).json({
-        error: 'User not found'
+        error: "User not found",
       });
+    }
+
+    if (accessLevel === 2) {
+      if (
+        user.plottingCompanyId &&
+        !scopeEntityIds?.includes(user.plottingCompanyId)
+      ) {
+        return res.status(403).json({
+          error: "Access denied",
+          message: "You cannot deactivate users outside your scope",
+        });
+      }
     }
 
     // Don't allow deactivating yourself
     if (req.user && req.user.id === userId) {
-      console.log('❌ Attempt to deactivate own account');
+      console.log("❌ Attempt to deactivate own account");
       return res.status(400).json({
-        error: 'You cannot deactivate your own account'
+        error: "You cannot deactivate your own account",
       });
     }
 
     // Check if already inactive
-    if (user.employeeStatus === 'INACTIVE') {
-      console.log('⚠️ User already inactive:', user.name);
+    if (user.employeeStatus === "INACTIVE") {
+      console.log("⚠️ User already inactive:", user.name);
       return res.status(400).json({
-        error: 'User is already inactive'
+        error: "User is already inactive",
       });
     }
 
@@ -721,18 +901,20 @@ export const deactivateUser = async (req, res) => {
     const deactivatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
-        employeeStatus: 'INACTIVE',
-        updatedAt: new Date()
+        employeeStatus: "INACTIVE",
+        updatedAt: new Date(),
       },
       select: {
         id: true,
         name: true,
         email: true,
-        employeeStatus: true
-      }
+        employeeStatus: true,
+      },
     });
 
-    console.log(`✅ User deactivated: ${deactivatedUser.name} (${deactivatedUser.email})`);
+    console.log(
+      `✅ User deactivated: ${deactivatedUser.name} (${deactivatedUser.email})`,
+    );
 
     return res.json({
       success: true,
@@ -740,16 +922,15 @@ export const deactivateUser = async (req, res) => {
       data: {
         id: deactivatedUser.id,
         name: deactivatedUser.name,
-        employeeStatus: deactivatedUser.employeeStatus
-      }
+        employeeStatus: deactivatedUser.employeeStatus,
+      },
     });
-
   } catch (error) {
-    console.error('❌ Deactivate user error:', error);
-    
+    console.error("❌ Deactivate user error:", error);
+
     return res.status(500).json({
-      error: 'Failed to deactivate user',
-      message: error.message
+      error: "Failed to deactivate user",
+      message: error.message,
     });
   }
 };
@@ -763,7 +944,7 @@ export const permanentDeleteUser = async (req, res) => {
     const { userId } = req.params;
     const { confirmUsername } = req.body;
 
-    console.log('⚠️  PERMANENT delete request for user:', userId);
+    console.log("⚠️  PERMANENT delete request for user:", userId);
 
     // Check if user exists
     const user = await prisma.user.findUnique({
@@ -772,72 +953,84 @@ export const permanentDeleteUser = async (req, res) => {
         id: true,
         username: true,
         name: true,
-        email: true
-      }
+        email: true,
+      },
     });
 
     if (!user) {
       return res.status(404).json({
-        error: 'User not found'
+        error: "User not found",
       });
+    }
+
+    if (accessLevel === 2) {
+      if (
+        user.plottingCompanyId &&
+        !scopeEntityIds?.includes(user.plottingCompanyId)
+      ) {
+        return res.status(403).json({
+          error: "Access denied",
+          message: "You cannot adjust balances for users outside your scope",
+        });
+      }
     }
 
     // Require username confirmation for safety
     if (confirmUsername !== user.username) {
       return res.status(400).json({
-        error: 'Username confirmation does not match',
-        message: 'Please type the username correctly to confirm deletion'
+        error: "Username confirmation does not match",
+        message: "Please type the username correctly to confirm deletion",
       });
     }
 
     // Don't allow deleting yourself
     if (req.user && req.user.id === userId) {
       return res.status(400).json({
-        error: 'You cannot delete your own account'
+        error: "You cannot delete your own account",
       });
     }
 
     // Delete all related records and user in transaction
     await prisma.$transaction(async (tx) => {
-      console.log('Deleting related records...');
+      console.log("Deleting related records...");
 
       // Delete balance adjustment logs
       await tx.balanceAdjustmentLog.deleteMany({
-        where: { userId: userId }
+        where: { userId: userId },
       });
 
       // Delete overtime balance
       await tx.overtimeBalance.deleteMany({
-        where: { employeeId: userId }
+        where: { employeeId: userId },
       });
 
       // Delete leave balance
       await tx.leaveBalance.deleteMany({
-        where: { employeeId: userId }
+        where: { employeeId: userId },
       });
 
       // Delete leave requests (set employeeId to null or delete)
       await tx.leaveRequest.deleteMany({
-        where: { employeeId: userId }
+        where: { employeeId: userId },
       });
 
       // Delete overtime requests
       await tx.overtimeRequest.deleteMany({
-        where: { employeeId: userId }
+        where: { employeeId: userId },
       });
 
       // Update subordinates to have no supervisor
       await tx.user.updateMany({
         where: { supervisorId: userId },
-        data: { supervisorId: null }
+        data: { supervisorId: null },
       });
 
       // Finally delete the user
       await tx.user.delete({
-        where: { id: userId }
+        where: { id: userId },
       });
 
-      console.log('✅ All related records deleted');
+      console.log("✅ All related records deleted");
     });
 
     console.log(`✅ User PERMANENTLY deleted: ${user.name} (${user.email})`);
@@ -848,23 +1041,22 @@ export const permanentDeleteUser = async (req, res) => {
       data: {
         id: user.id,
         name: user.name,
-        username: user.username
-      }
+        username: user.username,
+      },
     });
-
   } catch (error) {
-    console.error('❌ Permanent delete error:', error);
-    
-    if (error.code === 'P2003') {
+    console.error("❌ Permanent delete error:", error);
+
+    if (error.code === "P2003") {
       return res.status(400).json({
-        error: 'Cannot delete user due to related records',
-        message: 'This user has related data that prevents deletion'
+        error: "Cannot delete user due to related records",
+        message: "This user has related data that prevents deletion",
       });
     }
 
     return res.status(500).json({
-      error: 'Failed to delete user permanently',
-      message: error.message
+      error: "Failed to delete user permanently",
+      message: error.message,
     });
   }
 };
@@ -882,19 +1074,32 @@ export const adjustUserBalance = async (req, res) => {
         overtimeBalance: true,
         leaveBalances: {
           where: { year: currentYear },
-          take: 1
-        }
-      }
+          take: 1,
+        },
+      },
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    if (accessLevel === 2) {
+      if (
+        user.plottingCompanyId &&
+        !scopeEntityIds?.includes(user.plottingCompanyId)
+      ) {
+        return res.status(403).json({
+          error: "Access denied",
+          message: "You cannot adjust balances for users outside your scope",
+        });
+      }
     }
 
     // Get current year's leave balance
-    const currentLeaveBalance = user.leaveBalances && user.leaveBalances.length > 0
-      ? user.leaveBalances[0]
-      : null;
+    const currentLeaveBalance =
+      user.leaveBalances && user.leaveBalances.length > 0
+        ? user.leaveBalances[0]
+        : null;
 
     const results = {};
 
@@ -904,23 +1109,23 @@ export const adjustUserBalance = async (req, res) => {
       const newBalance = currentBalance + parseFloat(overtime.amount);
 
       if (newBalance < 0) {
-        return res.status(400).json({ 
-          error: 'Cannot reduce balance below zero',
+        return res.status(400).json({
+          error: "Cannot reduce balance below zero",
           currentBalance,
-          requested: overtime.amount
+          requested: overtime.amount,
         });
       }
 
       await prisma.overtimeBalance.upsert({
         where: { employeeId: userId },
         update: {
-          currentBalance: newBalance
+          currentBalance: newBalance,
         },
         create: {
           employeeId: userId,
           currentBalance: newBalance,
-          totalPaid: 0
-        }
+          totalPaid: 0,
+        },
       });
 
       // Log the adjustment
@@ -928,35 +1133,36 @@ export const adjustUserBalance = async (req, res) => {
         data: {
           userId,
           adjustedBy: req.user.id,
-          type: 'OVERTIME',
+          type: "OVERTIME",
           amount: overtime.amount,
           previousBalance: currentBalance,
           newBalance,
-          reason: overtime.reason || 'Manual adjustment by admin'
-        }
+          reason: overtime.reason || "Manual adjustment by admin",
+        },
       });
 
       results.overtime = {
         previousBalance: currentBalance,
         adjustment: overtime.amount,
-        newBalance
+        newBalance,
       };
     }
 
     // Adjust leave balance
     if (leave && leave.annualQuota !== undefined) {
       const year = leave.year || currentYear;
-      
+
       const leaveBalance = await prisma.leaveBalance.upsert({
-        where: { 
+        where: {
           employeeId_year: {
             employeeId: userId,
-            year
-          }
+            year,
+          },
         },
         update: {
           annualQuota: leave.annualQuota,
-          annualRemaining: leave.annualQuota - (currentLeaveBalance?.annualUsed || 0)
+          annualRemaining:
+            leave.annualQuota - (currentLeaveBalance?.annualUsed || 0),
         },
         create: {
           employeeId: userId,
@@ -969,8 +1175,8 @@ export const adjustUserBalance = async (req, res) => {
           unpaidLeaveUsed: 0,
           toilBalance: 0,
           toilUsed: 0,
-          toilExpired: 0
-        }
+          toilExpired: 0,
+        },
       });
 
       // Log the adjustment
@@ -978,35 +1184,35 @@ export const adjustUserBalance = async (req, res) => {
         data: {
           userId,
           adjustedBy: req.user.id,
-          type: 'LEAVE',
+          type: "LEAVE",
           amount: leave.annualQuota,
           previousBalance: currentLeaveBalance?.annualQuota || 0,
           newBalance: leave.annualQuota,
-          reason: leave.reason || 'Manual adjustment by admin',
-          year
-        }
+          reason: leave.reason || "Manual adjustment by admin",
+          year,
+        },
       });
 
       results.leave = {
         year,
         previousQuota: currentLeaveBalance?.annualQuota || 0,
         newQuota: leave.annualQuota,
-        remaining: leaveBalance.annualRemaining
+        remaining: leaveBalance.annualRemaining,
       };
     }
 
     // Adjust TOIL balance
     if (toil && toil.amount !== undefined) {
       if (!currentLeaveBalance) {
-        return res.status(400).json({ 
-          error: 'Cannot adjust TOIL: No leave balance found for current year',
-          message: 'Please create leave balance first'
+        return res.status(400).json({
+          error: "Cannot adjust TOIL: No leave balance found for current year",
+          message: "Please create leave balance first",
         });
       }
 
       if (!toil.reason || !toil.reason.trim()) {
-        return res.status(400).json({ 
-          error: 'Please provide a reason for TOIL adjustment'
+        return res.status(400).json({
+          error: "Please provide a reason for TOIL adjustment",
         });
       }
 
@@ -1015,23 +1221,23 @@ export const adjustUserBalance = async (req, res) => {
       const newToilBalance = currentToilBalance + toilAmount;
 
       if (newToilBalance < 0) {
-        return res.status(400).json({ 
-          error: 'Cannot reduce TOIL balance below zero',
+        return res.status(400).json({
+          error: "Cannot reduce TOIL balance below zero",
           currentBalance: currentToilBalance,
-          requested: toilAmount
+          requested: toilAmount,
         });
       }
 
       const updatedLeaveBalance = await prisma.leaveBalance.update({
-        where: { 
+        where: {
           employeeId_year: {
             employeeId: userId,
-            year: currentYear
-          }
+            year: currentYear,
+          },
         },
         data: {
-          toilBalance: newToilBalance
-        }
+          toilBalance: newToilBalance,
+        },
       });
 
       // Log the adjustment
@@ -1039,34 +1245,33 @@ export const adjustUserBalance = async (req, res) => {
         data: {
           userId,
           adjustedBy: req.user.id,
-          type: 'TOIL',
+          type: "TOIL",
           amount: toilAmount,
           previousBalance: currentToilBalance,
           newBalance: newToilBalance,
           reason: toil.reason,
-          year: currentYear
-        }
+          year: currentYear,
+        },
       });
 
       results.toil = {
         year: currentYear,
         previousBalance: currentToilBalance,
         adjustment: toilAmount,
-        newBalance: newToilBalance
+        newBalance: newToilBalance,
       };
     }
 
     return res.json({
       success: true,
-      message: 'Balance adjusted successfully',
-      data: results
+      message: "Balance adjusted successfully",
+      data: results,
     });
-
   } catch (error) {
-    console.error('Adjust balance error:', error);
-    return res.status(500).json({ 
-      error: 'Failed to adjust balance',
-      message: error.message 
+    console.error("Adjust balance error:", error);
+    return res.status(500).json({
+      error: "Failed to adjust balance",
+      message: error.message,
     });
   }
 };
