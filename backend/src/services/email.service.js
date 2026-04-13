@@ -2668,7 +2668,7 @@ export async function sendLeaveReminderH7Email(
   leaveRequest,
   employee,
   ccList = [],
-  daysUntilLeave,
+  daysUntilLeave = 7,
 ) {
   const systemUrl = process.env.FRONTEND_URL || "http://localhost:5173";
 
@@ -2836,7 +2836,7 @@ export async function sendLeaveReminderH7Email(
           <div class="content">
             <p>Dear <strong>${recipient.name}</strong>,</p>
 
-            <p>This is a reminder that <strong>${employee.name}</strong> from your division will be on leave starting in 7 days.</p>
+            <p>This is a reminder that <strong>${employee.name}</strong> from your division will be on leave starting in ${daysUntilLeave} days.</p>
 
             <div style="text-align: center;">
               <div class="info-badge">UPCOMING LEAVE</div>
@@ -2848,11 +2848,6 @@ export async function sendLeaveReminderH7Email(
               <div class="detail-row">
                 <div class="detail-label">Employee:</div>
                 <div class="detail-value"><strong>${employee.name}</strong></div>
-              </div>
-
-              <div class="detail-row">
-                <div class="detail-label">Employee ID:</div>
-                <div class="detail-value">${employee.nip || employee.id}</div>
               </div>
 
               <div class="detail-row">
