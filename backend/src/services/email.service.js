@@ -1,55 +1,61 @@
 // backend/src/services/email.service.js
 // SMTP2go API with Custom Brand Theme (Black, White, #152A55)
 
-import axios from 'axios';
+import axios from "axios";
 
-const SMTP2GO_API_URL = 'https://api.smtp2go.com/v3/email/send';
+const SMTP2GO_API_URL = "https://api.smtp2go.com/v3/email/send";
 const API_KEY = process.env.SMTP2GO_API_KEY;
 
 // Brand colors
 const BRAND_COLORS = {
-  primary: '#152A55',      // Dark Blue
-  secondary: '#000000',    // Black
-  accent: '#FFFFFF',       // White
-  cardBg: '#F5F5F5',       // Light Grey
-  cardBorder: '#E0E0E0',   // Border Grey
-  textPrimary: '#000000',  // Black text
-  textSecondary: '#666666' // Grey text
+  primary: "#152A55", // Dark Blue
+  secondary: "#000000", // Black
+  accent: "#FFFFFF", // White
+  cardBg: "#F5F5F5", // Light Grey
+  cardBorder: "#E0E0E0", // Border Grey
+  textPrimary: "#000000", // Black text
+  textSecondary: "#666666", // Grey text
 };
 
 if (!API_KEY) {
-  console.error('SMTP2GO_API_KEY not configured in .env');
+  console.error("SMTP2GO_API_KEY not configured in .env");
 } else {
-  console.log('SMTP2go API configured');
+  console.log("SMTP2go API configured");
 }
 
 /**
  * Helper functions for field extraction
  */
 function getOvertimeDate(overtimeRequest) {
-  return overtimeRequest.overtimeDate || 
-         overtimeRequest.date || 
-         overtimeRequest.workDate || 
-         overtimeRequest.requestDate ||
-         overtimeRequest.createdAt ||
-         new Date();
+  return (
+    overtimeRequest.overtimeDate ||
+    overtimeRequest.date ||
+    overtimeRequest.workDate ||
+    overtimeRequest.requestDate ||
+    overtimeRequest.createdAt ||
+    new Date()
+  );
 }
 
 function getOvertimeHours(overtimeRequest) {
-  return overtimeRequest.totalHours || 
-         overtimeRequest.hours || 
-         overtimeRequest.overtimeHours || 
-         0;
+  return (
+    overtimeRequest.totalHours ||
+    overtimeRequest.hours ||
+    overtimeRequest.overtimeHours ||
+    0
+  );
 }
 
 function getOvertimeDescription(overtimeRequest) {
-  return overtimeRequest.description || 
-         overtimeRequest.taskDescription || 
-         overtimeRequest.task ||
-         overtimeRequest.reason || 
-         overtimeRequest.workDescription ||
-         overtimeRequest.notes ||
-         'No description provided';
+  return (
+    overtimeRequest.description ||
+    overtimeRequest.taskDescription ||
+    overtimeRequest.task ||
+    overtimeRequest.reason ||
+    overtimeRequest.workDescription ||
+    overtimeRequest.notes ||
+    "No description provided"
+  );
 }
 
 /**
@@ -58,17 +64,17 @@ function getOvertimeDescription(overtimeRequest) {
 export async function sendEmail({ to, subject, html, text, cc }) {
   try {
     if (!API_KEY) {
-      throw new Error('SMTP2GO_API_KEY not configured');
+      throw new Error("SMTP2GO_API_KEY not configured");
     }
 
     // Build email payload
     const emailPayload = {
       api_key: API_KEY,
       to: [to],
-      sender: `${process.env.SMTP_FROM_NAME || 'HR System'} <${process.env.SMTP_FROM_EMAIL}>`,
+      sender: `${process.env.SMTP_FROM_NAME || "HR System"} <${process.env.SMTP_FROM_EMAIL}>`,
       subject: subject,
       html_body: html,
-      text_body: text || html.replace(/<[^>]*>/g, '')
+      text_body: text || html.replace(/<[^>]*>/g, ""),
     };
 
     // Add CC if provided
@@ -77,67 +83,62 @@ export async function sendEmail({ to, subject, html, text, cc }) {
       emailPayload.cc = Array.isArray(cc) ? cc : [cc];
     }
 
-    const response = await axios.post(
-      SMTP2GO_API_URL,
-      emailPayload,
-      {
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        timeout: 10000
-      }
-    );
+    const response = await axios.post(SMTP2GO_API_URL, emailPayload, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+      timeout: 10000,
+    });
 
     if (response.data && response.data.data) {
       const { succeeded, failed } = response.data.data;
-      
+
       if (succeeded > 0) {
-        console.log('Email sent successfully via SMTP2go API:', {
+        console.log("Email sent successfully via SMTP2go API:", {
           to: to,
-          cc: cc || 'none',
+          cc: cc || "none",
           subject: subject,
-          messageId: response.data.data.email_id
+          messageId: response.data.data.email_id,
         });
-        
+
         return {
           success: true,
-          messageId: response.data.data.email_id
+          messageId: response.data.data.email_id,
         };
       } else if (failed > 0) {
         const failedEmails = response.data.data.failures || [];
-        const errorMsg = failedEmails[0]?.error || 'Unknown error';
-        
-        console.error('SMTP2go API reported failure:', {
+        const errorMsg = failedEmails[0]?.error || "Unknown error";
+
+        console.error("SMTP2go API reported failure:", {
           to: to,
-          cc: cc || 'none',
-          error: errorMsg
+          cc: cc || "none",
+          error: errorMsg,
         });
-        
+
         return {
           success: false,
-          error: errorMsg
+          error: errorMsg,
         };
       }
     }
-    
-    console.error('Unexpected SMTP2go API response:', response.data);
+
+    console.error("Unexpected SMTP2go API response:", response.data);
     return {
       success: false,
-      error: 'Unexpected API response'
+      error: "Unexpected API response",
     };
-    
   } catch (error) {
-    console.error('Email send error:', {
+    console.error("Email send error:", {
       to: to,
-      cc: cc || 'none',
+      cc: cc || "none",
       subject: subject,
       error: error.message,
-      response: error.response?.data
+      response: error.response?.data,
     });
-    
+
     return {
       success: false,
-      error: error.response?.data?.error || error.message
+      error: error.response?.data?.error || error.message,
     };
   }
 }
@@ -150,11 +151,11 @@ export async function sendOvertimeApprovedEmail(user, overtimeRequest) {
   const overtimeHours = getOvertimeHours(overtimeRequest);
   const description = getOvertimeDescription(overtimeRequest);
 
-  const formattedDate = new Date(overtimeDate).toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+  const formattedDate = new Date(overtimeDate).toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
 
   const html = `
@@ -287,7 +288,7 @@ export async function sendOvertimeApprovedEmail(user, overtimeRequest) {
           color: #999999;
           margin-top: 15px;
         }
-        
+
         /* Mobile responsive */
         @media only screen and (max-width: 600px) {
           .email-wrapper {
@@ -315,42 +316,46 @@ export async function sendOvertimeApprovedEmail(user, overtimeRequest) {
           <div class="header">
             <h1>Overtime Request Approved</h1>
           </div>
-          
+
           <div class="content">
             <p>Hi <strong>${user.name}</strong>,</p>
-            
+
             <div class="status-badge">
               APPROVED
             </div>
-            
+
             <p>Your overtime request has been approved and the hours have been added to your balance.</p>
-            
+
             <div class="details-card">
               <h3>Request Details</h3>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Date:</div>
                 <div class="detail-value">${formattedDate}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Hours:</div>
                 <div class="detail-value">${overtimeHours} hours</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Task:</div>
                 <div class="detail-value">${description}</div>
               </div>
             </div>
-            
-            ${process.env.FRONTEND_URL ? `
+
+            ${
+              process.env.FRONTEND_URL
+                ? `
               <a href="${process.env.FRONTEND_URL}/overtime/history" class="button">
                 View Overtime History
               </a>
-            ` : ''}
+            `
+                : ""
+            }
           </div>
-          
+
           <div class="footer">
             <div class="footer-signature">HR Team</div>
             <div class="footer-text">Human Resources Department</div>
@@ -364,9 +369,9 @@ export async function sendOvertimeApprovedEmail(user, overtimeRequest) {
 
   return sendEmail({
     to: user.email,
-    cc: process.env.HR_EMAIL || 'hr@rhayaflicks.com', // CC to HR
-    subject: 'Overtime Request Approved',
-    html: html
+    cc: process.env.HR_EMAIL || "hr@rhayaflicks.com", // CC to HR
+    subject: "Overtime Request Approved",
+    html: html,
   });
 }
 
@@ -377,12 +382,12 @@ export async function sendOvertimeRejectedEmail(user, overtimeRequest) {
   const overtimeDate = getOvertimeDate(overtimeRequest);
   const overtimeHours = getOvertimeHours(overtimeRequest);
   const description = getOvertimeDescription(overtimeRequest);
-  
-  const formattedDate = new Date(overtimeDate).toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
+
+  const formattedDate = new Date(overtimeDate).toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
 
   const html = `
@@ -500,7 +505,7 @@ export async function sendOvertimeRejectedEmail(user, overtimeRequest) {
           color: ${BRAND_COLORS.textPrimary};
           margin-bottom: 10px;
         }
-        
+
         @media only screen and (max-width: 600px) {
           .detail-row {
             flex-direction: column;
@@ -517,45 +522,50 @@ export async function sendOvertimeRejectedEmail(user, overtimeRequest) {
           <div class="header">
             <h1>Overtime Request Not Approved</h1>
           </div>
-          
+
           <div class="content">
             <p>Hi <strong>${user.name}</strong>,</p>
-            
+
             <div class="status-badge">
               NOT APPROVED
             </div>
-            
+
             <p>Your overtime request has not been approved.</p>
-            
+
             <div class="details-card">
               <h3>Request Details</h3>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Date:</div>
                 <div class="detail-value">${formattedDate}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Hours:</div>
                 <div class="detail-value">${overtimeHours} hours</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Task:</div>
                 <div class="detail-value">${description}</div>
               </div>
-              
-              ${overtimeRequest.rejectionReason || overtimeRequest.supervisorComment ? `
+
+              ${
+                overtimeRequest.rejectionReason ||
+                overtimeRequest.supervisorComment
+                  ? `
                 <div class="reason-box">
                   <strong>Reason:</strong><br>
                   ${overtimeRequest.rejectionReason || overtimeRequest.supervisorComment}
                 </div>
-              ` : ''}
+              `
+                  : ""
+              }
             </div>
-            
+
             <p>If you have questions, please contact your supervisor.</p>
           </div>
-          
+
           <div class="footer">
             <div class="footer-signature">HR Team</div>
             <div class="footer-text">Human Resources Department</div>
@@ -568,9 +578,9 @@ export async function sendOvertimeRejectedEmail(user, overtimeRequest) {
 
   return sendEmail({
     to: user.email,
-    cc: process.env.HR_EMAIL || 'hr@rhayaflicks.com', // CC to HR
-    subject: 'Overtime Request - Not Approved',
-    html: html
+    cc: process.env.HR_EMAIL || "hr@rhayaflicks.com", // CC to HR
+    subject: "Overtime Request - Not Approved",
+    html: html,
   });
 }
 
@@ -705,43 +715,47 @@ export async function sendWelcomeEmail(user, tempPassword) {
           <div class="header">
             <h1>Welcome to the Team!</h1>
           </div>
-          
+
           <div class="content">
             <p>Hi <strong>${user.name}</strong>,</p>
             <p>Welcome! Your HR system account has been created.</p>
-            
+
             <div class="credentials-card">
               <h3>Your Login Credentials</h3>
-              
+
               <div class="credential-row">
                 <div class="credential-label">Username:</div>
                 <div class="credential-value">${user.username}</div>
               </div>
-              
+
               <div class="credential-row">
                 <div class="credential-label">Email:</div>
                 <div class="credential-value">${user.email}</div>
               </div>
-              
+
               <div class="credential-row">
                 <div class="credential-label">Temporary Password:</div>
                 <div class="credential-value">${tempPassword}</div>
               </div>
             </div>
-            
+
             <div class="warning-box">
               <strong>Important:</strong> Please change your password after your first login for security purposes.
             </div>
-            
-            ${process.env.FRONTEND_URL ? `
+
+            ${
+              process.env.FRONTEND_URL
+                ? `
               <a href="${process.env.FRONTEND_URL}/login" class="button">
                 Login to HR System
               </a>
-            ` : ''}
-            
+            `
+                : ""
+            }
+
             <p style="margin-top: 30px;">If you have any questions, please contact the HR department.</p>
           </div>
-          
+
           <div class="footer">
             <div class="footer-signature">HR Team</div>
             <div class="footer-text">Human Resources Department</div>
@@ -754,8 +768,8 @@ export async function sendWelcomeEmail(user, tempPassword) {
 
   return sendEmail({
     to: user.email,
-    subject: 'Welcome - HR System Access',
-    html: html
+    subject: "Welcome - HR System Access",
+    html: html,
   });
 }
 
@@ -770,7 +784,7 @@ export async function sendOvertimeReminderEmail({
   fromDate,
   toDate,
   periodLabel,
-  systemUrl
+  systemUrl,
 }) {
   const html = `
     <!DOCTYPE html>
@@ -938,7 +952,7 @@ export async function sendOvertimeReminderEmail({
           color: ${BRAND_COLORS.textPrimary};
           margin-bottom: 10px;
         }
-        
+
         @media only screen and (max-width: 600px) {
           .email-wrapper {
             padding: 20px 10px;
@@ -966,42 +980,42 @@ export async function sendOvertimeReminderEmail({
             <div class="urgent-badge">OVERTIME REMINDER</div>
             <h1>Batas Akhir Submit Lembur</h1>
           </div>
-          
+
           <div class="content">
             <p class="greeting">Kepada <strong>${employeeName}</strong>,</p>
-            
+
             <p>Dengan hormat,</p>
-            
+
             <p>
-              Kami informasikan bahwa <strong>hari ini, ${recapDate}</strong>, adalah 
+              Kami informasikan bahwa <strong>hari ini, ${recapDate}</strong>, adalah
               <strong>batas akhir</strong> untuk submit lembur periode payroll bulan ini.
             </p>
-            
+
             <div class="info-card">
               <h3>PERIODE LEMBUR</h3>
-              
+
               <div class="info-row">
                 <div class="info-label">Periode:</div>
                 <div class="info-value">${periodLabel}</div>
               </div>
-              
+
               <div class="info-row">
                 <div class="info-label">Dari Tanggal:</div>
                 <div class="info-value">${fromDate}</div>
               </div>
-              
+
               <div class="info-row">
                 <div class="info-label">Sampai Tanggal:</div>
                 <div class="info-value">${toDate}</div>
               </div>
             </div>
-            
+
             <div class="warning-box">
               <h3>
                 <span class="warning-icon">!</span>
                 CATATAN - ABAIKAN JIKA SUDAH MENGAJUKAN OVERTIME
               </h3>
-              
+
               <ul class="checklist">
                 <li>Semua lembur dalam periode tersebut <strong>HARUS sudah disubmit hari ini</strong></li>
                 <li>Setelah hari ini, submit lembur untuk tanggal-tanggal tersebut akan <strong>DIKUNCI</strong></li>
@@ -1009,27 +1023,27 @@ export async function sendOvertimeReminderEmail({
                 <li>Lembur yang belum diapprove <strong>tidak akan masuk payroll</strong></li>
               </ul>
             </div>
-            
+
             <p style="text-align: center; margin-top: 30px;">
               <strong>Submit lembur Anda sekarang:</strong>
             </p>
-            
+
             <p style="text-align: center;">
               <a href="${systemUrl}/overtime/submit" class="button">
                 Submit Lembur Sekarang
               </a>
             </p>
-            
+
             <p style="margin-top: 30px; font-size: 14px; color: ${BRAND_COLORS.textSecondary};">
-              Jika Anda sudah submit semua lembur dan sudah diapprove atasan, 
+              Jika Anda sudah submit semua lembur dan sudah diapprove atasan,
               Anda tidak perlu melakukan tindakan apapun.
             </p>
-            
+
             <p style="margin-top: 20px; font-size: 14px; color: ${BRAND_COLORS.textSecondary};">
               Jika ada pertanyaan atau kendala, segera hubungi departemen HR.
             </p>
           </div>
-          
+
           <div class="footer">
             <div class="footer-signature">Human Resources Department</div>
             <div>PT Rhayakan Film Indonesia</div>
@@ -1079,39 +1093,55 @@ PT Rhayakan Film Indonesia
     to: employeeEmail,
     subject: `[OVERTIME REMINDER] Batas Akhir Submit Lembur - ${recapDate}`,
     html: html,
-    text: text
+    text: text,
   });
 }
 
 /**
  * Send overtime request notification to approver (SPV/Admin)
  */
-export async function sendOvertimeRequestNotification(approver, overtimeRequest, employee) {
+export async function sendOvertimeRequestNotification(
+  approver,
+  overtimeRequest,
+  employee,
+) {
   const overtimeHours = getOvertimeHours(overtimeRequest);
   const description = getOvertimeDescription(overtimeRequest);
-  const systemUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const systemUrl = process.env.FRONTEND_URL || "http://localhost:5173";
 
   // Format all overtime dates from entries
-  let overtimeDatesText = '';
-  let overtimeDatesHtml = '';
-  
+  let overtimeDatesText = "";
+  let overtimeDatesHtml = "";
+
   if (overtimeRequest.entries && overtimeRequest.entries.length > 0) {
-    const sortedEntries = overtimeRequest.entries.sort((a, b) => new Date(a.date) - new Date(b.date));
-    overtimeDatesHtml = sortedEntries.map(entry => `
+    const sortedEntries = overtimeRequest.entries.sort(
+      (a, b) => new Date(a.date) - new Date(b.date),
+    );
+    overtimeDatesHtml = sortedEntries
+      .map(
+        (entry) => `
       <div class="detail-row">
-        <div class="detail-label">${new Date(entry.date).toLocaleDateString('en-US', { 
-          weekday: 'short', 
-          month: 'short', 
-          day: 'numeric',
-          year: 'numeric'
-        })}:</div>
+        <div class="detail-label">${new Date(entry.date).toLocaleDateString(
+          "en-US",
+          {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          },
+        )}:</div>
         <div class="detail-value"><strong>${entry.hours} hours</strong> - ${entry.description}</div>
       </div>
-    `).join('');
-    
-    overtimeDatesText = sortedEntries.map(entry => 
-      `• ${new Date(entry.date).toLocaleDateString('en-US', { dateStyle: 'medium' })}: ${entry.hours} hours - ${entry.description}`
-    ).join('\n');
+    `,
+      )
+      .join("");
+
+    overtimeDatesText = sortedEntries
+      .map(
+        (entry) =>
+          `• ${new Date(entry.date).toLocaleDateString("en-US", { dateStyle: "medium" })}: ${entry.hours} hours - ${entry.description}`,
+      )
+      .join("\n");
   }
 
   const html = `
@@ -1240,7 +1270,7 @@ export async function sendOvertimeRequestNotification(approver, overtimeRequest,
           color: ${BRAND_COLORS.textPrimary};
           margin-bottom: 10px;
         }
-        
+
         @media only screen and (max-width: 600px) {
           .email-wrapper { padding: 20px 10px; }
           .content { padding: 30px 20px; }
@@ -1260,74 +1290,76 @@ export async function sendOvertimeRequestNotification(approver, overtimeRequest,
               New overtime request awaiting your approval
             </p>
           </div>
-          
+
           <div class="content">
             <p>Dear <strong>${approver.name}</strong>,</p>
-            
+
             <p>You have received a new overtime request that requires your approval:</p>
-            
+
             <div style="text-align: center;">
               <div class="status-badge">PENDING APPROVAL</div>
             </div>
-            
+
             <div class="employee-card">
               <h3>Employee Information</h3>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Employee:</div>
                 <div class="detail-value"><strong>${employee.name}</strong></div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Employee ID:</div>
                 <div class="detail-value">${employee.nip || employee.id}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Division:</div>
-                <div class="detail-value">${employee.division?.name || 'N/A'}</div>
+                <div class="detail-value">${employee.division?.name || "N/A"}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Role:</div>
-                <div class="detail-value">${employee.role?.name || 'N/A'}</div>
+                <div class="detail-value">${employee.role?.name || "N/A"}</div>
               </div>
             </div>
-            
+
             <div class="employee-card">
               <h3>Overtime Details</h3>
-              
+
               ${overtimeDatesHtml}
-              
+
               <div class="detail-row" style="border-top: 2px solid ${BRAND_COLORS.primary}; margin-top: 15px; padding-top: 15px;">
                 <div class="detail-label">Total Hours:</div>
                 <div class="detail-value"><strong style="color: ${BRAND_COLORS.primary}; font-size: 18px;">${overtimeHours} hours</strong></div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Submitted At:</div>
-                <div class="detail-value">${new Date(overtimeRequest.submittedAt || overtimeRequest.createdAt).toLocaleString('en-US', { 
-                  dateStyle: 'medium', 
-                  timeStyle: 'short' 
+                <div class="detail-value">${new Date(
+                  overtimeRequest.submittedAt || overtimeRequest.createdAt,
+                ).toLocaleString("en-US", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
                 })}</div>
               </div>
             </div>
-            
+
             <p style="text-align: center; margin-top: 30px;">
               <strong>Please review and approve this request:</strong>
             </p>
-            
+
             <div class="action-buttons">
               <a href="${systemUrl}/overtime/approval" class="button button-review">
                 Review Request
               </a>
             </div>
-            
+
             <p style="margin-top: 30px; font-size: 14px; color: ${BRAND_COLORS.textSecondary}; text-align: center;">
               Please process this request at your earliest convenience to ensure timely payroll processing.
             </p>
           </div>
-          
+
           <div class="footer">
             <div class="footer-signature">Human Resources Department</div>
             <div>PT Rhayakan Film Indonesia</div>
@@ -1351,8 +1383,8 @@ You have received a new overtime request that requires your approval.
 EMPLOYEE INFORMATION:
 • Employee: ${employee.name}
 • Employee ID: ${employee.nip || employee.id}
-• Division: ${employee.division?.name || 'N/A'}
-• Role: ${employee.role?.name || 'N/A'}
+• Division: ${employee.division?.name || "N/A"}
+• Role: ${employee.role?.name || "N/A"}
 
 OVERTIME DETAILS:
 ${overtimeDatesText}
@@ -1371,41 +1403,58 @@ PT Rhayakan Film Indonesia
 
   return sendEmail({
     to: approver.email,
-    cc: process.env.HR_EMAIL || 'hr@rhayaflicks.com', // CC to HR
+    cc: process.env.HR_EMAIL || "hr@rhayaflicks.com", // CC to HR
     subject: `[Action Required] Overtime Approval Request from ${employee.name}`,
     html: html,
-    text: text
+    text: text,
   });
 }
 
 /**
  * Send overtime revision requested notification to employee
  */
-export async function sendOvertimeRevisionRequestedEmail(employee, overtimeRequest, revisionComment, approverName) {
+export async function sendOvertimeRevisionRequestedEmail(
+  employee,
+  overtimeRequest,
+  revisionComment,
+  approverName,
+) {
   const overtimeHours = getOvertimeHours(overtimeRequest);
-  const systemUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const systemUrl = process.env.FRONTEND_URL || "http://localhost:5173";
 
   // Format all overtime dates from entries
-  let overtimeDatesHtml = '';
-  let overtimeDatesText = '';
-  
+  let overtimeDatesHtml = "";
+  let overtimeDatesText = "";
+
   if (overtimeRequest.entries && overtimeRequest.entries.length > 0) {
-    const sortedEntries = overtimeRequest.entries.sort((a, b) => new Date(a.date) - new Date(b.date));
-    overtimeDatesHtml = sortedEntries.map(entry => `
+    const sortedEntries = overtimeRequest.entries.sort(
+      (a, b) => new Date(a.date) - new Date(b.date),
+    );
+    overtimeDatesHtml = sortedEntries
+      .map(
+        (entry) => `
       <div class="detail-row">
-        <div class="detail-label">${new Date(entry.date).toLocaleDateString('en-US', { 
-          weekday: 'short', 
-          month: 'short', 
-          day: 'numeric',
-          year: 'numeric'
-        })}:</div>
+        <div class="detail-label">${new Date(entry.date).toLocaleDateString(
+          "en-US",
+          {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          },
+        )}:</div>
         <div class="detail-value">${entry.hours} hours - ${entry.description}</div>
       </div>
-    `).join('');
-    
-    overtimeDatesText = sortedEntries.map(entry => 
-      `• ${new Date(entry.date).toLocaleDateString('en-US', { dateStyle: 'medium' })}: ${entry.hours} hours`
-    ).join('\n');
+    `,
+      )
+      .join("");
+
+    overtimeDatesText = sortedEntries
+      .map(
+        (entry) =>
+          `• ${new Date(entry.date).toLocaleDateString("en-US", { dateStyle: "medium" })}: ${entry.hours} hours`,
+      )
+      .join("\n");
   }
 
   const html = `
@@ -1546,7 +1595,7 @@ export async function sendOvertimeRevisionRequestedEmail(employee, overtimeReque
           color: ${BRAND_COLORS.textPrimary};
           margin-bottom: 10px;
         }
-        
+
         @media only screen and (max-width: 600px) {
           .email-wrapper { padding: 20px 10px; }
           .content { padding: 30px 20px; }
@@ -1565,58 +1614,58 @@ export async function sendOvertimeRevisionRequestedEmail(employee, overtimeReque
               Your overtime request requires revision
             </p>
           </div>
-          
+
           <div class="content">
             <p>Dear <strong>${employee.name}</strong>,</p>
-            
+
             <p>Your overtime request has been reviewed and requires revision before it can be approved.</p>
-            
+
             <div style="text-align: center;">
               <div class="status-badge">REVISION REQUESTED</div>
             </div>
-            
+
             <div class="details-card">
               <h3>Request Details</h3>
-              
+
               ${overtimeDatesHtml}
-              
+
               <div class="detail-row" style="border-top: 2px solid ${BRAND_COLORS.primary}; margin-top: 15px; padding-top: 15px;">
                 <div class="detail-label">Total Hours:</div>
                 <div class="detail-value"><strong>${overtimeHours} hours</strong></div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Reviewed By:</div>
                 <div class="detail-value">${approverName}</div>
               </div>
             </div>
-            
+
             <div class="comment-box">
               <h4>Reviewer's Comment:</h4>
               <div class="comment-text">${revisionComment}</div>
             </div>
-            
+
             <p style="margin-top: 30px;">
               <strong>What to do next:</strong>
             </p>
-            
+
             <ul style="color: ${BRAND_COLORS.textSecondary}; padding-left: 20px;">
               <li>Review the comment from your approver</li>
               <li>Edit your overtime request with the necessary changes</li>
               <li>Resubmit for approval</li>
             </ul>
-            
+
             <p style="text-align: center;">
               <a href="${systemUrl}/overtime/history" class="button">
                 Edit Request Now
               </a>
             </p>
-            
+
             <p style="margin-top: 30px; font-size: 14px; color: ${BRAND_COLORS.textSecondary};">
               If you have any questions about the requested revisions, please contact your supervisor or HR department.
             </p>
           </div>
-          
+
           <div class="footer">
             <div class="footer-signature">Human Resources Department</div>
             <div>PT Rhayakan Film Indonesia</div>
@@ -1661,32 +1710,41 @@ PT Rhayakan Film Indonesia
 
   return sendEmail({
     to: employee.email,
-    cc: process.env.HR_EMAIL || 'hr@rhayaflicks.com', // CC to HR
+    cc: process.env.HR_EMAIL || "hr@rhayaflicks.com", // CC to HR
     subject: `[Action Required] Overtime Revision Requested`,
     html: html,
-    text: text
+    text: text,
   });
 }
 
 /**
  * Send leave request notification to approver (SPV/Admin)
  */
-export async function sendLeaveRequestNotification(approver, leaveRequest, employee) {
-  const systemUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-  
-  const formattedStartDate = new Date(leaveRequest.startDate).toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+export async function sendLeaveRequestNotification(
+  approver,
+  leaveRequest,
+  employee,
+) {
+  const systemUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+
+  const formattedStartDate = new Date(
+    leaveRequest.startDate,
+  ).toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
-  
-  const formattedEndDate = new Date(leaveRequest.endDate).toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  });
+
+  const formattedEndDate = new Date(leaveRequest.endDate).toLocaleDateString(
+    "en-US",
+    {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    },
+  );
 
   const html = `
     <!DOCTYPE html>
@@ -1826,7 +1884,7 @@ export async function sendLeaveRequestNotification(approver, leaveRequest, emplo
           color: ${BRAND_COLORS.textPrimary};
           margin-bottom: 10px;
         }
-        
+
         @media only screen and (max-width: 600px) {
           .email-wrapper { padding: 20px 10px; }
           .content { padding: 30px 20px; }
@@ -1846,92 +1904,94 @@ export async function sendLeaveRequestNotification(approver, leaveRequest, emplo
               New leave request awaiting your approval
             </p>
           </div>
-          
+
           <div class="content">
             <p>Dear <strong>${approver.name}</strong>,</p>
-            
+
             <p>You have received a new leave request that requires your approval:</p>
-            
+
             <div style="text-align: center;">
               <div class="status-badge">PENDING APPROVAL</div>
             </div>
-            
+
             <div class="employee-card">
               <h3>Employee Information</h3>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Employee:</div>
                 <div class="detail-value"><strong>${employee.name}</strong></div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Employee ID:</div>
                 <div class="detail-value">${employee.nip || employee.id}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Division:</div>
-                <div class="detail-value">${employee.division?.name || 'N/A'}</div>
+                <div class="detail-value">${employee.division?.name || "N/A"}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Role:</div>
-                <div class="detail-value">${employee.role?.name || 'N/A'}</div>
+                <div class="detail-value">${employee.role?.name || "N/A"}</div>
               </div>
             </div>
-            
+
             <div class="employee-card">
               <h3>Leave Details</h3>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Leave Type:</div>
                 <div class="detail-value"><strong>${leaveRequest.leaveType}</strong></div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Start Date:</div>
                 <div class="detail-value">${formattedStartDate}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">End Date:</div>
                 <div class="detail-value">${formattedEndDate}</div>
               </div>
-              
+
               <div class="detail-row" style="border-top: 2px solid ${BRAND_COLORS.primary}; margin-top: 15px; padding-top: 15px;">
                 <div class="detail-label">Duration:</div>
-                <div class="detail-value"><strong style="color: ${BRAND_COLORS.primary}; font-size: 18px;">${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? 's' : ''}</strong></div>
+                <div class="detail-value"><strong style="color: ${BRAND_COLORS.primary}; font-size: 18px;">${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? "s" : ""}</strong></div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Submitted:</div>
-                <div class="detail-value">${new Date(leaveRequest.createdAt).toLocaleString('en-US', { 
-                  dateStyle: 'medium', 
-                  timeStyle: 'short' 
+                <div class="detail-value">${new Date(
+                  leaveRequest.createdAt,
+                ).toLocaleString("en-US", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
                 })}</div>
               </div>
             </div>
-            
+
             <div class="reason-box">
               <strong>Reason:</strong>
               ${leaveRequest.reason}
             </div>
-            
+
             <p style="text-align: center; margin-top: 30px;">
               <strong>Please review and approve this request:</strong>
             </p>
-            
+
             <div class="action-buttons">
               <a href="${systemUrl}/leave/approval" class="button button-review">
                 Review Request
               </a>
             </div>
-            
+
             <p style="margin-top: 30px; font-size: 14px; color: ${BRAND_COLORS.textSecondary}; text-align: center;">
               Please process this request at your earliest convenience.
             </p>
           </div>
-          
+
           <div class="footer">
             <div class="footer-signature">Human Resources Department</div>
             <div>PT Rhayakan Film Indonesia</div>
@@ -1955,14 +2015,14 @@ You have received a new leave request that requires your approval.
 EMPLOYEE INFORMATION:
 • Employee: ${employee.name}
 • Employee ID: ${employee.nip || employee.id}
-• Division: ${employee.division?.name || 'N/A'}
-• Role: ${employee.role?.name || 'N/A'}
+• Division: ${employee.division?.name || "N/A"}
+• Role: ${employee.role?.name || "N/A"}
 
 LEAVE DETAILS:
 • Leave Type: ${leaveRequest.leaveType}
 • Start Date: ${formattedStartDate}
 • End Date: ${formattedEndDate}
-• Duration: ${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? 's' : ''}
+• Duration: ${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? "s" : ""}
 • Submitted: ${new Date(leaveRequest.createdAt).toLocaleString()}
 
 REASON:
@@ -1979,32 +2039,41 @@ PT Rhayakan Film Indonesia
 
   return sendEmail({
     to: approver.email,
-    cc: process.env.HR_EMAIL || 'hr@rhayaflicks.com',
+    cc: process.env.HR_EMAIL || "hr@rhayaflicks.com",
     subject: `[Action Required] Leave Approval Request from ${employee.name}`,
     html: html,
-    text: text
+    text: text,
   });
 }
 
 /**
  * Send leave approved notification to employee
  */
-export async function sendLeaveApprovedEmail(employee, leaveRequest, approverName) {
-  const systemUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-  
-  const formattedStartDate = new Date(leaveRequest.startDate).toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+export async function sendLeaveApprovedEmail(
+  employee,
+  leaveRequest,
+  approverName,
+) {
+  const systemUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+
+  const formattedStartDate = new Date(
+    leaveRequest.startDate,
+  ).toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
-  
-  const formattedEndDate = new Date(leaveRequest.endDate).toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  });
+
+  const formattedEndDate = new Date(leaveRequest.endDate).toLocaleDateString(
+    "en-US",
+    {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    },
+  );
 
   const html = `
     <!DOCTYPE html>
@@ -2144,7 +2213,7 @@ export async function sendLeaveApprovedEmail(employee, leaveRequest, approverNam
           color: ${BRAND_COLORS.textPrimary};
           margin-bottom: 10px;
         }
-        
+
         @media only screen and (max-width: 600px) {
           .email-wrapper { padding: 20px 10px; }
           .content { padding: 30px 20px; }
@@ -2163,69 +2232,71 @@ export async function sendLeaveApprovedEmail(employee, leaveRequest, approverNam
               Your leave has been approved!
             </p>
           </div>
-          
+
           <div class="content">
             <p>Dear <strong>${employee.name}</strong>,</p>
-            
+
             <p>Great news! Your leave request has been approved.</p>
-            
+
             <div style="text-align: center;">
               <div class="status-badge">APPROVED</div>
             </div>
-            
+
             <div class="celebration-box">
               <h4>Enjoy Your Time Off!</h4>
               <p>Your leave has been confirmed and processed.</p>
             </div>
-            
+
             <div class="details-card">
               <h3>Leave Details</h3>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Leave Type:</div>
                 <div class="detail-value"><strong>${leaveRequest.leaveType}</strong></div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Start Date:</div>
                 <div class="detail-value">${formattedStartDate}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">End Date:</div>
                 <div class="detail-value">${formattedEndDate}</div>
               </div>
-              
+
               <div class="detail-row" style="border-top: 2px solid #28A745; margin-top: 15px; padding-top: 15px;">
                 <div class="detail-label">Duration:</div>
-                <div class="detail-value"><strong style="color: #28A745; font-size: 18px;">${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? 's' : ''}</strong></div>
+                <div class="detail-value"><strong style="color: #28A745; font-size: 18px;">${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? "s" : ""}</strong></div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Approved By:</div>
                 <div class="detail-value">${approverName}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Approved At:</div>
-                <div class="detail-value">${new Date(leaveRequest.approvedAt).toLocaleString('en-US', { 
-                  dateStyle: 'medium', 
-                  timeStyle: 'short' 
+                <div class="detail-value">${new Date(
+                  leaveRequest.approvedAt,
+                ).toLocaleString("en-US", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
                 })}</div>
               </div>
             </div>
-            
+
             <p style="text-align: center;">
               <a href="${systemUrl}/leave/history" class="button">
                 View Leave History
               </a>
             </p>
-            
+
             <p style="margin-top: 30px; font-size: 14px; color: ${BRAND_COLORS.textSecondary};">
               Have a great time off! If you have any questions, please contact HR.
             </p>
           </div>
-          
+
           <div class="footer">
             <div class="footer-signature">Human Resources Department</div>
             <div>PT Rhayakan Film Indonesia</div>
@@ -2250,7 +2321,7 @@ LEAVE DETAILS:
 • Leave Type: ${leaveRequest.leaveType}
 • Start Date: ${formattedStartDate}
 • End Date: ${formattedEndDate}
-• Duration: ${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? 's' : ''}
+• Duration: ${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? "s" : ""}
 • Approved By: ${approverName}
 • Approved At: ${new Date(leaveRequest.approvedAt).toLocaleString()}
 
@@ -2265,32 +2336,42 @@ PT Rhayakan Film Indonesia
 
   return sendEmail({
     to: employee.email,
-    cc: process.env.HR_EMAIL || 'hr@rhayaflicks.com',
+    cc: process.env.HR_EMAIL || "hr@rhayaflicks.com",
     subject: `Leave Request Approved - ${leaveRequest.leaveType}`,
     html: html,
-    text: text
+    text: text,
   });
 }
 
 /**
  * Send leave rejected notification to employee
  */
-export async function sendLeaveRejectedEmail(employee, leaveRequest, rejectionReason, approverName) {
-  const systemUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-  
-  const formattedStartDate = new Date(leaveRequest.startDate).toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+export async function sendLeaveRejectedEmail(
+  employee,
+  leaveRequest,
+  rejectionReason,
+  approverName,
+) {
+  const systemUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+
+  const formattedStartDate = new Date(
+    leaveRequest.startDate,
+  ).toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
-  
-  const formattedEndDate = new Date(leaveRequest.endDate).toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  });
+
+  const formattedEndDate = new Date(leaveRequest.endDate).toLocaleDateString(
+    "en-US",
+    {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    },
+  );
 
   const html = `
     <!DOCTYPE html>
@@ -2430,7 +2511,7 @@ export async function sendLeaveRejectedEmail(employee, leaveRequest, rejectionRe
           color: ${BRAND_COLORS.textPrimary};
           margin-bottom: 10px;
         }
-        
+
         @media only screen and (max-width: 600px) {
           .email-wrapper { padding: 20px 10px; }
           .content { padding: 30px 20px; }
@@ -2449,71 +2530,71 @@ export async function sendLeaveRejectedEmail(employee, leaveRequest, rejectionRe
               Your leave request has been declined
             </p>
           </div>
-          
+
           <div class="content">
             <p>Dear <strong>${employee.name}</strong>,</p>
-            
+
             <p>We regret to inform you that your leave request has not been approved.</p>
-            
+
             <div style="text-align: center;">
               <div class="status-badge">NOT APPROVED</div>
             </div>
-            
+
             <div class="details-card">
               <h3>Request Details</h3>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Leave Type:</div>
                 <div class="detail-value"><strong>${leaveRequest.leaveType}</strong></div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Start Date:</div>
                 <div class="detail-value">${formattedStartDate}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">End Date:</div>
                 <div class="detail-value">${formattedEndDate}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Duration:</div>
-                <div class="detail-value">${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? 's' : ''}</div>
+                <div class="detail-value">${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? "s" : ""}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Reviewed By:</div>
                 <div class="detail-value">${approverName}</div>
               </div>
             </div>
-            
+
             <div class="rejection-box">
               <h4>Reason for Rejection:</h4>
               <div class="rejection-text">${rejectionReason}</div>
             </div>
-            
+
             <p style="margin-top: 30px;">
               <strong>What to do next:</strong>
             </p>
-            
+
             <ul style="color: ${BRAND_COLORS.textSecondary}; padding-left: 20px;">
               <li>Review the rejection reason above</li>
               <li>You can submit a new leave request with adjusted dates if needed</li>
               <li>Contact your supervisor or HR if you have questions</li>
             </ul>
-            
+
             <p style="text-align: center;">
               <a href="${systemUrl}/leave/history" class="button">
                 View Leave History
               </a>
             </p>
-            
+
             <p style="margin-top: 30px; font-size: 14px; color: ${BRAND_COLORS.textSecondary};">
               If you have any questions or concerns, please contact your supervisor or HR department.
             </p>
           </div>
-          
+
           <div class="footer">
             <div class="footer-signature">Human Resources Department</div>
             <div>PT Rhayakan Film Indonesia</div>
@@ -2538,7 +2619,7 @@ REQUEST DETAILS:
 • Leave Type: ${leaveRequest.leaveType}
 • Start Date: ${formattedStartDate}
 • End Date: ${formattedEndDate}
-• Duration: ${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? 's' : ''}
+• Duration: ${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? "s" : ""}
 • Reviewed By: ${approverName}
 
 REASON FOR REJECTION:
@@ -2560,44 +2641,55 @@ PT Rhayakan Film Indonesia
 
   return sendEmail({
     to: employee.email,
-    cc: process.env.HR_EMAIL || 'hr@rhayaflicks.com',
+    cc: process.env.HR_EMAIL || "hr@rhayaflicks.com",
     subject: `Leave Request Not Approved - ${leaveRequest.leaveType}`,
     html: html,
-    text: text
+    text: text,
   });
 }
 
 /**
  * Send leave reminder H-7 notification - ONE consolidated email
- * 
+ *
  * TO (Priority Order):
  * 1. Employee's Supervisor (if exists)
  * 2. Division Head (if no supervisor)
  * 3. HR (if no supervisor and no division head)
- * 
+ *
  * CC:
  * 1. All division members (excluding employee taking leave)
  * 2. All division heads in the company
  * 3. HR (unless HR is already TO)
- * 
+ *
  * Smart deduplication ensures no one receives duplicate emails
  */
-export async function sendLeaveReminderH7Email(recipient, leaveRequest, employee, ccList = []) {
-  const systemUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-  
-  const formattedStartDate = new Date(leaveRequest.startDate).toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+export async function sendLeaveReminderH7Email(
+  recipient,
+  leaveRequest,
+  employee,
+  ccList = [],
+  daysUntilLeave,
+) {
+  const systemUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+
+  const formattedStartDate = new Date(
+    leaveRequest.startDate,
+  ).toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
-  
-  const formattedEndDate = new Date(leaveRequest.endDate).toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  });
+
+  const formattedEndDate = new Date(leaveRequest.endDate).toLocaleDateString(
+    "en-US",
+    {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    },
+  );
 
   const html = `
     <!DOCTYPE html>
@@ -2721,7 +2813,7 @@ export async function sendLeaveReminderH7Email(recipient, leaveRequest, employee
           color: ${BRAND_COLORS.textPrimary};
           margin-bottom: 10px;
         }
-        
+
         @media only screen and (max-width: 600px) {
           .email-wrapper { padding: 20px 10px; }
           .content { padding: 30px 20px; }
@@ -2740,75 +2832,75 @@ export async function sendLeaveReminderH7Email(recipient, leaveRequest, employee
               Upcoming absence notification for your team
             </p>
           </div>
-          
+
           <div class="content">
             <p>Dear <strong>${recipient.name}</strong>,</p>
-            
+
             <p>This is a reminder that <strong>${employee.name}</strong> from your division will be on leave starting in 7 days.</p>
-            
+
             <div style="text-align: center;">
               <div class="info-badge">UPCOMING LEAVE</div>
             </div>
-            
+
             <div class="employee-card">
               <h3>Employee Information</h3>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Employee:</div>
                 <div class="detail-value"><strong>${employee.name}</strong></div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Employee ID:</div>
                 <div class="detail-value">${employee.nip || employee.id}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Division:</div>
-                <div class="detail-value">${employee.division?.name || 'N/A'}</div>
+                <div class="detail-value">${employee.division?.name || "N/A"}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Role:</div>
-                <div class="detail-value">${employee.role?.name || 'N/A'}</div>
+                <div class="detail-value">${employee.role?.name || "N/A"}</div>
               </div>
             </div>
-            
+
             <div class="employee-card">
               <h3>Leave Details</h3>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Leave Type:</div>
                 <div class="detail-value"><strong>${leaveRequest.leaveType}</strong></div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Start Date:</div>
                 <div class="detail-value">${formattedStartDate}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">End Date:</div>
                 <div class="detail-value">${formattedEndDate}</div>
               </div>
-              
+
               <div class="detail-row" style="border-top: 2px solid ${BRAND_COLORS.primary}; margin-top: 15px; padding-top: 15px;">
                 <div class="detail-label">Duration:</div>
-                <div class="detail-value"><strong style="color: ${BRAND_COLORS.primary}; font-size: 18px;">${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? 's' : ''}</strong></div>
+                <div class="detail-value"><strong style="color: ${BRAND_COLORS.primary}; font-size: 18px;">${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? "s" : ""}</strong></div>
               </div>
             </div>
-            
+
             <div class="highlight-box">
               <h4>Action Required</h4>
               <p>Please plan accordingly for <strong>${employee.name}</strong>'s absence from <strong>${formattedStartDate}</strong> to <strong>${formattedEndDate}</strong>.</p>
               <p style="margin-top: 10px;">If you need to reassign tasks or responsibilities, please coordinate with your team in advance.</p>
             </div>
-            
+
             <p style="margin-top: 30px; font-size: 14px; color: ${BRAND_COLORS.textSecondary};">
               This is an automated reminder sent 7 days before the leave starts. If you have any questions, please contact HR.
             </p>
           </div>
-          
+
           <div class="footer">
             <div class="footer-signature">Human Resources Department</div>
             <div>PT Rhayakan Film Indonesia</div>
@@ -2832,14 +2924,14 @@ This is a reminder that ${employee.name} from your division will be on leave sta
 EMPLOYEE INFORMATION:
 • Employee: ${employee.name}
 • Employee ID: ${employee.nip || employee.id}
-• Division: ${employee.division?.name || 'N/A'}
-• Role: ${employee.role?.name || 'N/A'}
+• Division: ${employee.division?.name || "N/A"}
+• Role: ${employee.role?.name || "N/A"}
 
 LEAVE DETAILS:
 • Leave Type: ${leaveRequest.leaveType}
 • Start Date: ${formattedStartDate}
 • End Date: ${formattedEndDate}
-• Duration: ${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? 's' : ''}
+• Duration: ${leaveRequest.totalDays} day${leaveRequest.totalDays > 1 ? "s" : ""}
 
 ACTION REQUIRED:
 Please plan accordingly for ${employee.name}'s absence from ${formattedStartDate} to ${formattedEndDate}.
@@ -2858,7 +2950,7 @@ PT Rhayakan Film Indonesia
     cc: ccList.length > 0 ? ccList : undefined, // Only include CC if there are recipients
     subject: `[Reminder] Upcoming Team Leave - ${employee.name} (${formattedStartDate})`,
     html: html,
-    text: text
+    text: text,
   });
 }
 
@@ -2867,15 +2959,17 @@ PT Rhayakan Film Indonesia
  * Add this to your email_service.js file
  */
 export async function sendPasswordResetEmail(user, resetToken) {
-  const systemUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+  const systemUrl = (
+    process.env.FRONTEND_URL || "http://localhost:5173"
+  ).replace(/\/$/, "");
   const resetUrl = `${systemUrl}/reset-password?token=${resetToken}`;
-  
+
   // Token expires in 1 hour
   const expirationTime = new Date();
   expirationTime.setHours(expirationTime.getHours() + 1);
-  const formattedExpiration = expirationTime.toLocaleString('en-US', { 
-    dateStyle: 'medium', 
-    timeStyle: 'short' 
+  const formattedExpiration = expirationTime.toLocaleString("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
   });
 
   const html = `
@@ -2988,7 +3082,7 @@ export async function sendPasswordResetEmail(user, resetToken) {
           font-size: 12px;
           margin-top: 15px;
         }
-        
+
         @media only screen and (max-width: 600px) {
           .email-wrapper { padding: 20px 10px; }
           .content { padding: 30px 20px; }
@@ -3005,36 +3099,36 @@ export async function sendPasswordResetEmail(user, resetToken) {
               Reset your HR System password
             </p>
           </div>
-          
+
           <div class="content">
             <p>Dear <strong>${user.name}</strong>,</p>
-            
+
             <p>We received a request to reset your password for your HR System account. Click the button below to create a new password:</p>
-            
+
             <div style="text-align: center; margin: 30px 0;">
               <a href="${resetUrl}" class="button">
                 Reset Password
               </a>
             </div>
-            
+
             <div class="info-box">
               <p><strong>Request Details:</strong></p>
               <p>Email: ${user.email}</p>
-              <p>Time: ${new Date().toLocaleString('en-US', { 
-                dateStyle: 'medium', 
-                timeStyle: 'short' 
+              <p>Time: ${new Date().toLocaleString("en-US", {
+                dateStyle: "medium",
+                timeStyle: "short",
               })}</p>
               <p>Expires: ${formattedExpiration}</p>
             </div>
-            
+
             <p>This link will expire in <strong>1 hour</strong> for security reasons. If you need a new link, you can request another password reset.</p>
-            
+
             <div class="security-warning">
               <h4>Security Notice</h4>
               <p><strong>If you didn't request this password reset, please ignore this email.</strong> Your password will remain unchanged and secure.</p>
               <p style="margin-top: 10px;">If you're concerned about your account security, please contact HR immediately.</p>
             </div>
-            
+
             <p style="margin-top: 30px; font-size: 14px; color: ${BRAND_COLORS.textSecondary};">
               If the button doesn't work, copy and paste this link into your browser:
             </p>
@@ -3042,7 +3136,7 @@ export async function sendPasswordResetEmail(user, resetToken) {
               ${resetUrl}
             </div>
           </div>
-          
+
           <div class="footer">
             <div class="footer-signature">Human Resources Department</div>
             <div>PT Rhayakan Film Indonesia</div>
@@ -3074,7 +3168,7 @@ Request Details:
 This link will expire in 1 hour for security reasons.
 
 SECURITY NOTICE:
-If you didn't request this password reset, please ignore this email. 
+If you didn't request this password reset, please ignore this email.
 Your password will remain unchanged and secure.
 
 If you're concerned about your account security, please contact HR immediately.
@@ -3086,9 +3180,9 @@ PT Rhayakan Film Indonesia
 
   return sendEmail({
     to: user.email,
-    subject: 'Password Reset Request - HR System',
+    subject: "Password Reset Request - HR System",
     html: html,
-    text: text
+    text: text,
   });
 }
 
@@ -3097,7 +3191,7 @@ PT Rhayakan Film Indonesia
  * Add this to your email_service.js file
  */
 export async function sendPasswordChangedEmail(user) {
-  const systemUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const systemUrl = process.env.FRONTEND_URL || "http://localhost:5173";
 
   const html = `
     <!DOCTYPE html>
@@ -3203,7 +3297,7 @@ export async function sendPasswordChangedEmail(user) {
           color: ${BRAND_COLORS.textPrimary};
           margin-bottom: 10px;
         }
-        
+
         @media only screen and (max-width: 600px) {
           .email-wrapper { padding: 20px 10px; }
           .content { padding: 30px 20px; }
@@ -3219,40 +3313,40 @@ export async function sendPasswordChangedEmail(user) {
               Your password has been updated
             </p>
           </div>
-          
+
           <div class="content">
             <p>Dear <strong>${user.name}</strong>,</p>
-            
+
             <p>This email confirms that your HR System password was successfully changed.</p>
-            
+
             <div class="success-box">
               <p><strong>Change Details:</strong></p>
               <p>Account: ${user.email}</p>
-              <p>Changed: ${new Date().toLocaleString('en-US', { 
-                dateStyle: 'medium', 
-                timeStyle: 'short' 
+              <p>Changed: ${new Date().toLocaleString("en-US", {
+                dateStyle: "medium",
+                timeStyle: "short",
               })}</p>
             </div>
-            
+
             <div class="warning-box">
               <h4>Didn't make this change?</h4>
               <p><strong>If you did not change your password, your account may be compromised.</strong></p>
               <p style="margin-top: 10px;">Please contact HR immediately and change your password again to secure your account.</p>
             </div>
-            
+
             <p>You can now log in with your new password.</p>
-            
+
             <div style="text-align: center;">
               <a href="${systemUrl}/login" class="button">
                 Go to Login
               </a>
             </div>
-            
+
             <p style="margin-top: 30px; font-size: 14px; color: ${BRAND_COLORS.textSecondary};">
               If you have any questions, please contact the HR department.
             </p>
           </div>
-          
+
           <div class="footer">
             <div class="footer-signature">Human Resources Department</div>
             <div>PT Rhayakan Film Indonesia</div>
@@ -3290,9 +3384,9 @@ PT Rhayakan Film Indonesia
 
   return sendEmail({
     to: user.email,
-    subject: 'Password Successfully Changed - HR System',
+    subject: "Password Successfully Changed - HR System",
     html: html,
-    text: text
+    text: text,
   });
 }
 
@@ -3302,12 +3396,24 @@ PT Rhayakan Film Indonesia
  */
 export async function sendPayslipNotificationEmail(employee, payslipDetails) {
   const { year, month } = payslipDetails;
-  const systemUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const systemUrl = process.env.FRONTEND_URL || "http://localhost:5173";
   const payslipUrl = `${systemUrl}/my-payslips`;
-  
+
   // Format month name
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'];
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
   const monthName = monthNames[month - 1];
   const periodText = `${monthName} ${year}`;
 
@@ -3461,7 +3567,7 @@ export async function sendPayslipNotificationEmail(employee, payslipDetails) {
           border-radius: 4px;
           font-size: 14px;
         }
-        
+
         @media only screen and (max-width: 600px) {
           .email-wrapper { padding: 20px 10px; }
           .content { padding: 30px 20px; }
@@ -3477,25 +3583,25 @@ export async function sendPayslipNotificationEmail(employee, payslipDetails) {
             <h1>Your Payslip is Ready</h1>
             <p>Your salary slip for ${periodText} is now available</p>
           </div>
-          
+
           <div class="content">
             <p>Dear <strong>${employee.name}</strong>,</p>
-            
+
             <p>Good news! Your payslip for <strong>${periodText}</strong> has been uploaded to the HR system and is now ready for download.</p>
-            
+
             <div class="highlight-box">
               <h2>Payslip Details</h2>
               <p><strong>Period:</strong> ${periodText}</p>
               <p><strong>Employee:</strong> ${employee.name}</p>
               <p><strong>Status:</strong> Available for Download</p>
             </div>
-            
+
             <div style="text-align: center; margin: 30px 0;">
               <a href="${payslipUrl}" class="button">
                 View My Payslips
               </a>
             </div>
-            
+
             <div class="instructions">
               <h4>How to Access Your Payslip:</h4>
               <ol>
@@ -3505,19 +3611,19 @@ export async function sendPayslipNotificationEmail(employee, payslipDetails) {
                 <li>Click "Download PDF" to save your payslip</li>
               </ol>
             </div>
-            
+
             <div class="security-note">
               <strong>Important:</strong> Your payslip contains confidential salary information. Please keep it secure and do not share it with unauthorized persons.
             </div>
-            
+
             <p>If you have any questions about your payslip or notice any discrepancies, please contact the HR department immediately.</p>
-            
+
             <p style="margin-top: 30px; font-size: 14px; color: ${BRAND_COLORS.textSecondary};">
               Direct link to payslips page:<br>
               <a href="${payslipUrl}" style="color: #10B981;">${payslipUrl}</a>
             </p>
           </div>
-          
+
           <div class="footer">
             <div class="footer-signature">Human Resources Department</div>
             <div>PT Rhayakan Film Indonesia</div>
@@ -3564,7 +3670,7 @@ PT Rhayakan Film Indonesia
     to: employee.email,
     subject: `Payslip Available - ${periodText}`,
     html: html,
-    text: text
+    text: text,
   });
 }
 
@@ -3574,11 +3680,25 @@ PT Rhayakan Film Indonesia
  */
 export async function sendBatchPayslipNotification(employees, payslipDetails) {
   const { year, month } = payslipDetails;
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'];
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
   const periodText = `${monthNames[month - 1]} ${year}`;
 
-  console.log(`[Payslip Notification] Sending batch notification for ${periodText} to ${employees.length} employees`);
+  console.log(
+    `[Payslip Notification] Sending batch notification for ${periodText} to ${employees.length} employees`,
+  );
 
   let successCount = 0;
   let failedCount = 0;
@@ -3592,16 +3712,21 @@ export async function sendBatchPayslipNotification(employees, payslipDetails) {
     } catch (error) {
       failedCount++;
       failedEmails.push(employee.email);
-      console.error(`❌ Failed to send payslip notification to ${employee.email}:`, error.message);
+      console.error(
+        `❌ Failed to send payslip notification to ${employee.email}:`,
+        error.message,
+      );
     }
   }
 
-  console.log(`[Payslip Notification] Batch complete: ${successCount} sent, ${failedCount} failed`);
+  console.log(
+    `[Payslip Notification] Batch complete: ${successCount} sent, ${failedCount} failed`,
+  );
 
   return {
     success: successCount,
     failed: failedCount,
-    failedEmails
+    failedEmails,
   };
 }
 
@@ -3612,30 +3737,39 @@ export async function sendBatchPayslipNotification(employees, payslipDetails) {
  * @param {string} cancellationReason - Reason for cancellation
  * @param {Array<string>} ccEmails - List of emails to CC
  */
-export async function sendLeaveCancellationEmail(employee, leaveRequest, cancellationReason, ccEmails = []) {
+export async function sendLeaveCancellationEmail(
+  employee,
+  leaveRequest,
+  cancellationReason,
+  ccEmails = [],
+) {
   const leaveTypeLabels = {
-    ANNUAL_LEAVE: 'Annual Leave',
-    SICK_LEAVE: 'Sick Leave',
-    MATERNITY_LEAVE: 'Maternity Leave',
-    MENSTRUAL_LEAVE: 'Menstrual Leave',
-    MARRIAGE_LEAVE: 'Marriage Leave',
-    UNPAID_LEAVE: 'Unpaid Leave'
+    ANNUAL_LEAVE: "Annual Leave",
+    SICK_LEAVE: "Sick Leave",
+    MATERNITY_LEAVE: "Maternity Leave",
+    MENSTRUAL_LEAVE: "Menstrual Leave",
+    MARRIAGE_LEAVE: "Marriage Leave",
+    UNPAID_LEAVE: "Unpaid Leave",
   };
 
-  const leaveTypeLabel = leaveTypeLabels[leaveRequest.leaveType] || leaveRequest.leaveType;
+  const leaveTypeLabel =
+    leaveTypeLabels[leaveRequest.leaveType] || leaveRequest.leaveType;
 
-  const startDate = new Date(leaveRequest.startDate).toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
+  const startDate = new Date(leaveRequest.startDate).toLocaleDateString(
+    "en-US",
+    {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    },
+  );
 
-  const endDate = new Date(leaveRequest.endDate).toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
+  const endDate = new Date(leaveRequest.endDate).toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
 
   const html = `
@@ -3785,7 +3919,7 @@ export async function sendLeaveCancellationEmail(employee, leaveRequest, cancell
           color: #999999;
           margin-top: 15px;
         }
-        
+
         @media only screen and (max-width: 600px) {
           .email-wrapper {
             padding: 20px 10px;
@@ -3812,84 +3946,90 @@ export async function sendLeaveCancellationEmail(employee, leaveRequest, cancell
           <div class="header">
             <h1>Leave Cancelled</h1>
           </div>
-          
+
           <div class="content">
             <p>Dear Team,</p>
-            
+
             <p><strong>${employee.name}</strong> has cancelled their previously approved leave request.</p>
-            
+
             <div style="text-align: center;">
               <div class="status-badge">CANCELLED</div>
             </div>
-            
+
             <div class="details-card">
               <h3>Employee Information</h3>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Name:</div>
                 <div class="detail-value">${employee.name}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Division:</div>
-                <div class="detail-value">${employee.division?.name || '-'}</div>
+                <div class="detail-value">${employee.division?.name || "-"}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Role:</div>
-                <div class="detail-value">${employee.role?.name || '-'}</div>
+                <div class="detail-value">${employee.role?.name || "-"}</div>
               </div>
             </div>
 
             <div class="details-card">
               <h3>Cancelled Leave Details</h3>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Leave Type:</div>
                 <div class="detail-value">${leaveTypeLabel}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Start Date:</div>
                 <div class="detail-value">${startDate}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">End Date:</div>
                 <div class="detail-value">${endDate}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Duration:</div>
-                <div class="detail-value">${leaveRequest.totalDays} ${leaveRequest.totalDays === 1 ? 'day' : 'days'}</div>
+                <div class="detail-value">${leaveRequest.totalDays} ${leaveRequest.totalDays === 1 ? "day" : "days"}</div>
               </div>
-              
+
               <div class="detail-row">
                 <div class="detail-label">Original Reason:</div>
                 <div class="detail-value">${leaveRequest.reason}</div>
               </div>
             </div>
 
-            ${cancellationReason && cancellationReason !== 'No reason provided' ? `
+            ${
+              cancellationReason && cancellationReason !== "No reason provided"
+                ? `
               <div class="reason-box">
                 <h4>Cancellation Reason:</h4>
                 <p class="reason-text">${cancellationReason}</p>
               </div>
-            ` : ''}
+            `
+                : ""
+            }
 
             <div class="alert-box">
               <strong>Important Notice</strong>
               <p>
-                ${leaveRequest.leaveType === 'ANNUAL_LEAVE' 
-                  ? `The employee's leave balance has been restored (+${leaveRequest.totalDays} days).` 
-                  : 'This cancellation has been recorded in the system.'}
+                ${
+                  leaveRequest.leaveType === "ANNUAL_LEAVE"
+                    ? `The employee's leave balance has been restored (+${leaveRequest.totalDays} days).`
+                    : "This cancellation has been recorded in the system."
+                }
               </p>
               <p style="margin-top: 10px;">
                 The employee is now expected to be available during the originally scheduled leave dates.
               </p>
             </div>
           </div>
-          
+
           <div class="footer">
             <div class="footer-signature">HR Team</div>
             <div class="footer-text">Human Resources Department</div>
@@ -3903,49 +4043,57 @@ export async function sendLeaveCancellationEmail(employee, leaveRequest, cancell
 
   // Use your existing sendEmail function that calls SMTP2go API
   return sendEmail({
-    to: process.env.HR_EMAIL || 'hr@rhayaflicks.com',
+    to: process.env.HR_EMAIL || "hr@rhayaflicks.com",
     cc: ccEmails.length > 0 ? ccEmails : undefined,
     subject: `Leave Cancelled: ${employee.name} - ${leaveTypeLabel}`,
-    html: html
+    html: html,
   });
 }
 
 /**
  * Send admin rejection notification email
  * Notifies employee, supervisor, and HR that admin rejected an approved overtime
- * 
+ *
  * @param {Object} employee - Employee whose overtime was rejected
  * @param {Object} overtimeRequest - Overtime request that was rejected
  * @param {string} adminReason - Admin's reason for rejection
  * @param {string} adminName - Name of admin who rejected
  * @param {Array<string>} ccEmails - List of emails to CC
  */
-export async function sendAdminRejectOvertimeEmail(employee, overtimeRequest, adminReason, adminName, ccEmails = []) {
+export async function sendAdminRejectOvertimeEmail(
+  employee,
+  overtimeRequest,
+  adminReason,
+  adminName,
+  ccEmails = [],
+) {
   try {
     // Format dates and amounts
-    const formattedDates = overtimeRequest.entries.map(entry => {
-      return new Date(entry.date).toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    }).join(', ');
+    const formattedDates = overtimeRequest.entries
+      .map((entry) => {
+        return new Date(entry.date).toLocaleDateString("en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+      })
+      .join(", ");
 
-    const formattedAmount = new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
+    const formattedAmount = new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
     }).format(overtimeRequest.totalAmount);
 
     // Approval date
-    const approvalDate = overtimeRequest.approvedAt 
-      ? new Date(overtimeRequest.approvedAt).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
+    const approvalDate = overtimeRequest.approvedAt
+      ? new Date(overtimeRequest.approvedAt).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
         })
-      : 'N/A';
+      : "N/A";
 
     const html = `
       <!DOCTYPE html>
@@ -4096,7 +4244,7 @@ export async function sendAdminRejectOvertimeEmail(employee, overtimeRequest, ad
             color: #999999;
             margin-top: 15px;
           }
-          
+
           @media only screen and (max-width: 600px) {
             .email-wrapper {
               padding: 20px 10px;
@@ -4123,49 +4271,49 @@ export async function sendAdminRejectOvertimeEmail(employee, overtimeRequest, ad
             <div class="header">
               <h1>Overtime Rejected by HR Admin</h1>
             </div>
-            
+
             <div class="content">
               <p>Dear <strong>${employee.name}</strong>,</p>
-              
+
               <p>Your previously <strong>approved</strong> overtime request has been <strong>rejected by HR Administration</strong>.</p>
-              
+
               <div style="text-align: center;">
                 <div class="status-badge">ADMIN OVERRIDE</div>
               </div>
 
               <div class="details-card">
                 <h3>Overtime Details</h3>
-                
+
                 <div class="detail-row">
                   <div class="detail-label">Employee:</div>
                   <div class="detail-value">${employee.name}</div>
                 </div>
-                
+
                 <div class="detail-row">
                   <div class="detail-label">Division:</div>
-                  <div class="detail-value">${employee.division?.name || '-'}</div>
+                  <div class="detail-value">${employee.division?.name || "-"}</div>
                 </div>
-                
+
                 <div class="detail-row">
                   <div class="detail-label">Date(s):</div>
                   <div class="detail-value">${formattedDates}</div>
                 </div>
-                
+
                 <div class="detail-row">
                   <div class="detail-label">Hours:</div>
                   <div class="detail-value">${overtimeRequest.totalHours} hours</div>
                 </div>
-                
+
                 <div class="detail-row">
                   <div class="detail-label">Amount:</div>
                   <div class="detail-value">${formattedAmount}</div>
                 </div>
-                
+
                 <div class="detail-row">
                   <div class="detail-label">Originally Approved:</div>
                   <div class="detail-value">${approvalDate}</div>
                 </div>
-                
+
                 <div class="detail-row">
                   <div class="detail-label">Rejected By:</div>
                   <div class="detail-value">${adminName} (HR Admin)</div>
@@ -4190,13 +4338,13 @@ export async function sendAdminRejectOvertimeEmail(employee, overtimeRequest, ad
               <p>
                 If you believe this rejection is in error or have questions, please contact the HR department.
               </p>
-              
+
               <p style="margin-top: 30px;">
                 Best regards,<br>
                 <strong>HR Administration</strong>
               </p>
             </div>
-            
+
             <div class="footer">
               <div class="footer-signature">HR Team</div>
               <div class="footer-text">Human Resources Department</div>
@@ -4212,13 +4360,15 @@ export async function sendAdminRejectOvertimeEmail(employee, overtimeRequest, ad
     // Use existing sendEmail helper (SMTP2go API)
     return sendEmail({
       to: employee.email,
-      cc: ccEmails.length > 0 ? ccEmails.filter(e => e !== employee.email) : undefined,
+      cc:
+        ccEmails.length > 0
+          ? ccEmails.filter((e) => e !== employee.email)
+          : undefined,
       subject: `Overtime Rejected by HR Admin: ${overtimeRequest.totalHours} hours`,
-      html: html
+      html: html,
     });
-
   } catch (error) {
-    console.error('❌ Send admin rejection email error:', error);
+    console.error("❌ Send admin rejection email error:", error);
     throw error;
   }
 }
@@ -4239,5 +4389,5 @@ export default {
   sendPayslipNotificationEmail,
   sendBatchPayslipNotification,
   sendLeaveCancellationEmail,
-  sendAdminRejectOvertimeEmail
+  sendAdminRejectOvertimeEmail,
 };
