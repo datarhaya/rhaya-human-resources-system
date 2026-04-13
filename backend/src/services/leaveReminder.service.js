@@ -123,7 +123,7 @@ export async function sendImmediateLeaveReminder(leaveRequestId) {
       `[Leave Reminder] Sending immediate reminder for leave ${leaveRequestId} (starts in ${daysUntilLeave} days)`,
     );
 
-    const sentCount = await sendReminderForLeave(leave);
+    const sentCount = await sendReminderForLeave(leave, daysUntilLeave);
 
     return {
       success: true,
@@ -145,7 +145,7 @@ export async function sendImmediateLeaveReminder(leaveRequestId) {
  * @param {Object} leave - Leave request with employee included
  * @returns {number} - Number of emails sent (should be 1)
  */
-async function sendReminderForLeave(leave) {
+async function sendReminderForLeave(leave, daysUntilLeave = 7) {
   const employee = leave.employee;
   const divisionId = employee.divisionId;
 
@@ -319,7 +319,13 @@ async function sendReminderForLeave(leave) {
       return 0;
     }
 
-    await sendLeaveReminderH7Email(toRecipient, leave, employee, ccList);
+    await sendLeaveReminderH7Email(
+      toRecipient,
+      leave,
+      employee,
+      ccList,
+      daysUntilLeave,
+    );
 
     console.log(`   Leave reminder sent successfully`);
     console.log(`   TO: ${toRecipient.email} (${toRecipientType})`);
