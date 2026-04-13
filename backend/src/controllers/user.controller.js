@@ -553,6 +553,23 @@ export const updateUser = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
+    if (req.user.accessLevel === 2) {
+      if (existingUser.accessLevel <= 2) {
+        return res.status(403).json({
+          error: "Access denied",
+          message: "You cannot edit administrators",
+        });
+      }
+
+      // Cannot promote to admin
+      if (accessLevel && parseInt(accessLevel) <= 2) {
+        return res.status(403).json({
+          error: "Access denied",
+          message: "You cannot promote users to administrator level",
+        });
+      }
+    }
+
     if (accessLevel === 2) {
       if (
         existingUser.plottingCompanyId &&
