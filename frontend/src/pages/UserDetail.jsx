@@ -200,6 +200,12 @@ export default function UserDetail() {
       5: "Intern",
     })[level] || "Unknown";
 
+  const canEditUser = (currentUser, targetUser) => {
+    if (currentUser.accessLevel === 1) return true;
+    if (currentUser.accessLevel === 2) return targetUser.accessLevel >= 3;
+    return false;
+  };
+
   const formatCurrency = (v) =>
     new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -525,7 +531,12 @@ export default function UserDetail() {
             </button>
             <button
               onClick={() => setMode("edit")}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center text-sm"
+              disabled={!canEditUser(currentUser, user)}
+              className={`px-4 py-2 rounded-lg ${
+                canEditUser(currentUser, user)
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              }`}
             >
               <svg
                 className="w-4 h-4 mr-2"
@@ -1238,11 +1249,21 @@ export default function UserDetail() {
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 >
-                  <option value="1">Level 1 - System Administrator</option>
-                  <option value="2">Level 2 - Subsidiary HR</option>
-                  <option value="3">Level 3 - Manager</option>
-                  <option value="4">Level 4 - Staff</option>
-                  <option value="5">Level 5 - Intern</option>
+                  {currentUser.accessLevel === 1 ? (
+                    <>
+                      <option value="1">Level 1 - System Administrator</option>
+                      <option value="2">Level 2 - Subsidiary HR</option>
+                      <option value="3">Level 3 - Manager</option>
+                      <option value="4">Level 4 - Staff</option>
+                      <option value="5">Level 5 - Intern</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="3">Level 3 - Manager</option>
+                      <option value="4">Level 4 - Staff</option>
+                      <option value="5">Level 5 - Intern</option>
+                    </>
+                  )}
                 </select>
               </div>
 

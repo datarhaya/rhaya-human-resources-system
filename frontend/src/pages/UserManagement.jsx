@@ -2670,13 +2670,23 @@ export default function UserManagement() {
                           required
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         >
-                          <option value="1">
-                            Level 1 - System Administrator
-                          </option>
-                          <option value="2">Level 2 - Subsidiary HR</option>
-                          <option value="3">Level 3 - Head</option>
-                          <option value="4">Level 4 - Staff</option>
-                          <option value="5">Level 5 - Intern</option>
+                          {currentUser.accessLevel === 1 ? (
+                            <>
+                              <option value="1">
+                                Level 1 - System Administrator
+                              </option>
+                              <option value="2">Level 2 - Subsidiary HR</option>
+                              <option value="3">Level 3 - Manager</option>
+                              <option value="4">Level 4 - Staff</option>
+                              <option value="5">Level 5 - Intern</option>
+                            </>
+                          ) : (
+                            <>
+                              <option value="3">Level 3 - Manager</option>
+                              <option value="4">Level 4 - Staff</option>
+                              <option value="5">Level 5 - Intern</option>
+                            </>
+                          )}
                         </select>
                       </div>
 
