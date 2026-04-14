@@ -1,6 +1,6 @@
 // backend/src/services/overtime.service.js
-import { PrismaClient } from '@prisma/client';
-import { startOfMonth, endOfMonth, format } from 'date-fns';
+import { PrismaClient } from "@prisma/client";
+import { startOfMonth, endOfMonth, format } from "date-fns";
 
 const prisma = new PrismaClient();
 
@@ -17,12 +17,12 @@ export const getEmployeeData = async (employeeId) => {
     include: {
       role: true,
       division: true,
-      supervisor: true
-    }
+      supervisor: true,
+    },
   });
 
   if (!employee) {
-    throw new Error('Employee not found');
+    throw new Error("Employee not found");
   }
 
   return employee;
@@ -47,12 +47,12 @@ export const determineApprover = async (employee) => {
   const hrAdmin = await prisma.user.findFirst({
     where: {
       accessLevel: { lte: 2 },
-      employeeStatus: 'Active'
-    }
+      employeeStatus: "Active",
+    },
   });
 
   if (!hrAdmin) {
-    throw new Error('No approver found');
+    throw new Error("No approver found");
   }
 
   return hrAdmin.id;
@@ -64,35 +64,39 @@ export const determineApprover = async (employee) => {
 export const checkDuplicateDates = async (employeeId, dates) => {
   const existingEntries = await prisma.overtimeEntry.findMany({
     where: {
-      date: { in: dates.map(d => new Date(d)) },
+      date: { in: dates.map((d) => new Date(d)) },
       overtimeRequest: {
         employeeId,
-        status: { in: ['PENDING', 'APPROVED'] }
-      }
+        status: { in: ["PENDING", "APPROVED"] },
+      },
     },
-    select: { date: true }
+    select: { date: true },
   });
 
-  return existingEntries.map(e => format(e.date, 'yyyy-MM-dd'));
+  return existingEntries.map((e) => format(e.date, "yyyy-MM-dd"));
 };
 
 /**
  * Check duplicate dates excluding a specific request
  */
-export const checkDuplicateDatesExcluding = async (employeeId, dates, excludeRequestId) => {
+export const checkDuplicateDatesExcluding = async (
+  employeeId,
+  dates,
+  excludeRequestId,
+) => {
   const existingEntries = await prisma.overtimeEntry.findMany({
     where: {
-      date: { in: dates.map(d => new Date(d)) },
+      date: { in: dates.map((d) => new Date(d)) },
       overtimeRequest: {
         employeeId,
-        status: { in: ['PENDING', 'APPROVED'] },
-        NOT: { id: excludeRequestId }
-      }
+        status: { in: ["PENDING", "APPROVED"] },
+        NOT: { id: excludeRequestId },
+      },
     },
-    select: { date: true }
+    select: { date: true },
   });
 
-  return existingEntries.map(e => format(e.date, 'yyyy-MM-dd'));
+  return existingEntries.map((e) => format(e.date, "yyyy-MM-dd"));
 };
 
 // ============================================
@@ -103,14 +107,14 @@ export const checkDuplicateDatesExcluding = async (employeeId, dates, excludeReq
  * Create new overtime request
  */
 export const createOvertimeRequest = async (data) => {
-  const { 
-    employeeId, 
-    entries, 
-    totalHours, 
-    totalAmount, 
+  const {
+    employeeId,
+    entries,
+    totalHours,
+    totalAmount,
     approverId,
-    currentApproverId, 
-    supervisorId       
+    currentApproverId,
+    supervisorId,
   } = data;
 
   const overtimeRequest = await prisma.overtimeRequest.create({
@@ -118,17 +122,17 @@ export const createOvertimeRequest = async (data) => {
       employeeId,
       totalHours,
       totalAmount,
-      status: 'PENDING',
-      currentApproverId: currentApproverId || approverId, 
-      supervisorId: supervisorId || approverId,           
-      supervisorStatus: 'PENDING',
+      status: "PENDING",
+      currentApproverId: currentApproverId || approverId,
+      supervisorId: supervisorId || approverId,
+      supervisorStatus: "PENDING",
       entries: {
-        create: entries.map(entry => ({
+        create: entries.map((entry) => ({
           date: new Date(entry.date),
           hours: parseFloat(entry.hours),
-          description: entry.description
-        }))
-      }
+          description: entry.description,
+        })),
+      },
     },
     include: {
       entries: true,
@@ -139,17 +143,17 @@ export const createOvertimeRequest = async (data) => {
           email: true,
           nip: true,
           role: true,
-          division: true
-        }
+          division: true,
+        },
       },
       currentApprover: {
         select: {
           id: true,
           name: true,
-          email: true
-        }
-      }
-    }
+          email: true,
+        },
+      },
+    },
   });
 
   return overtimeRequest;
@@ -171,20 +175,20 @@ export const getOvertimeRequests = async (filters) => {
 
   if (filters.divisionId) {
     where.employee = {
-      divisionId: filters.divisionId
+      divisionId: filters.divisionId,
     };
   }
 
   if (filters.year || filters.month) {
     const year = filters.year || new Date().getFullYear();
     const month = filters.month || 1;
-    
+
     const startDate = startOfMonth(new Date(year, month - 1));
     const endDate = endOfMonth(new Date(year, month - 1));
 
     where.submittedAt = {
       gte: startDate,
-      lte: endDate
+      lte: endDate,
     };
   }
 
@@ -192,7 +196,7 @@ export const getOvertimeRequests = async (filters) => {
     where,
     include: {
       entries: {
-        orderBy: { date: 'asc' }
+        orderBy: { date: "asc" },
       },
       employee: {
         select: {
@@ -201,25 +205,25 @@ export const getOvertimeRequests = async (filters) => {
           email: true,
           nip: true,
           role: true,
-          division: true
-        }
+          division: true,
+        },
       },
       currentApprover: {
         select: {
           id: true,
           name: true,
-          email: true
-        }
+          email: true,
+        },
       },
       supervisor: {
         select: {
           id: true,
           name: true,
-          email: true
-        }
-      }
+          email: true,
+        },
+      },
     },
-    orderBy: { submittedAt: 'desc' }
+    orderBy: { submittedAt: "desc" },
   });
 
   return requests;
@@ -233,7 +237,7 @@ export const getOvertimeRequestById = async (requestId) => {
     where: { id: requestId },
     include: {
       entries: {
-        orderBy: { date: 'asc' }
+        orderBy: { date: "asc" },
       },
       employee: {
         select: {
@@ -241,39 +245,40 @@ export const getOvertimeRequestById = async (requestId) => {
           name: true,
           email: true,
           nip: true,
-          role: true,           // This gets the whole role object
-          division: true,       // This gets the whole division object
+          role: true, // This gets the whole role object
+          division: true, // This gets the whole division object
           overtimeRate: true,
-          accessLevel: true     // ✅ accessLevel is on User, not Role
-        }
+          accessLevel: true,
+          plottingCompanyId: true,
+        },
       },
       currentApprover: {
         select: {
           id: true,
           name: true,
-          email: true
-        }
+          email: true,
+        },
       },
       supervisor: {
         select: {
           id: true,
           name: true,
-          email: true
-        }
+          email: true,
+        },
       },
       divisionHead: {
         select: {
           id: true,
           name: true,
-          email: true
-        }
+          email: true,
+        },
       },
       finalApprover: {
         select: {
           id: true,
           name: true,
-          email: true
-        }
+          email: true,
+        },
       },
       // ✅ CORRECTED: Include revisions with proper Role structure
       revisions: {
@@ -283,20 +288,20 @@ export const getOvertimeRequestById = async (requestId) => {
               id: true,
               name: true,
               email: true,
-              accessLevel: true,    // ✅ accessLevel is on User
+              accessLevel: true, // ✅ accessLevel is on User
               role: {
                 select: {
                   id: true,
                   name: true,
-                  description: true
-                }
-              }
-            }
-          }
+                  description: true,
+                },
+              },
+            },
+          },
         },
-        orderBy: { createdAt: 'asc' }
-      }
-    }
+        orderBy: { createdAt: "asc" },
+      },
+    },
   });
 
   return request;
@@ -310,7 +315,7 @@ export const updateOvertimeRequest = async (requestId, data) => {
 
   // Delete old entries
   await prisma.overtimeEntry.deleteMany({
-    where: { overtimeRequestId: requestId }
+    where: { overtimeRequestId: requestId },
   });
 
   // Update request with new entries
@@ -321,26 +326,26 @@ export const updateOvertimeRequest = async (requestId, data) => {
       totalAmount,
       status,
       entries: {
-        create: entries.map(entry => ({
+        create: entries.map((entry) => ({
           date: new Date(entry.date),
           hours: parseFloat(entry.hours),
-          description: entry.description
-        }))
-      }
+          description: entry.description,
+        })),
+      },
     },
     include: {
       entries: {
-        orderBy: { date: 'asc' }
+        orderBy: { date: "asc" },
       },
       employee: {
         select: {
           id: true,
           name: true,
           email: true,
-          nip: true
-        }
-      }
-    }
+          nip: true,
+        },
+      },
+    },
   });
 
   return updatedRequest;
@@ -351,7 +356,7 @@ export const updateOvertimeRequest = async (requestId, data) => {
  */
 export const deleteOvertimeRequest = async (requestId) => {
   await prisma.overtimeRequest.delete({
-    where: { id: requestId }
+    where: { id: requestId },
   });
 };
 
@@ -366,11 +371,11 @@ export const getPendingApprovals = async (approverId) => {
   const requests = await prisma.overtimeRequest.findMany({
     where: {
       currentApproverId: approverId,
-      status: 'PENDING'
+      status: "PENDING",
     },
     include: {
       entries: {
-        orderBy: { date: 'asc' }
+        orderBy: { date: "asc" },
       },
       employee: {
         select: {
@@ -379,11 +384,11 @@ export const getPendingApprovals = async (approverId) => {
           email: true,
           nip: true,
           role: true,
-          division: true
-        }
-      }
+          division: true,
+        },
+      },
     },
-    orderBy: { submittedAt: 'asc' }
+    orderBy: { submittedAt: "asc" },
   });
 
   return requests;
@@ -398,10 +403,10 @@ export const approveRequest = async (requestId, data) => {
   const updatedRequest = await prisma.overtimeRequest.update({
     where: { id: requestId },
     data: {
-      status: 'APPROVED',
-      supervisorStatus: 'APPROVED',
+      status: "APPROVED",
+      supervisorStatus: "APPROVED",
       supervisorComment: comment,
-      supervisorDate: new Date()
+      supervisorDate: new Date(),
     },
     include: {
       entries: true,
@@ -409,10 +414,10 @@ export const approveRequest = async (requestId, data) => {
         select: {
           id: true,
           name: true,
-          email: true
-        }
-      }
-    }
+          email: true,
+        },
+      },
+    },
   });
 
   return updatedRequest;
@@ -427,10 +432,10 @@ export const rejectRequest = async (requestId, data) => {
   const updatedRequest = await prisma.overtimeRequest.update({
     where: { id: requestId },
     data: {
-      status: 'REJECTED',
-      supervisorStatus: 'REJECTED',
+      status: "REJECTED",
+      supervisorStatus: "REJECTED",
       supervisorComment: comment,
-      supervisorDate: new Date()
+      supervisorDate: new Date(),
     },
     include: {
       entries: true,
@@ -438,10 +443,10 @@ export const rejectRequest = async (requestId, data) => {
         select: {
           id: true,
           name: true,
-          email: true
-        }
-      }
-    }
+          email: true,
+        },
+      },
+    },
   });
 
   return updatedRequest;
@@ -456,9 +461,9 @@ export const requestRevision = async (requestId, data) => {
   const updatedRequest = await prisma.overtimeRequest.update({
     where: { id: requestId },
     data: {
-      status: 'REVISION_REQUESTED',
+      status: "REVISION_REQUESTED",
       supervisorComment: comment,
-      supervisorDate: new Date()
+      supervisorDate: new Date(),
     },
     include: {
       entries: true,
@@ -466,10 +471,10 @@ export const requestRevision = async (requestId, data) => {
         select: {
           id: true,
           name: true,
-          email: true
-        }
-      }
-    }
+          email: true,
+        },
+      },
+    },
   });
 
   return updatedRequest;
@@ -490,10 +495,10 @@ export const getOvertimeBalance = async (employeeId) => {
         select: {
           name: true,
           email: true,
-          overtimeRate: true
-        }
-      }
-    }
+          overtimeRate: true,
+        },
+      },
+    },
   });
 
   return balance;
@@ -508,17 +513,17 @@ export const createOvertimeBalance = async (employeeId) => {
       employeeId,
       currentBalance: 0,
       pendingHours: 0,
-      totalPaid: 0
+      totalPaid: 0,
     },
     include: {
       employee: {
         select: {
           name: true,
           email: true,
-          overtimeRate: true
-        }
-      }
-    }
+          overtimeRate: true,
+        },
+      },
+    },
   });
 
   return balance;
@@ -529,7 +534,7 @@ export const createOvertimeBalance = async (employeeId) => {
  */
 export const updatePendingHours = async (employeeId, hours, operation) => {
   const balance = await prisma.overtimeBalance.findUnique({
-    where: { employeeId }
+    where: { employeeId },
   });
 
   if (!balance) {
@@ -540,9 +545,9 @@ export const updatePendingHours = async (employeeId, hours, operation) => {
     where: { employeeId },
     data: {
       pendingHours: {
-        [operation === 'ADD' ? 'increment' : 'decrement']: hours
-      }
-    }
+        [operation === "ADD" ? "increment" : "decrement"]: hours,
+      },
+    },
   });
 };
 
@@ -554,8 +559,8 @@ export const movePendingToBalance = async (employeeId, hours) => {
     where: { employeeId },
     data: {
       pendingHours: { decrement: hours },
-      currentBalance: { increment: hours }
-    }
+      currentBalance: { increment: hours },
+    },
   });
 };
 
@@ -564,11 +569,11 @@ export const movePendingToBalance = async (employeeId, hours) => {
  */
 export const resetEmployeeBalance = async (employeeId) => {
   const balance = await prisma.overtimeBalance.findUnique({
-    where: { employeeId }
+    where: { employeeId },
   });
 
   if (!balance) {
-    throw new Error('Balance not found');
+    throw new Error("Balance not found");
   }
 
   await prisma.overtimeBalance.update({
@@ -576,8 +581,8 @@ export const resetEmployeeBalance = async (employeeId) => {
     data: {
       totalPaid: { increment: balance.currentBalance },
       currentBalance: 0,
-      lastResetAt: new Date()
-    }
+      lastResetAt: new Date(),
+    },
   });
 };
 
@@ -592,11 +597,11 @@ export const processMonthlyBalance = async (params) => {
 
   // Get all APPROVED requests in this period
   const where = {
-    status: 'APPROVED',
+    status: "APPROVED",
     supervisorDate: {
       gte: startDate,
-      lte: endDate
-    }
+      lte: endDate,
+    },
   };
 
   if (employeeIds && employeeIds.length > 0) {
@@ -610,17 +615,17 @@ export const processMonthlyBalance = async (params) => {
         select: {
           id: true,
           name: true,
-          overtimeRate: true
-        }
-      }
-    }
+          overtimeRate: true,
+        },
+      },
+    },
   });
 
   // Process each employee
   const results = [];
   for (const request of approvedRequests) {
     const employeeId = request.employeeId;
-    
+
     // Update balance
     await prisma.overtimeBalance.upsert({
       where: { employeeId },
@@ -629,18 +634,18 @@ export const processMonthlyBalance = async (params) => {
         currentBalance: request.totalHours,
         pendingHours: 0,
         totalPaid: 0,
-        lastProcessedAt: new Date()
+        lastProcessedAt: new Date(),
       },
       update: {
-        lastProcessedAt: new Date()
-      }
+        lastProcessedAt: new Date(),
+      },
     });
 
     results.push({
       employeeId,
       employeeName: request.employee.name,
       hours: request.totalHours,
-      amount: request.totalAmount
+      amount: request.totalAmount,
     });
   }
 
@@ -648,7 +653,7 @@ export const processMonthlyBalance = async (params) => {
     processed: results.length,
     totalHours: results.reduce((sum, r) => sum + r.hours, 0),
     totalAmount: results.reduce((sum, r) => sum + r.amount, 0),
-    details: results
+    details: results,
   };
 };
 
@@ -659,23 +664,27 @@ export const processMonthlyBalance = async (params) => {
  */
 export const deductOvertimeBalance = async (employeeId, hours) => {
   try {
-    console.log(`[Deduct Balance] Deducting ${hours} hours for employee ${employeeId}`);
+    console.log(
+      `[Deduct Balance] Deducting ${hours} hours for employee ${employeeId}`,
+    );
 
     // Find overtime balance
     let balance = await prisma.overtimeBalance.findUnique({
-      where: { employeeId }
+      where: { employeeId },
     });
 
     if (!balance) {
-      console.warn(`[Deduct Balance] No balance found for employee ${employeeId}`);
+      console.warn(
+        `[Deduct Balance] No balance found for employee ${employeeId}`,
+      );
       // Create a balance record with negative hours (this shouldn't happen but handle it)
       balance = await prisma.overtimeBalance.create({
         data: {
           employeeId,
           currentBalance: -hours, // Negative balance
           pendingHours: 0,
-          totalPaid: 0
-        }
+          totalPaid: 0,
+        },
       });
       console.log(`⚠️ Created new balance record with -${hours} hours`);
       return balance;
@@ -683,7 +692,7 @@ export const deductOvertimeBalance = async (employeeId, hours) => {
 
     // Calculate new balance
     const newBalance = Math.max(0, balance.currentBalance - hours);
-    
+
     console.log(`[Deduct Balance] Current: ${balance.currentBalance} hours`);
     console.log(`[Deduct Balance] Deducting: ${hours} hours`);
     console.log(`[Deduct Balance] New balance: ${newBalance} hours`);
@@ -692,19 +701,17 @@ export const deductOvertimeBalance = async (employeeId, hours) => {
     const updatedBalance = await prisma.overtimeBalance.update({
       where: { employeeId },
       data: {
-        currentBalance: newBalance
-      }
+        currentBalance: newBalance,
+      },
     });
 
     console.log(`✅ Balance deducted successfully`);
     return updatedBalance;
-
   } catch (error) {
-    console.error('[Deduct Balance] Error:', error);
+    console.error("[Deduct Balance] Error:", error);
     throw new Error(`Failed to deduct overtime balance: ${error.message}`);
   }
 };
-
 
 // ============================================
 // REVISION OPERATIONS
@@ -722,8 +729,8 @@ export const createRevision = async (data) => {
       revisedBy,
       action,
       changes,
-      comment
-    }
+      comment,
+    },
   });
 };
 
@@ -740,80 +747,80 @@ export const getOvertimeStatistics = async (filters) => {
   if (filters.year || filters.month) {
     const year = filters.year || new Date().getFullYear();
     const month = filters.month || 1;
-    
+
     const startDate = startOfMonth(new Date(year, month - 1));
     const endDate = endOfMonth(new Date(year, month - 1));
 
     where.submittedAt = {
       gte: startDate,
-      lte: endDate
+      lte: endDate,
     };
   }
 
   if (filters.divisionId) {
     where.employee = {
-      divisionId: filters.divisionId
+      divisionId: filters.divisionId,
     };
   }
 
   // Total requests by status
   const totalPending = await prisma.overtimeRequest.count({
-    where: { ...where, status: 'PENDING' }
+    where: { ...where, status: "PENDING" },
   });
 
   const totalApproved = await prisma.overtimeRequest.count({
-    where: { ...where, status: 'APPROVED' }
+    where: { ...where, status: "APPROVED" },
   });
 
   const totalRejected = await prisma.overtimeRequest.count({
-    where: { ...where, status: 'REJECTED' }
+    where: { ...where, status: "REJECTED" },
   });
 
   // Total hours and amount
   const aggregateApproved = await prisma.overtimeRequest.aggregate({
-    where: { ...where, status: 'APPROVED' },
+    where: { ...where, status: "APPROVED" },
     _sum: {
       totalHours: true,
-      totalAmount: true
-    }
+      totalAmount: true,
+    },
   });
 
   // Top overtime employees
   const topEmployees = await prisma.overtimeRequest.groupBy({
-    by: ['employeeId'],
-    where: { ...where, status: 'APPROVED' },
+    by: ["employeeId"],
+    where: { ...where, status: "APPROVED" },
     _sum: {
       totalHours: true,
-      totalAmount: true
+      totalAmount: true,
     },
     _count: true,
     orderBy: {
       _sum: {
-        totalHours: 'desc'
-      }
+        totalHours: "desc",
+      },
     },
-    take: 10
+    take: 10,
   });
 
   // Get employee details for top employees
-  const employeeIds = topEmployees.map(e => e.employeeId);
+  const employeeIds = topEmployees.map((e) => e.employeeId);
   const employees = await prisma.user.findMany({
     where: { id: { in: employeeIds } },
     select: {
       id: true,
       name: true,
       nip: true,
-      division: true
-    }
+      division: true,
+    },
   });
 
-  const topEmployeesWithDetails = topEmployees.map(te => {
-    const employee = employees.find(e => e.id === te.employeeId);
+  const topEmployeesWithDetails = topEmployees.map((te) => {
+    const employee = employees.find((e) => e.id === te.employeeId);
     return {
       employee: employee,
       totalHours: te._sum.totalHours,
       totalAmount: te._sum.totalAmount,
-      requestCount: te._count
+      requestCount: te._count,
     };
   });
 
@@ -822,12 +829,12 @@ export const getOvertimeStatistics = async (filters) => {
       totalPending,
       totalApproved,
       totalRejected,
-      totalRequests: totalPending + totalApproved + totalRejected
+      totalRequests: totalPending + totalApproved + totalRejected,
     },
     approved: {
       totalHours: aggregateApproved._sum.totalHours || 0,
-      totalAmount: aggregateApproved._sum.totalAmount || 0
+      totalAmount: aggregateApproved._sum.totalAmount || 0,
     },
-    topEmployees: topEmployeesWithDetails
+    topEmployees: topEmployeesWithDetails,
   };
 };
