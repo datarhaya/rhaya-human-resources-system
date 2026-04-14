@@ -22,6 +22,8 @@ export const getAllUsers = async (req, res) => {
     const { search, divisionId, roleId, status } = req.query;
     const { accessLevel, scopeEntityIds } = req.user;
 
+    const currentYear = new Date().getFullYear();
+
     let where = {};
 
     if (accessLevel === 2) {
@@ -63,18 +65,50 @@ export const getAllUsers = async (req, res) => {
         role: true,
         division: true,
         plottingCompany: true,
+        overtimeBalance: {
+          select: {
+            currentBalance: true,
+            pendingHours: true,
+            totalPaid: true,
+          },
+        },
+        leaveBalances: {
+          // ← Changed to plural!
+          where: { year: currentYear },
+          select: {
+            year: true,
+            annualQuota: true,
+            annualUsed: true,
+            annualRemaining: true,
+            sickLeaveUsed: true,
+            menstrualLeaveUsed: true,
+            toilBalance: true,
+            toilUsed: true,
+          },
+          take: 1,
+        },
       },
       orderBy: { name: "asc" },
     });
 
+    // Handle leaveBalances format - it's an array, take first element
+    const usersWithFormattedBalance = users.map((user) => ({
+      ...user,
+      leaveBalance:
+        user.leaveBalances && user.leaveBalances.length > 0 // ← Changed to plural
+          ? user.leaveBalances[0] // ← Changed to plural
+          : null,
+      leaveBalances: undefined, // Remove the array, keep only leaveBalance (singular) for frontend
+    }));
+
     console.log(
-      `[USERS] Fetched ${users.length} users for Level ${accessLevel} admin`,
+      `[USERS] Fetched ${usersWithFormattedBalance.length} users for Level ${accessLevel} admin`,
     );
 
     return res.json({
       success: true,
-      count: users.length,
-      data: users,
+      count: usersWithFormattedBalance.length,
+      data: usersWithFormattedBalance,
     });
   } catch (error) {
     console.error("Get all users error:", error);
