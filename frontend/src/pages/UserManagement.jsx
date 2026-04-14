@@ -1658,7 +1658,7 @@ export default function UserManagement() {
                   </div>
 
                   {/* Personal Information */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4 pb-4">
                     <div>
                       <label className="text-sm font-medium text-gray-500">
                         Gender
@@ -1726,7 +1726,7 @@ export default function UserManagement() {
                   </div>
 
                   {/* Employment Info */}
-                  <div className="border-t pt-4">
+                  <div className="border-t pt-4 pb-4">
                     <h4 className="font-semibold text-gray-900 mb-3">
                       Employment Information
                     </h4>
@@ -1918,7 +1918,7 @@ export default function UserManagement() {
                   </div>
 
                   {/* BPJS Info */}
-                  <div className="border-t pt-4">
+                  <div className="border-t pt-4 pb-4">
                     <h4 className="font-semibold text-gray-900 mb-3">
                       BPJS Information
                     </h4>
@@ -2670,7 +2670,7 @@ export default function UserManagement() {
                           required
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         >
-                          {currentUser.accessLevel === 1 ? (
+                          {user?.accessLevel === 1 ? (
                             <>
                               <option value="1">
                                 Level 1 - System Administrator
