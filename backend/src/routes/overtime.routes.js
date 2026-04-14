@@ -131,14 +131,14 @@ router.get(
 router.post(
   "/:requestId/admin-reject",
   authenticate,
-  requireRole([1, 2]),,
+  requireRole([1, 2]),
   overtimeController.adminRejectApprovedOvertime,
 );
 
 router.put(
   "/:requestId/admin-edit",
   authenticate,
-  requireRole([1, 2]),,
+  requireRole([1, 2]),
   overtimeController.adminEditOvertime,
 );
 
