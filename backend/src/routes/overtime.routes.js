@@ -5,6 +5,7 @@ import {
   authenticate,
   authorizeAdmin,
   requireActiveUser,
+  requireRole,
 } from "../middleware/auth.js";
 import { checkRecapLock } from "../middleware/recapLock.middleware.js";
 
@@ -130,14 +131,14 @@ router.get(
 router.post(
   "/:requestId/admin-reject",
   authenticate,
-  authorizeAdmin,
+  requireRole([1, 2]),,
   overtimeController.adminRejectApprovedOvertime,
 );
 
 router.put(
   "/:requestId/admin-edit",
   authenticate,
-  authorizeAdmin,
+  requireRole([1, 2]),,
   overtimeController.adminEditOvertime,
 );
 
