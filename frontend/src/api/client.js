@@ -1,22 +1,21 @@
-import axios from 'axios';
+import axios from "axios";
 
 // Base URL - uses proxy in dev, full URL in production
 // const API_URL = import.meta.env.VITE_API_URL || '/api';
-const API_URL = import.meta.env.VITE_API_URL || '/api';
-
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 // Create axios instance with defaults
 const apiClient = axios.create({
   baseURL: API_URL,
   headers: {
-    'Content-Type': 'application/json'
-  }
+    "Content-Type": "application/json",
+  },
 });
 
 // Request interceptor - add auth token to every request
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -24,7 +23,7 @@ apiClient.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor - handle errors globally
@@ -37,22 +36,26 @@ apiClient.interceptors.response.use(
     // CRITICAL: Do NOT redirect on auth endpoints
     // ========================================
     const authEndpoints = [
-      '/auth/login',
-      '/auth/forgot-password',
-      '/auth/reset-password',
-      '/auth/verify-reset-token'
+      "/auth/login",
+      "/auth/forgot-password",
+      "/auth/reset-password",
+      "/auth/verify-reset-token",
     ];
 
-    const isAuthEndpoint = authEndpoints.some(endpoint => 
-      config?.url?.includes(endpoint)
+    const isAuthEndpoint = authEndpoints.some((endpoint) =>
+      config?.url?.includes(endpoint),
     );
 
     // If it's an auth endpoint, let the component handle the error
     if (isAuthEndpoint) {
       return Promise.reject({
-        message: response?.data?.error || response?.data?.message || error.message || 'An error occurred',
+        message:
+          response?.data?.error ||
+          response?.data?.message ||
+          error.message ||
+          "An error occurred",
         status: response?.status,
-        data: response?.data
+        data: response?.data,
       });
     }
 
@@ -61,22 +64,26 @@ apiClient.interceptors.response.use(
     // ========================================
     if (response?.status === 401) {
       // Clear stored auth data
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+
       // Redirect to login
-      window.location.href = '/login';
+      window.location.href = "/login";
     }
-    
+
     // ========================================
     // Return formatted error for other cases
     // ========================================
     return Promise.reject({
-      message: response?.data?.message || response?.data?.error || error.message || 'An error occurred',
+      message:
+        response?.data?.message ||
+        response?.data?.error ||
+        error.message ||
+        "An error occurred",
       status: response?.status,
-      data: response?.data  
+      data: response?.data,
     });
-  }
+  },
 );
 
 export default apiClient;
@@ -86,7 +93,7 @@ export default apiClient;
 // ============================================
 
 export const submitOvertimeRequest = async (data) => {
-  const response = await apiClient.post('/overtime/submit', data);
+  const response = await apiClient.post("/overtime/submit", data);
   return response.data.data;
 };
 
@@ -94,7 +101,7 @@ export const submitOvertimeRequest = async (data) => {
  * Get my overtime requests
  */
 export const getMyOvertimeRequests = async (params = {}) => {
-  const response = await apiClient.get('/overtime/my-requests', { params });
+  const response = await apiClient.get("/overtime/my-requests", { params });
   return response.data.data;
 };
 
@@ -102,7 +109,7 @@ export const getMyOvertimeRequests = async (params = {}) => {
  * Get my overtime balance
  */
 export const getMyOvertimeBalance = async () => {
-  const response = await apiClient.get('/overtime/my-balance');
+  const response = await apiClient.get("/overtime/my-balance");
   return response.data.data;
 };
 
@@ -134,7 +141,7 @@ export const deleteOvertimeRequest = async (requestId) => {
  * Get pending approvals (for approvers)
  */
 export const getPendingOvertimeApprovals = async () => {
-  const response = await apiClient.get('/overtime/pending-approval/list');
+  const response = await apiClient.get("/overtime/pending-approval/list");
   return response.data.data;
 };
 
@@ -142,7 +149,9 @@ export const getPendingOvertimeApprovals = async () => {
  * Approve overtime request
  */
 export const approveOvertimeRequest = async (requestId, comment) => {
-  const response = await apiClient.post(`/overtime/${requestId}/approve`, { comment });
+  const response = await apiClient.post(`/overtime/${requestId}/approve`, {
+    comment,
+  });
   return response.data.data;
 };
 
@@ -150,7 +159,9 @@ export const approveOvertimeRequest = async (requestId, comment) => {
  * Reject overtime request
  */
 export const rejectOvertimeRequest = async (requestId, comment) => {
-  const response = await apiClient.post(`/overtime/${requestId}/reject`, { comment });
+  const response = await apiClient.post(`/overtime/${requestId}/reject`, {
+    comment,
+  });
   return response.data.data;
 };
 
@@ -158,7 +169,10 @@ export const rejectOvertimeRequest = async (requestId, comment) => {
  * Request revision
  */
 export const requestOvertimeRevision = async (requestId, comment) => {
-  const response = await apiClient.post(`/overtime/${requestId}/request-revision`, { comment });
+  const response = await apiClient.post(
+    `/overtime/${requestId}/request-revision`,
+    { comment },
+  );
   return response.data.data;
 };
 
@@ -170,7 +184,9 @@ export const requestOvertimeRevision = async (requestId, comment) => {
  * Get all overtime requests (Admin)
  */
 export const getAllOvertimeRequests = async (params = {}) => {
-  const response = await apiClient.get('/overtime/admin/all-requests', { params });
+  const response = await apiClient.get("/overtime/admin/all-requests", {
+    params,
+  });
   return response.data.data;
 };
 
@@ -178,7 +194,10 @@ export const getAllOvertimeRequests = async (params = {}) => {
  * Process monthly balance (Admin)
  */
 export const processMonthlyOvertimeBalance = async (data) => {
-  const response = await apiClient.post('/overtime/admin/process-balance', data);
+  const response = await apiClient.post(
+    "/overtime/admin/process-balance",
+    data,
+  );
   return response.data;
 };
 
@@ -186,7 +205,9 @@ export const processMonthlyOvertimeBalance = async (data) => {
  * Reset employee overtime balance (Admin)
  */
 export const resetOvertimeBalance = async (userId) => {
-  const response = await apiClient.post(`/overtime/admin/reset-balance/${userId}`);
+  const response = await apiClient.post(
+    `/overtime/admin/reset-balance/${userId}`,
+  );
   return response.data;
 };
 
@@ -194,7 +215,9 @@ export const resetOvertimeBalance = async (userId) => {
  * Get overtime statistics (Admin)
  */
 export const getOvertimeStatistics = async (params = {}) => {
-  const response = await apiClient.get('/overtime/admin/statistics', { params });
+  const response = await apiClient.get("/overtime/admin/statistics", {
+    params,
+  });
   return response.data.data;
 };
 
@@ -206,7 +229,7 @@ export const getOvertimeStatistics = async (params = {}) => {
  * Submit leave request
  */
 export const submitLeaveRequest = async (data) => {
-  const response = await apiClient.post('/leave/submit', data);
+  const response = await apiClient.post("/leave/submit", data);
   return response.data.data;
 };
 
@@ -214,7 +237,7 @@ export const submitLeaveRequest = async (data) => {
  * Get my leave requests
  */
 export const getMyLeaveRequests = async (params = {}) => {
-  const response = await apiClient.get('/leave/my-requests', { params });
+  const response = await apiClient.get("/leave/my-requests", { params });
   return response.data.data;
 };
 
@@ -239,7 +262,7 @@ export const getLeaveBalanceByYear = async (year) => {
  * Get pending leave approvals (for approvers)
  */
 export const getPendingLeaveApprovals = async () => {
-  const response = await apiClient.get('/leave/pending-approval/list');
+  const response = await apiClient.get("/leave/pending-approval/list");
   return response.data.data;
 };
 
@@ -247,7 +270,9 @@ export const getPendingLeaveApprovals = async () => {
  * Approve leave request
  */
 export const approveLeaveRequest = async (requestId, comment) => {
-  const response = await apiClient.post(`/leave/${requestId}/approve`, { comment });
+  const response = await apiClient.post(`/leave/${requestId}/approve`, {
+    comment,
+  });
   return response.data.data;
 };
 
@@ -255,7 +280,9 @@ export const approveLeaveRequest = async (requestId, comment) => {
  * Reject leave request
  */
 export const rejectLeaveRequest = async (requestId, comment) => {
-  const response = await apiClient.post(`/leave/${requestId}/reject`, { comment });
+  const response = await apiClient.post(`/leave/${requestId}/reject`, {
+    comment,
+  });
   return response.data.data;
 };
 
@@ -283,6 +310,6 @@ export const deleteLeaveRequest = async (requestId) => {
  * Get all leave requests (Admin)
  */
 export const getAllLeaveRequests = async (params = {}) => {
-  const response = await apiClient.get('/leave/admin/all-requests', { params });
+  const response = await apiClient.get("/leave/admin/all-requests", { params });
   return response.data.data;
 };
