@@ -955,6 +955,7 @@ export const getLeaveRequestDetails = async (req, res) => {
     const { requestId } = req.params;
     const userId = req.user.id;
     const userLevel = req.user.accessLevel;
+    const scopeEntityIds = req.user.scopeEntityIds;
 
     const request = await prisma.leaveRequest.findUnique({
       where: { id: requestId },
@@ -967,6 +968,14 @@ export const getLeaveRequestDetails = async (req, res) => {
             nip: true,
             division: true,
             role: true,
+            plottingCompanyId: true,
+            plottingCompany: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+              },
+            },
           },
         },
         currentApprover: {
@@ -985,20 +994,67 @@ export const getLeaveRequestDetails = async (req, res) => {
       return res.status(404).json({ error: "Leave request not found" });
     }
 
-    // Check authorization
+    // Check authorization with scope validation
     const isOwner = request.employeeId === userId;
     const isApprover = request.currentApproverId === userId;
-    const isAdmin = userLevel === 1;
+    const isLevel1Admin = userLevel === 1;
+    const isLevel2Admin = userLevel === 2;
 
-    if (!isOwner && !isApprover && !isAdmin) {
-      return res
-        .status(403)
-        .json({ error: "Not authorized to view this request" });
+    // Level 1: Full access
+    if (isLevel1Admin) {
+      console.log(`[LEAVE DETAILS] Level 1 admin viewing request ${requestId}`);
+      return res.json({
+        success: true,
+        data: request,
+      });
     }
 
-    return res.json({
-      success: true,
-      data: request,
+    // Level 2: Scope-based access
+    if (isLevel2Admin) {
+      const employeeEntityId = request.employee.plottingCompanyId;
+
+      // Check if employee is in scope
+      if (!employeeEntityId || !scopeEntityIds?.includes(employeeEntityId)) {
+        console.warn(
+          `[LEAVE DETAILS] Level 2 admin ${userId} tried to view request ${requestId} outside scope`,
+        );
+        console.warn(
+          `[LEAVE DETAILS] Employee entity: ${employeeEntityId}, Admin scope: ${JSON.stringify(scopeEntityIds)}`,
+        );
+
+        return res.status(403).json({
+          error: "Access denied",
+          message: "You do not have permission to view this leave request",
+        });
+      }
+
+      console.log(
+        `[LEAVE DETAILS] Level 2 admin viewing scoped request ${requestId}`,
+      );
+      return res.json({
+        success: true,
+        data: request,
+      });
+    }
+
+    // Level 3+: Owner or assigned approver only
+    if (isOwner || isApprover) {
+      console.log(
+        `[LEAVE DETAILS] User ${userId} viewing ${isOwner ? "own" : "assigned"} request ${requestId}`,
+      );
+      return res.json({
+        success: true,
+        data: request,
+      });
+    }
+
+    // No access
+    console.warn(
+      `[LEAVE DETAILS] User ${userId} (Level ${userLevel}) denied access to request ${requestId}`,
+    );
+    return res.status(403).json({
+      error: "Access denied",
+      message: "Not authorized to view this request",
     });
   } catch (error) {
     console.error("Get request details error:", error);
