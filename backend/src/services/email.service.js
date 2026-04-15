@@ -2,8 +2,10 @@
 // SMTP2go API with Custom Brand Theme (Black, White, #152A55)
 
 import axios from "axios";
+import nodemailer from "nodemailer";
 
-const SMTP2GO_API_URL = "https://api.smtp2go.com/v3/email/send";
+// const SMTP2GO_API_URL = "https://api.smtp2go.com/v3/email/send";
+const SMTP_API_URL = process.env.SMTP_API_URL;
 const API_KEY = process.env.SMTP2GO_API_KEY;
 
 // Brand colors
@@ -21,6 +23,120 @@ if (!API_KEY) {
   console.error("SMTP2GO_API_KEY not configured in .env");
 } else {
   console.log("SMTP2go API configured");
+}
+
+function createTransporter() {
+  // Check for Mailtrap SMTP credentials (Development)
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    console.log("📧 [EMAIL] Using Mailtrap SMTP (Development Mode)");
+    console.log("📧 [EMAIL] Host:", process.env.SMTP_HOST);
+
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || "2525"),
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+  }
+
+  // Check for SMTP2GO credentials (Production)
+  if (
+    process.env.SMTP2GO_HOST &&
+    process.env.SMTP2GO_USER &&
+    process.env.SMTP2GO_PASS
+  ) {
+    console.log("📧 [EMAIL] Using SMTP2GO (Production Mode)");
+    console.log("📧 [EMAIL] Host:", process.env.SMTP2GO_HOST);
+
+    return nodemailer.createTransport({
+      host: process.env.SMTP2GO_HOST,
+      port: parseInt(process.env.SMTP2GO_PORT || "2525"),
+      auth: {
+        user: process.env.SMTP2GO_USER,
+        pass: process.env.SMTP2GO_PASS,
+      },
+    });
+  }
+
+  // Fallback: Generic SMTP configuration
+  console.warn(
+    "⚠️  [EMAIL] No specific email service detected. Using generic SMTP config.",
+  );
+
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || "localhost",
+    port: parseInt(process.env.SMTP_PORT || "587"),
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+}
+
+const transporter = createTransporter();
+
+/**
+ * Send email via configured SMTP service (Mailtrap or SMTP2GO)
+ * @param {Object} options - Email options
+ * @param {string} options.to - Recipient email
+ * @param {string} options.subject - Email subject
+ * @param {string} options.html - HTML body
+ * @param {string} [options.text] - Plain text body (optional)
+ * @param {string|string[]} [options.cc] - CC recipients (optional)
+ * @returns {Promise<{success: boolean, messageId?: string, error?: string}>}
+ */
+export async function sendEmail({ to, subject, html, text, cc }) {
+  try {
+    // Build email options
+    const mailOptions = {
+      from: `${process.env.SMTP_FROM_NAME || "HR System"} <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_FROM || "noreply@company.com"}>`,
+      to: to,
+      subject: subject,
+      html: html,
+      text: text || html.replace(/<[^>]*>/g, ""), // Strip HTML tags for plain text
+    };
+
+    // Add CC if provided
+    if (cc) {
+      mailOptions.cc = Array.isArray(cc) ? cc.join(", ") : cc;
+    }
+
+    console.log("[EMAIL] Sending email:", {
+      to,
+      cc: cc || "none",
+      subject,
+      service: process.env.SMTP_HOST ? "Mailtrap/SMTP" : "SMTP2GO",
+    });
+
+    // Send email
+    const info = await transporter.sendMail(mailOptions);
+
+    console.log("[EMAIL] Email sent successfully:", {
+      to,
+      messageId: info.messageId,
+      response: info.response,
+    });
+
+    return {
+      success: true,
+      messageId: info.messageId,
+    };
+  } catch (error) {
+    console.error("❌ [EMAIL] Email send error:", {
+      to,
+      cc: cc || "none",
+      subject,
+      error: error.message,
+      code: error.code,
+    });
+
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
 }
 
 /**
@@ -56,91 +172,6 @@ function getOvertimeDescription(overtimeRequest) {
     overtimeRequest.notes ||
     "No description provided"
   );
-}
-
-/**
- * Send email via SMTP2go API
- */
-export async function sendEmail({ to, subject, html, text, cc }) {
-  try {
-    if (!API_KEY) {
-      throw new Error("SMTP2GO_API_KEY not configured");
-    }
-
-    // Build email payload
-    const emailPayload = {
-      api_key: API_KEY,
-      to: [to],
-      sender: `${process.env.SMTP_FROM_NAME || "HR System"} <${process.env.SMTP_FROM_EMAIL}>`,
-      subject: subject,
-      html_body: html,
-      text_body: text || html.replace(/<[^>]*>/g, ""),
-    };
-
-    // Add CC if provided
-    if (cc) {
-      // Support both string and array for CC
-      emailPayload.cc = Array.isArray(cc) ? cc : [cc];
-    }
-
-    const response = await axios.post(SMTP2GO_API_URL, emailPayload, {
-      headers: {
-        "Content-Type": "application/json",
-      },
-      timeout: 10000,
-    });
-
-    if (response.data && response.data.data) {
-      const { succeeded, failed } = response.data.data;
-
-      if (succeeded > 0) {
-        console.log("Email sent successfully via SMTP2go API:", {
-          to: to,
-          cc: cc || "none",
-          subject: subject,
-          messageId: response.data.data.email_id,
-        });
-
-        return {
-          success: true,
-          messageId: response.data.data.email_id,
-        };
-      } else if (failed > 0) {
-        const failedEmails = response.data.data.failures || [];
-        const errorMsg = failedEmails[0]?.error || "Unknown error";
-
-        console.error("SMTP2go API reported failure:", {
-          to: to,
-          cc: cc || "none",
-          error: errorMsg,
-        });
-
-        return {
-          success: false,
-          error: errorMsg,
-        };
-      }
-    }
-
-    console.error("Unexpected SMTP2go API response:", response.data);
-    return {
-      success: false,
-      error: "Unexpected API response",
-    };
-  } catch (error) {
-    console.error("Email send error:", {
-      to: to,
-      cc: cc || "none",
-      subject: subject,
-      error: error.message,
-      response: error.response?.data,
-    });
-
-    return {
-      success: false,
-      error: error.response?.data?.error || error.message,
-    };
-  }
 }
 
 /**
@@ -3703,7 +3734,11 @@ export async function sendBatchPayslipNotification(employees, payslipDetails) {
     try {
       await sendPayslipNotificationEmail(employee, payslipDetails);
       successCount++;
-      console.log(`✅ Payslip notification sent to: ${employee.email}`);
+      console.log(`Payslip notification sent to: ${employee.email}`);
+
+      // Don't delay after last email
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      console.log(`[Rate Limit] Waiting 600ms before next email sent)`);
     } catch (error) {
       failedCount++;
       failedEmails.push(employee.email);

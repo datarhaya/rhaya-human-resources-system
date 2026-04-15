@@ -1,10 +1,11 @@
 // frontend/src/pages/PayslipManagement.jsx
 
-import { useState, useEffect } from 'react';
-import Select from 'react-select';
-import apiClient from '../api/client';
-import GenerateFromExcelModal from '../components/GenerateFromExcelModal';
-import PayslipDashboardWidget from '../components/PayslipDashboardWidget';
+import { useState, useEffect } from "react";
+import Select from "react-select";
+import apiClient from "../api/client";
+import GenerateFromExcelModal from "../components/GenerateFromExcelModal";
+import PayslipDashboardWidget from "../components/PayslipDashboardWidget";
+import LoadingModal from "../components/LoadingModal";
 
 export default function PayslipManagement() {
   const [payslips, setPayslips] = useState([]);
@@ -15,31 +16,37 @@ export default function PayslipManagement() {
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [existingPayslip, setExistingPayslip] = useState(null);
   const [showExcelModal, setShowExcelModal] = useState(false);
-  
+
   // Filters
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
   const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1);
-  const [filterEmployee, setFilterEmployee] = useState('');
-  const [filterDivision, setFilterDivision] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [filterEmployee, setFilterEmployee] = useState("");
+  const [filterDivision, setFilterDivision] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  
+
   const [uploadData, setUploadData] = useState({
-    employeeId: '',
+    employeeId: "",
     year: new Date().getFullYear(),
     month: new Date().getMonth() + 1,
     file: null,
-    sendNotification: true
+    sendNotification: true,
   });
 
   const [batchUploadData, setBatchUploadData] = useState({
     year: new Date().getFullYear(),
     month: new Date().getMonth() + 1,
     files: [],
-    sendNotifications: true
+    sendNotifications: true,
   });
 
-  const [showBatchModal, setShowBatchModal] = useState(false);  
+  const [loadingModal, setLoadingModal] = useState({
+    isOpen: false,
+    message: "",
+    progress: null,
+  });
+
+  const [showBatchModal, setShowBatchModal] = useState(false);
 
   // Selected employee for searchable dropdown
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -53,16 +60,16 @@ export default function PayslipManagement() {
     try {
       setLoading(true);
       const [payslipsRes, usersRes, divisionsRes] = await Promise.all([
-        apiClient.get('/payslips'),
-        apiClient.get('/users'),
-        apiClient.get('/divisions')
+        apiClient.get("/payslips"),
+        apiClient.get("/users"),
+        apiClient.get("/divisions"),
       ]);
       setPayslips(payslipsRes.data.data || []);
       setUsers(usersRes.data.data || []);
       setDivisions(divisionsRes.data.data || []);
     } catch (error) {
-      console.error('Fetch error:', error);
-      alert('Failed to load data');
+      console.error("Fetch error:", error);
+      alert("Failed to load data");
     } finally {
       setLoading(false);
     }
@@ -70,45 +77,46 @@ export default function PayslipManagement() {
 
   // Check if payslip already exists for employee + period
   const checkExistingPayslip = () => {
-    const existing = payslips.find(p => 
-      p.employeeId === uploadData.employeeId &&
-      p.year === uploadData.year &&
-      p.month === uploadData.month
+    const existing = payslips.find(
+      (p) =>
+        p.employeeId === uploadData.employeeId &&
+        p.year === uploadData.year &&
+        p.month === uploadData.month,
     );
     return existing;
   };
 
   const handleUploadAttempt = async (e) => {
     e.preventDefault();
-    
+
     if (!uploadData.file) {
-      alert('Please select a PDF file');
+      alert("Please select a PDF file");
       return;
     }
 
     if (!uploadData.employeeId) {
-      alert('Please select an employee');
+      alert("Please select an employee");
       return;
     }
 
-    const employee = users.find(u => u.id === uploadData.employeeId);
-    
+    const employee = users.find((u) => u.id === uploadData.employeeId);
+
     if (!employee) {
-      alert('Selected employee not found');
+      alert("Selected employee not found");
       return;
     }
 
-    // ✅ Use dateOfBirth (not birthDate)
+    // Use dateOfBirth (not birthDate)
     if (!employee.dateOfBirth) {
       setBirthDateWarning({
         employeeName: employee.name,
-        employeeId: employee.id
+        employeeId: employee.id,
       });
       return;
     }
 
     const existing = checkExistingPayslip();
-    
+
     if (existing) {
       setExistingPayslip(existing);
       setShowWarningModal(true);
@@ -118,50 +126,49 @@ export default function PayslipManagement() {
   };
 
   const handleUploadSuccess = () => {
-    fetchData();  // Refresh payslip list
-    setRefreshTrigger(prev => prev + 1);  // Refresh widget
+    fetchData(); // Refresh payslip list
+    setRefreshTrigger((prev) => prev + 1); // Refresh widget
   };
 
   const performUpload = async () => {
     setLoading(true);
-    
+
     try {
       const formData = new FormData();
-      formData.append('file', uploadData.file);
-      formData.append('employeeId', uploadData.employeeId);
-      formData.append('year', uploadData.year);
-      formData.append('month', uploadData.month);
-      formData.append('sendNotification', uploadData.sendNotification);
+      formData.append("file", uploadData.file);
+      formData.append("employeeId", uploadData.employeeId);
+      formData.append("year", uploadData.year);
+      formData.append("month", uploadData.month);
+      formData.append("sendNotification", uploadData.sendNotification);
 
-      const response = await apiClient.post('/payslips/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 30000
+      const response = await apiClient.post("/payslips/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 30000,
       });
 
       if (response.data && response.data.success) {
         setShowUploadModal(false);
         setShowWarningModal(false);
-        
+
         setUploadData({
-          employeeId: '',
+          employeeId: "",
           year: new Date().getFullYear(),
           month: new Date().getMonth() + 1,
           file: null,
-          sendNotification: true
+          sendNotification: true,
         });
         setSelectedEmployee(null);
         setExistingPayslip(null);
-        
-        // ✅ FIX: Fetch BEFORE alert (auto-refresh)
+
         await fetchData();
-        
-        alert(response.data.message || 'Payslip berhasil diupload');
+
+        alert(response.data.message || "Payslip berhasil diupload");
       } else {
-        throw new Error('Unexpected response');
+        throw new Error("Unexpected response");
       }
     } catch (error) {
-      console.error('Upload error:', error);
-      alert(error.response?.data?.error || 'Upload failed');
+      console.error("Upload error:", error);
+      alert(error.response?.data?.error || "Upload failed");
     } finally {
       setLoading(false);
     }
@@ -170,33 +177,33 @@ export default function PayslipManagement() {
   // Batch upload handler
   const handleBatchUpload = async (e) => {
     e.preventDefault();
-    
+
     if (batchUploadData.files.length === 0) {
-      alert('Please select at least one PDF file');
+      alert("Please select at least one PDF file");
       return;
     }
 
     try {
       setLoading(true);
       const formData = new FormData();
-      
-      // Append all files
-      batchUploadData.files.forEach(file => {
-        formData.append('files', file);
-      });
-      
-      formData.append('year', batchUploadData.year);
-      formData.append('month', batchUploadData.month);
-      formData.append('sendNotifications', batchUploadData.sendNotifications);
 
-      const res = await apiClient.post('/payslips/batch-upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      // Append all files
+      batchUploadData.files.forEach((file) => {
+        formData.append("files", file);
+      });
+
+      formData.append("year", batchUploadData.year);
+      formData.append("month", batchUploadData.month);
+      formData.append("sendNotifications", batchUploadData.sendNotifications);
+
+      const res = await apiClient.post("/payslips/batch-upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
       const { success, failed, emailNotifications } = res.data.data;
-      
+
       let message = `Batch upload complete:\n`;
-      message += `✅ ${success.length} payslips uploaded\n`;
+      message += `${success.length} payslips uploaded\n`;
       if (failed.length > 0) {
         message += `❌ ${failed.length} failed\n`;
       }
@@ -205,18 +212,18 @@ export default function PayslipManagement() {
       }
 
       alert(message);
-      
+
       setShowBatchModal(false);
       setBatchUploadData({
         year: new Date().getFullYear(),
         month: new Date().getMonth() + 1,
         files: [],
-        sendNotifications: true
+        sendNotifications: true,
       });
       fetchData();
     } catch (error) {
-      console.error('Batch upload error:', error);
-      alert(error.response?.data?.error || 'Batch upload failed');
+      console.error("Batch upload error:", error);
+      alert(error.response?.data?.error || "Batch upload failed");
     } finally {
       setLoading(false);
     }
@@ -230,99 +237,152 @@ export default function PayslipManagement() {
 
     try {
       await apiClient.post(`/payslips/${payslipId}/notify`);
-      alert('Notification sent successfully');
+      alert("Notification sent successfully");
     } catch (error) {
-      console.error('Notification error:', error);
-      alert(error.response?.data?.error || 'Failed to send notification');
+      console.error("Notification error:", error);
+      alert(error.response?.data?.error || "Failed to send notification");
     }
   };
 
   // Blast notification to all employees for the month
   const handleBlastNotification = async () => {
     if (!filterYear || !filterMonth) {
-      alert('Please select both Year and Month to send notifications');
+      alert("Please select both Year and Month to send notifications");
       return;
     }
 
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthNames = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
     const periodText = `${monthNames[filterMonth - 1]} ${filterYear}`;
 
-    if (!confirm(`Send payslip notifications to ALL employees for ${periodText}?`)) {
+    // Get unique employee IDs from FILTERED payslips
+    const uniqueEmployeeIds = [
+      ...new Set(filteredPayslips.map((p) => p.employeeId)),
+    ];
+    const employeeCount = uniqueEmployeeIds.length;
+
+    // Get employee names for confirmation
+    const employeeNames = filteredPayslips.reduce((acc, p) => {
+      if (!acc.has(p.employeeId)) {
+        acc.set(p.employeeId, p.employee.name);
+      }
+      return acc;
+    }, new Map());
+
+    const nameList = Array.from(employeeNames.values()).join("\n- ");
+
+    // Better confirmation with employee list
+    const confirmed = confirm(
+      `Send payslip notifications to ${employeeCount} employee${employeeCount !== 1 ? "s" : ""} for ${periodText}?\n\n` +
+        `This will send emails to:\n- ${nameList.substring(0, 200)}${nameList.length > 200 ? "..." : ""}\n\n` +
+        `Click OK to send, Cancel to abort.`,
+    );
+
+    if (!confirmed) {
       return;
     }
 
     try {
       setLoading(true);
-      const res = await apiClient.post('/payslips/notify-all', {
+
+      // Send employee IDs to backend
+      const res = await apiClient.post("/payslips/notify-all", {
         year: filterYear,
-        month: filterMonth
+        month: filterMonth,
+        employeeIds: uniqueEmployeeIds,
       });
 
-      const { notificationsSent, notificationsFailed } = res.data.data;
-      
-      let message = `Notifications sent!\n`;
-      message += `✅ ${notificationsSent} emails sent`;
+      const { uniqueEmployees, notificationsSent, notificationsFailed } =
+        res.data.data;
+
+      let message = `Notifications sent!\n\n`;
+      message += `Employees in filter: ${employeeCount}\n`;
+      message += `Unique employees notified: ${uniqueEmployees}\n`;
+      message += `Emails sent: ${notificationsSent}`;
       if (notificationsFailed > 0) {
-        message += `\n❌ ${notificationsFailed} failed`;
+        message += `\n❌ Failed: ${notificationsFailed}`;
       }
 
       alert(message);
     } catch (error) {
-      console.error('Blast notification error:', error);
-      alert(error.response?.data?.error || 'Failed to send notifications');
+      console.error("Blast notification error:", error);
+      alert(error.response?.data?.error || "Failed to send notifications");
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (payslipId, employeeName) => {
-    if (!confirm(`Are you sure you want to delete this payslip for ${employeeName}?`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete this payslip for ${employeeName}?`,
+      )
+    ) {
       return;
     }
 
     try {
       await apiClient.delete(`/payslips/${payslipId}`);
-      alert('Payslip deleted successfully');
+      alert("Payslip deleted successfully");
       fetchData();
     } catch (error) {
-      console.error('Delete error:', error);
-      alert(error.response?.data?.error || 'Failed to delete payslip');
+      console.error("Delete error:", error);
+      alert(error.response?.data?.error || "Failed to delete payslip");
     }
   };
 
   const handleDownload = async (payslipId, fileName) => {
     try {
       const response = await apiClient.get(`/payslips/${payslipId}/download`, {
-        responseType: 'blob'
+        responseType: "blob",
       });
-      
+
       const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      link.setAttribute('download', fileName);
+      link.setAttribute("download", fileName);
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Download error:', error);
-      alert('Failed to download payslip');
+      console.error("Download error:", error);
+      alert("Failed to download payslip");
     }
   };
 
   // Filter payslips
-  const filteredPayslips = payslips.filter(p => {
+  const filteredPayslips = payslips.filter((p) => {
     const matchesYear = !filterYear || p.year === parseInt(filterYear);
     const matchesMonth = !filterMonth || p.month === parseInt(filterMonth);
     const matchesEmployee = !filterEmployee || p.employeeId === filterEmployee;
-    const matchesDivision = !filterDivision || p.employee?.division?.id === filterDivision;
-    const matchesSearch = !searchTerm || 
+    const matchesDivision =
+      !filterDivision || p.employee?.division?.id === filterDivision;
+    const matchesSearch =
+      !searchTerm ||
       p.employee?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.employee?.nip?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.employee?.email.toLowerCase().includes(searchTerm.toLowerCase());
 
-    return matchesYear && matchesMonth && matchesEmployee && matchesDivision && matchesSearch;
+    return (
+      matchesYear &&
+      matchesMonth &&
+      matchesEmployee &&
+      matchesDivision &&
+      matchesSearch
+    );
   });
 
   // Generate year options (current year and 2 years back/forward)
@@ -334,48 +394,51 @@ export default function PayslipManagement() {
 
   // Format currency
   const formatCurrency = (amount) => {
-    if (!amount) return '-';
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
+    if (!amount) return "-";
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
   // Truncate filename
   const truncateFilename = (filename, maxLength = 30) => {
-    if (!filename) return '-';
+    if (!filename) return "-";
     if (filename.length <= maxLength) return filename;
-    
-    const extension = filename.split('.').pop();
-    const nameWithoutExt = filename.substring(0, filename.lastIndexOf('.'));
-    const truncatedName = nameWithoutExt.substring(0, maxLength - extension.length - 4);
-    
+
+    const extension = filename.split(".").pop();
+    const nameWithoutExt = filename.substring(0, filename.lastIndexOf("."));
+    const truncatedName = nameWithoutExt.substring(
+      0,
+      maxLength - extension.length - 4,
+    );
+
     return `${truncatedName}...${extension}`;
   };
 
   // Prepare employee options for react-select
-  const employeeOptions = users.map(user => ({
+  const employeeOptions = users.map((user) => ({
     value: user.id,
-    label: `${user.name}${user.nip ? ` (${user.nip})` : ''}`,
-    employee: user
+    label: `${user.name}${user.nip ? ` (${user.nip})` : ""}`,
+    employee: user,
   }));
 
   // Custom styles for react-select to match your design
   const selectStyles = {
     control: (base) => ({
       ...base,
-      minHeight: '42px',
-      borderColor: '#d1d5db',
-      '&:hover': {
-        borderColor: '#9ca3af'
-      }
+      minHeight: "42px",
+      borderColor: "#d1d5db",
+      "&:hover": {
+        borderColor: "#9ca3af",
+      },
     }),
     menu: (base) => ({
       ...base,
-      zIndex: 9999
-    })
+      zIndex: 9999,
+    }),
   };
 
   if (loading) {
@@ -396,8 +459,18 @@ export default function PayslipManagement() {
             onClick={() => setShowBatchModal(true)}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center space-x-2"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+              />
             </svg>
             <span>Batch Upload</span>
           </button>
@@ -406,9 +479,18 @@ export default function PayslipManagement() {
             onClick={() => setShowExcelModal(true)}
             className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 flex items-center gap-2"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
             </svg>
             Generate from Excel
           </button>
@@ -418,26 +500,38 @@ export default function PayslipManagement() {
             onClick={() => setShowUploadModal(true)}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
             </svg>
             <span>Upload Payslip</span>
           </button>
         </div>
       </div>
       {filterYear && filterMonth && (
-      <PayslipDashboardWidget 
-        year={filterYear} 
-        month={filterMonth}
-        onRefresh={refreshTrigger}  // Widget refreshes when this changes
-      />
+        <PayslipDashboardWidget
+          year={filterYear}
+          month={filterMonth}
+          onRefresh={refreshTrigger} // Widget refreshes when this changes
+        />
       )}
       {/* Filters */}
       <div className="mb-6 bg-white rounded-lg shadow p-4">
         <div className="grid grid-cols-5 gap-4">
           {/* Search */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Search
+            </label>
             <input
               type="text"
               value={searchTerm}
@@ -449,22 +543,28 @@ export default function PayslipManagement() {
 
           {/* Year */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Year
+            </label>
             <select
               value={filterYear}
               onChange={(e) => setFilterYear(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Years</option>
-              {yearOptions.map(year => (
-                <option key={year} value={year}>{year}</option>
+              {yearOptions.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
               ))}
             </select>
           </div>
 
           {/* Month */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Month</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Month
+            </label>
             <select
               value={filterMonth}
               onChange={(e) => setFilterMonth(e.target.value)}
@@ -473,7 +573,9 @@ export default function PayslipManagement() {
               <option value="">All Months</option>
               {[...Array(12)].map((_, i) => (
                 <option key={i + 1} value={i + 1}>
-                  {new Date(2024, i).toLocaleDateString('en-US', { month: 'long' })}
+                  {new Date(2024, i).toLocaleDateString("en-US", {
+                    month: "long",
+                  })}
                 </option>
               ))}
             </select>
@@ -481,30 +583,38 @@ export default function PayslipManagement() {
 
           {/* Employee */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Employee</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Employee
+            </label>
             <select
               value={filterEmployee}
               onChange={(e) => setFilterEmployee(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Employees</option>
-              {users.map(u => (
-                <option key={u.id} value={u.id}>{u.name}</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
               ))}
             </select>
           </div>
 
           {/* Division */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Division</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Division
+            </label>
             <select
               value={filterDivision}
               onChange={(e) => setFilterDivision(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Divisions</option>
-              {divisions.map(d => (
-                <option key={d.id} value={d.id}>{d.name}</option>
+              {divisions.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
               ))}
             </select>
           </div>
@@ -516,13 +626,28 @@ export default function PayslipManagement() {
               onClick={handleBlastNotification}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center space-x-2"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                />
               </svg>
-              <span>Send Notifications to All ({filteredPayslips.length} employees)</span>
+              <span>
+                Send Notifications to All (
+                {new Set(filteredPayslips.map((p) => p.employeeId)).size}{" "}
+                employees)
+              </span>
             </button>
             <p className="text-sm text-gray-500 mt-2">
-              Send email notifications to all employees with payslips for {filterMonth}/{filterYear}
+              Send email notifications to all employees with payslips for{" "}
+              {filterMonth}/{filterYear}
             </p>
           </div>
         )}
@@ -531,10 +656,10 @@ export default function PayslipManagement() {
           <button
             onClick={() => {
               setFilterYear(new Date().getFullYear());
-              setFilterMonth('');
-              setFilterEmployee('');
-              setFilterDivision('');
-              setSearchTerm('');
+              setFilterMonth("");
+              setFilterEmployee("");
+              setFilterDivision("");
+              setSearchTerm("");
             }}
             className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
           >
@@ -547,18 +672,20 @@ export default function PayslipManagement() {
       <div className="mb-6 grid grid-cols-3 gap-4">
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-600">Total Payslips</p>
-          <p className="text-2xl font-bold text-gray-900">{filteredPayslips.length}</p>
+          <p className="text-2xl font-bold text-gray-900">
+            {filteredPayslips.length}
+          </p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-600">Unique Employees</p>
           <p className="text-2xl font-bold text-blue-600">
-            {new Set(filteredPayslips.map(p => p.employeeId)).size}
+            {new Set(filteredPayslips.map((p) => p.employeeId)).size}
           </p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-600">Current Year</p>
           <p className="text-2xl font-bold text-green-600">
-            {filteredPayslips.filter(p => p.year === currentYear).length}
+            {filteredPayslips.filter((p) => p.year === currentYear).length}
           </p>
         </div>
       </div>
@@ -569,41 +696,63 @@ export default function PayslipManagement() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Division</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">File</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Uploaded</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Employee
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Division
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Period
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  File
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Uploaded
+                </th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredPayslips.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
+                  <td
+                    colSpan="6"
+                    className="px-6 py-12 text-center text-gray-500"
+                  >
                     No payslips found
                   </td>
                 </tr>
               ) : (
-                filteredPayslips.map(p => (
+                filteredPayslips.map((p) => (
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div>
-                        <div className="font-medium text-gray-900">{p.employee?.name}</div>
+                        <div className="font-medium text-gray-900">
+                          {p.employee?.name}
+                        </div>
                         <div className="text-sm text-gray-500">
                           {p.employee?.nip && `NIP: ${p.employee.nip}`}
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{p.employee?.division?.name || '-'}</div>
+                      <div className="text-sm text-gray-900">
+                        {p.employee?.division?.name || "-"}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {new Date(p.year, p.month - 1).toLocaleDateString('en-US', { 
-                          year: 'numeric', 
-                          month: 'long' 
-                        })}
+                        {new Date(p.year, p.month - 1).toLocaleDateString(
+                          "en-US",
+                          {
+                            year: "numeric",
+                            month: "long",
+                          },
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -630,13 +779,25 @@ export default function PayslipManagement() {
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Download"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
                           </svg>
                         </button>
 
                         <button
-                          onClick={() => handleResendNotification(p.id, p.employee?.name)}
+                          onClick={() =>
+                            handleResendNotification(p.id, p.employee?.name)
+                          }
                           className="text-green-600 hover:text-green-900"
                           title="Resend notification email"
                         >
@@ -649,8 +810,18 @@ export default function PayslipManagement() {
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Delete"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
                           </svg>
                         </button>
                       </div>
@@ -666,14 +837,27 @@ export default function PayslipManagement() {
       {/* Encryption Info Banner */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
         <div className="flex items-start gap-2">
-          <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          <svg
+            className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+            />
           </svg>
           <div className="flex-1">
-            <p className="text-sm font-medium text-blue-800">🔒 Payslip Terenkripsi</p>
+            <p className="text-sm font-medium text-blue-800">
+              🔒 Payslip Terenkripsi
+            </p>
             <p className="text-xs text-blue-700 mt-1">
-              File PDF akan dienkripsi dengan password tanggal lahir karyawan (format: DDMMYYYY). 
-              Pastikan karyawan sudah memiliki tanggal lahir di sistem.
+              File PDF akan dienkripsi dengan password tanggal lahir karyawan
+              (format: DDMMYYYY). Pastikan karyawan sudah memiliki tanggal lahir
+              di sistem.
             </p>
           </div>
         </div>
@@ -684,27 +868,44 @@ export default function PayslipManagement() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <div className="flex justify-between items-start mb-4">
-              <h2 className="text-xl font-bold text-gray-900">Upload Payslip</h2>
+              <h2 className="text-xl font-bold text-gray-900">
+                Upload Payslip
+              </h2>
               <button
                 onClick={() => {
                   setShowUploadModal(false);
                   setSelectedEmployee(null);
-                  {selectedEmployee && !users.find(u => u.id === selectedEmployee.value)?.dateOfBirth && (
-                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
-                      ⚠️ Karyawan ini belum memiliki tanggal lahir. Upload tidak dapat dilanjutkan.
-                    </div>
-                  )}
+                  {
+                    selectedEmployee &&
+                      !users.find((u) => u.id === selectedEmployee.value)
+                        ?.dateOfBirth && (
+                        <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                          ⚠️ Karyawan ini belum memiliki tanggal lahir. Upload
+                          tidak dapat dilanjutkan.
+                        </div>
+                      );
+                  }
                   setUploadData({
-                    employeeId: '',
+                    employeeId: "",
                     year: new Date().getFullYear(),
                     month: new Date().getMonth() + 1,
-                    file: null
+                    file: null,
                   });
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -719,7 +920,10 @@ export default function PayslipManagement() {
                   value={selectedEmployee}
                   onChange={(option) => {
                     setSelectedEmployee(option);
-                    setUploadData({...uploadData, employeeId: option?.value || ''});
+                    setUploadData({
+                      ...uploadData,
+                      employeeId: option?.value || "",
+                    });
                   }}
                   options={employeeOptions}
                   styles={selectStyles}
@@ -744,11 +948,18 @@ export default function PayslipManagement() {
                   <select
                     required
                     value={uploadData.year}
-                    onChange={(e) => setUploadData({...uploadData, year: parseInt(e.target.value)})}
+                    onChange={(e) =>
+                      setUploadData({
+                        ...uploadData,
+                        year: parseInt(e.target.value),
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
-                    {yearOptions.map(year => (
-                      <option key={year} value={year}>{year}</option>
+                    {yearOptions.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -759,12 +970,19 @@ export default function PayslipManagement() {
                   <select
                     required
                     value={uploadData.month}
-                    onChange={(e) => setUploadData({...uploadData, month: parseInt(e.target.value)})}
+                    onChange={(e) =>
+                      setUploadData({
+                        ...uploadData,
+                        month: parseInt(e.target.value),
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
                     {[...Array(12)].map((_, i) => (
                       <option key={i + 1} value={i + 1}>
-                        {new Date(2024, i).toLocaleDateString('en-US', { month: 'long' })}
+                        {new Date(2024, i).toLocaleDateString("en-US", {
+                          month: "long",
+                        })}
                       </option>
                     ))}
                   </select>
@@ -780,7 +998,9 @@ export default function PayslipManagement() {
                   type="file"
                   accept=".pdf"
                   required
-                  onChange={(e) => setUploadData({...uploadData, file: e.target.files[0]})}
+                  onChange={(e) =>
+                    setUploadData({ ...uploadData, file: e.target.files[0] })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
                 <p className="text-xs text-gray-500 mt-1">
@@ -791,7 +1011,8 @@ export default function PayslipManagement() {
               {/* Info Box */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-sm text-blue-800">
-                  📋 The system will check if a payslip already exists for this employee and period before uploading.
+                  📋 The system will check if a payslip already exists for this
+                  employee and period before uploading.
                 </p>
               </div>
 
@@ -800,13 +1021,18 @@ export default function PayslipManagement() {
                   type="checkbox"
                   id="sendNotification"
                   checked={uploadData.sendNotification}
-                  onChange={(e) => setUploadData({
-                    ...uploadData,
-                    sendNotification: e.target.checked
-                  })}
+                  onChange={(e) =>
+                    setUploadData({
+                      ...uploadData,
+                      sendNotification: e.target.checked,
+                    })
+                  }
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
-                <label htmlFor="sendNotification" className="ml-2 block text-sm text-gray-900">
+                <label
+                  htmlFor="sendNotification"
+                  className="ml-2 block text-sm text-gray-900"
+                >
                   Send email notification to employee
                 </label>
               </div>
@@ -819,10 +1045,10 @@ export default function PayslipManagement() {
                     setShowUploadModal(false);
                     setSelectedEmployee(null);
                     setUploadData({
-                      employeeId: '',
+                      employeeId: "",
                       year: new Date().getFullYear(),
                       month: new Date().getMonth() + 1,
-                      file: null
+                      file: null,
                     });
                   }}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
@@ -847,8 +1073,18 @@ export default function PayslipManagement() {
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <div className="flex items-start gap-3 mb-4">
               <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
                 </svg>
               </div>
               <div className="flex-1">
@@ -856,16 +1092,20 @@ export default function PayslipManagement() {
                   Tanggal Lahir Diperlukan
                 </h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  Karyawan <strong>{birthDateWarning.employeeName}</strong> belum memiliki tanggal lahir di sistem.
+                  Karyawan <strong>{birthDateWarning.employeeName}</strong>{" "}
+                  belum memiliki tanggal lahir di sistem.
                 </p>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                   <p className="text-sm text-blue-800">
-                    <strong>ℹ️ Kenapa perlu tanggal lahir?</strong><br />
-                    Payslip dienkripsi dengan password tanggal lahir karyawan (format: DDMMYYYY) untuk keamanan data.
+                    <strong>ℹ️ Kenapa perlu tanggal lahir?</strong>
+                    <br />
+                    Payslip dienkripsi dengan password tanggal lahir karyawan
+                    (format: DDMMYYYY) untuk keamanan data.
                   </p>
                 </div>
                 <p className="text-sm text-gray-600 mb-4">
-                  Mohon update data karyawan terlebih dahulu sebelum upload payslip.
+                  Mohon update data karyawan terlebih dahulu sebelum upload
+                  payslip.
                 </p>
                 <div className="flex gap-3">
                   <button
@@ -896,7 +1136,7 @@ export default function PayslipManagement() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">Batch Upload Payslips</h2>
-            
+
             <form onSubmit={handleBatchUpload}>
               {/* Year */}
               <div className="mb-4">
@@ -905,15 +1145,19 @@ export default function PayslipManagement() {
                 </label>
                 <select
                   value={batchUploadData.year}
-                  onChange={(e) => setBatchUploadData({
-                    ...batchUploadData,
-                    year: parseInt(e.target.value)
-                  })}
+                  onChange={(e) =>
+                    setBatchUploadData({
+                      ...batchUploadData,
+                      year: parseInt(e.target.value),
+                    })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   required
                 >
-                  {yearOptions.map(year => (
-                    <option key={year} value={year}>{year}</option>
+                  {yearOptions.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -925,19 +1169,33 @@ export default function PayslipManagement() {
                 </label>
                 <select
                   value={batchUploadData.month}
-                  onChange={(e) => setBatchUploadData({
-                    ...batchUploadData,
-                    month: parseInt(e.target.value)
-                  })}
+                  onChange={(e) =>
+                    setBatchUploadData({
+                      ...batchUploadData,
+                      month: parseInt(e.target.value),
+                    })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   required
                 >
-                  {['January', 'February', 'March', 'April', 'May', 'June',
-                    'July', 'August', 'September', 'October', 'November', 'December']
-                    .map((month, idx) => (
-                      <option key={idx + 1} value={idx + 1}>{month}</option>
-                    ))
-                  }
+                  {[
+                    "January",
+                    "February",
+                    "March",
+                    "April",
+                    "May",
+                    "June",
+                    "July",
+                    "August",
+                    "September",
+                    "October",
+                    "November",
+                    "December",
+                  ].map((month, idx) => (
+                    <option key={idx + 1} value={idx + 1}>
+                      {month}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -950,10 +1208,12 @@ export default function PayslipManagement() {
                   type="file"
                   accept="application/pdf"
                   multiple
-                  onChange={(e) => setBatchUploadData({
-                    ...batchUploadData,
-                    files: Array.from(e.target.files)
-                  })}
+                  onChange={(e) =>
+                    setBatchUploadData({
+                      ...batchUploadData,
+                      files: Array.from(e.target.files),
+                    })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   required
                 />
@@ -973,13 +1233,18 @@ export default function PayslipManagement() {
                   type="checkbox"
                   id="batchSendNotifications"
                   checked={batchUploadData.sendNotifications}
-                  onChange={(e) => setBatchUploadData({
-                    ...batchUploadData,
-                    sendNotifications: e.target.checked
-                  })}
+                  onChange={(e) =>
+                    setBatchUploadData({
+                      ...batchUploadData,
+                      sendNotifications: e.target.checked,
+                    })
+                  }
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
-                <label htmlFor="batchSendNotifications" className="ml-2 block text-sm text-gray-900">
+                <label
+                  htmlFor="batchSendNotifications"
+                  className="ml-2 block text-sm text-gray-900"
+                >
                   Send email notifications to all employees
                 </label>
               </div>
@@ -994,7 +1259,7 @@ export default function PayslipManagement() {
                       year: new Date().getFullYear(),
                       month: new Date().getMonth() + 1,
                       files: [],
-                      sendNotifications: true
+                      sendNotifications: true,
                     });
                   }}
                   className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
@@ -1021,8 +1286,18 @@ export default function PayslipManagement() {
               {/* Warning Icon */}
               <div className="flex-shrink-0">
                 <div className="flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100">
-                  <svg className="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  <svg
+                    className="h-6 w-6 text-yellow-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
                   </svg>
                 </div>
               </div>
@@ -1032,36 +1307,50 @@ export default function PayslipManagement() {
                   Payslip Already Exists
                 </h3>
                 <p className="mt-2 text-sm text-gray-600">
-                  A payslip for this employee and period has already been uploaded. Continuing will replace the existing file.
+                  A payslip for this employee and period has already been
+                  uploaded. Continuing will replace the existing file.
                 </p>
 
                 {/* Existing Payslip Details */}
                 <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Existing Payslip Details:</h4>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                    Existing Payslip Details:
+                  </h4>
                   <dl className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <dt className="text-gray-600">Employee:</dt>
-                      <dd className="font-medium text-gray-900">{existingPayslip.employee?.name}</dd>
+                      <dd className="font-medium text-gray-900">
+                        {existingPayslip.employee?.name}
+                      </dd>
                     </div>
                     <div className="flex justify-between">
                       <dt className="text-gray-600">Period:</dt>
                       <dd className="font-medium text-gray-900">
-                        {new Date(existingPayslip.year, existingPayslip.month - 1).toLocaleDateString('en-US', { 
-                          year: 'numeric', 
-                          month: 'long' 
+                        {new Date(
+                          existingPayslip.year,
+                          existingPayslip.month - 1,
+                        ).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "long",
                         })}
                       </dd>
                     </div>
                     <div className="flex justify-between">
                       <dt className="text-gray-600">Current File:</dt>
-                      <dd className="font-medium text-gray-900 truncate max-w-xs" title={existingPayslip.fileName}>
+                      <dd
+                        className="font-medium text-gray-900 truncate max-w-xs"
+                        title={existingPayslip.fileName}
+                      >
                         {truncateFilename(existingPayslip.fileName, 25)}
                       </dd>
                     </div>
                     <div className="flex justify-between">
                       <dt className="text-gray-600">Uploaded:</dt>
                       <dd className="font-medium text-gray-900">
-                        {new Date(existingPayslip.uploadedAt).toLocaleDateString()} by {existingPayslip.uploadedBy?.name}
+                        {new Date(
+                          existingPayslip.uploadedAt,
+                        ).toLocaleDateString()}{" "}
+                        by {existingPayslip.uploadedBy?.name}
                       </dd>
                     </div>
                     <div className="flex justify-between">
@@ -1075,8 +1364,12 @@ export default function PayslipManagement() {
 
                 {/* New File Info */}
                 <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h4 className="text-sm font-semibold text-blue-700 mb-2">New File to Upload:</h4>
-                  <p className="text-sm text-blue-900 font-medium">{uploadData.file?.name}</p>
+                  <h4 className="text-sm font-semibold text-blue-700 mb-2">
+                    New File to Upload:
+                  </h4>
+                  <p className="text-sm text-blue-900 font-medium">
+                    {uploadData.file?.name}
+                  </p>
                   <p className="text-xs text-blue-700 mt-1">
                     Size: {(uploadData.file?.size / 1024).toFixed(1)} KB
                   </p>
@@ -1085,11 +1378,22 @@ export default function PayslipManagement() {
                 {/* Warning Message */}
                 <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
                   <div className="flex items-start">
-                    <svg className="h-5 w-5 text-red-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    <svg
+                      className="h-5 w-5 text-red-600 mt-0.5 mr-2 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                      />
                     </svg>
                     <p className="text-sm text-red-800">
-                      <strong>Warning:</strong> The old file will be permanently deleted and cannot be recovered.
+                      <strong>Warning:</strong> The old file will be permanently
+                      deleted and cannot be recovered.
                     </p>
                   </div>
                 </div>
@@ -1124,33 +1428,38 @@ export default function PayslipManagement() {
         onClose={() => setShowExcelModal(false)}
         onSuccess={fetchData}
       />
-
+      <LoadingModal
+        isOpen={loadingModal.isOpen}
+        message={loadingModal.message}
+        progress={loadingModal.progress}
+      />
       {loading && (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
-        <div className="bg-white rounded-lg p-8 max-w-sm w-full mx-4 text-center">
-          <div className="relative mx-auto w-16 h-16 mb-4">
-            <div className="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
-            <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
+          <div className="bg-white rounded-lg p-8 max-w-sm w-full mx-4 text-center">
+            <div className="relative mx-auto w-16 h-16 mb-4">
+              <div className="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+            </div>
+
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              🔒 Mengenkripsi Payslip
+            </h3>
+
+            <p className="text-sm text-gray-600 mb-3">
+              Sedang mengenkripsi file PDF...
+            </p>
+
+            <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-blue-600 h-full rounded-full animate-pulse"
+                style={{ width: "70%" }}
+              ></div>
+            </div>
+
+            <p className="text-xs text-gray-500 mt-3">Proses ini 3-5 detik</p>
           </div>
-          
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            🔒 Mengenkripsi Payslip
-          </h3>
-          
-          <p className="text-sm text-gray-600 mb-3">
-            Sedang mengenkripsi file PDF...
-          </p>
-          
-          <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
-            <div className="bg-blue-600 h-full rounded-full animate-pulse" style={{width: '70%'}}></div>
-          </div>
-          
-          <p className="text-xs text-gray-500 mt-3">
-            Proses ini 3-5 detik
-          </p>
         </div>
-      </div>
-    )}
+      )}
     </div>
   );
 }
