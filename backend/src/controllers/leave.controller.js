@@ -675,7 +675,7 @@ export const approveLeaveRequest = async (req, res) => {
       return res.status(404).json({ error: "Leave request not found" });
     }
 
-    if (accessLevel === 2) {
+    if (req.user.accessLevel === 2) {
       const employeeEntityId = leaveRequest.employee.plottingCompanyId;
 
       if (!employeeEntityId || !scopeEntityIds?.includes(employeeEntityId)) {
@@ -845,7 +845,7 @@ export const rejectLeaveRequest = async (req, res) => {
       return res.status(404).json({ error: "Leave request not found" });
     }
 
-    if (accessLevel === 2) {
+    if (req.user.accessLevel === 2) {
       const employeeEntityId = leaveRequest.employee.plottingCompanyId;
 
       if (!employeeEntityId || !scopeEntityIds?.includes(employeeEntityId)) {
