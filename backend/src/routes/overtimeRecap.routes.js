@@ -63,6 +63,13 @@ router.get(
   overtimeRecapController.getFailedRecaps,
 );
 
+router.post(
+  "/late-addition",
+  authenticate,
+  requireRole([1, 2]),
+  overtimeRecapController.addLateOvertime,
+);
+
 // Manual date adjustment
 router.patch(
   "/adjust-date",

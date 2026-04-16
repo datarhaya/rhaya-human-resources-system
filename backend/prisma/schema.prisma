@@ -53,6 +53,7 @@ model User {
   offboardingsSupervisor                                Offboarding[]          @relation("OffboardingSupervisor")
   overtimeBalance                                       OvertimeBalance?
   overtimeRecaps                                        OvertimeRecap[]
+  originalRecaps                                        OvertimeRecap[]        @relation("OriginalRecapper")
   recapsMade                                            OvertimeRecap[]        @relation("RecappedBy")
   overtimeApprovals                                     OvertimeRequest[]      @relation("CurrentApprover")
   divisionHeadOvertimes                                 OvertimeRequest[]      @relation("OvertimeDivisionHead")
@@ -257,30 +258,38 @@ model OvertimeRevision {
 }
 
 model OvertimeRecap {
-  id               String            @id @default(cuid())
-  employeeId       String
-  month            Int
-  year             Int
-  totalHours       Float
-  paidHours        Float
-  excessHours      Float
-  carryoverHours   Float             @default(0)
-  totalToilHours   Float
-  toilDaysCreated  Int               @default(0)
-  remainingHours   Float             @default(0)
-  recappedById     String
-  recappedAt       DateTime          @default(now())
-  notes            String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  fromDate         DateTime
-  toDate           DateTime
-  recapStatus      String            @default("success")
-  failureReason    String?
-  employee         User              @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  recappedBy       User              @relation("RecappedBy", fields: [recappedById], references: [id])
-  overtimeRequests OvertimeRequest[]
-  toilEntries      TimeOffInLieu[]
+  id                 String            @id @default(cuid())
+  employeeId         String
+  month              Int
+  year               Int
+  totalHours         Float
+  paidHours          Float
+  excessHours        Float
+  carryoverHours     Float             @default(0)
+  totalToilHours     Float
+  toilDaysCreated    Int               @default(0)
+  remainingHours     Float             @default(0)
+  recappedById       String
+  recappedAt         DateTime          @default(now())
+  notes              String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  fromDate           DateTime
+  toDate             DateTime
+  recapStatus        String            @default("success")
+  failureReason      String?
+  lastLateAdditionAt DateTime?
+  lateAdditionCount  Int               @default(0)
+  lateAdditionHours  Float             @default(0)
+  originalPaidHours  Float?
+  originalRecappedAt DateTime?
+  originalRecappedBy String?
+  originalTotalHours Float?
+  employee           User              @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  originalRecapper   User?             @relation("OriginalRecapper", fields: [originalRecappedBy], references: [id])
+  recappedBy         User              @relation("RecappedBy", fields: [recappedById], references: [id])
+  overtimeRequests   OvertimeRequest[]
+  toilEntries        TimeOffInLieu[]
 
   @@unique([employeeId, year, month])
   @@index([employeeId])
