@@ -7,34 +7,52 @@
  * @param {Object} additionalWhere - Additional where conditions
  * @returns {Object} - Where clause with scope applied
  */
-export const applyScopeFilter = (user, additionalWhere = {}) => {
-  const { accessLevel, scopeEntityIds } = user;
+/**
+ * Apply scope filter for Level 2 admins
+ * Supports BOTH individual entities AND groups
+ */
+export function applyScopeFilter(where, user) {
+  const { accessLevel, scopeEntityIds, scopeGroupIds } = user;
 
-  // Level 1 (MASTER) → No filter
-  if (accessLevel === 1) {
-    return additionalWhere;
+  if (accessLevel !== 2) {
+    return where; // Level 1 sees all, Level 3+ sees own
   }
 
-  // Level 2 (SUB_ACCESS) → Filter by scopeEntityIds
-  if (accessLevel === 2) {
-    if (!scopeEntityIds || scopeEntityIds.length === 0) {
-      // No entities assigned → Return filter that matches nothing
-      console.warn(`[SCOPE] Level 2 user ${user.id} has no scopeEntityIds`);
-      return {
-        ...additionalWhere,
-        plottingCompanyId: { in: [] }, // Matches nothing
-      };
-    }
+  const hasEntityScope = scopeEntityIds && scopeEntityIds.length > 0;
+  const hasGroupScope = scopeGroupIds && scopeGroupIds.length > 0;
 
-    return {
-      ...additionalWhere,
+  if (!hasEntityScope && !hasGroupScope) {
+    // No scope = no access
+    where.id = "impossible-id"; // Returns nothing
+    return where;
+  }
+
+  // Build OR condition for entities OR groups
+  const scopeConditions = [];
+
+  if (hasEntityScope) {
+    scopeConditions.push({
       plottingCompanyId: { in: scopeEntityIds },
-    };
+    });
   }
 
-  // Level 3+ (EMPLOYEES) → No scope filter at this level
-  return additionalWhere;
-};
+  if (hasGroupScope) {
+    scopeConditions.push({
+      plottingCompany: {
+        groupId: { in: scopeGroupIds },
+      },
+    });
+  }
+
+  // Combine with OR
+  if (scopeConditions.length > 1) {
+    where.OR = scopeConditions;
+  } else {
+    Object.assign(where, scopeConditions[0]);
+  }
+
+  return where;
+}
 
 /**
  * Build scope filter for queries on related models (via join)
@@ -113,27 +131,40 @@ export const hasAccessToEntity = (user, plottingCompanyId) => {
  * @param {String} action - Action being performed (for error message)
  * @throws {Error} - If user doesn't have access
  */
-export const validateScopeAccess = (
-  user,
-  plottingCompanyId,
-  action = "perform this action",
-) => {
-  if (!hasAccessToEntity(user, plottingCompanyId)) {
-    const error = new Error(
-      `Access denied: You cannot ${action} for this entity`,
-    );
-    error.statusCode = 403;
+/**
+ * Check if user has access to specific entity
+ * Checks BOTH direct entity access AND group access
+ */
+export async function validateScopeAccess(entityId, user) {
+  const { accessLevel, scopeEntityIds, scopeGroupIds } = user;
 
-    console.warn(
-      `[SCOPE] Access denied: User ${user.id} (Level ${user.accessLevel}) tried to ${action} for entity ${plottingCompanyId}`,
-    );
-    console.warn(
-      `[SCOPE] User's scopeEntityIds: ${JSON.stringify(user.scopeEntityIds || [])}`,
-    );
-
-    throw error;
+  if (accessLevel === 1) {
+    return true; // Level 1 has full access
   }
-};
+
+  if (accessLevel !== 2) {
+    return false; // Level 3+ should not use this function
+  }
+
+  // Check direct entity access
+  if (scopeEntityIds?.includes(entityId)) {
+    return true;
+  }
+
+  // Check group access
+  if (scopeGroupIds && scopeGroupIds.length > 0) {
+    const entity = await prisma.plottingCompany.findUnique({
+      where: { id: entityId },
+      select: { groupId: true },
+    });
+
+    if (entity?.groupId && scopeGroupIds.includes(entity.groupId)) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 /**
  * Get user's accessible entity IDs

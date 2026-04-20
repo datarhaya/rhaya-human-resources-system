@@ -42,6 +42,16 @@ export const getAllPlottingCompanies = async (req, res) => {
         _count: {
           select: { users: true },
         },
+        group: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            color: true,
+            description: true,
+            isActive: true,
+          },
+        },
       },
       orderBy: {
         code: "asc",
@@ -75,6 +85,7 @@ export const getPlottingCompanyById = async (req, res) => {
         _count: {
           select: { users: true },
         },
+        groupId: true,
       },
     });
 
@@ -180,7 +191,8 @@ export const createPlottingCompany = async (req, res) => {
 export const updatePlottingCompany = async (req, res) => {
   try {
     const { id } = req.params;
-    const { code, name, description } = req.body;
+    const { code, name, description, groupId } = req.body;
+    const userId = req.user.id;
 
     // Check if plotting company exists
     const existing = await prisma.plottingCompany.findUnique({
@@ -230,34 +242,38 @@ export const updatePlottingCompany = async (req, res) => {
       }
     }
 
-    const updatedPlottingCompany = await prisma.plottingCompany.update({
+    const updated = await prisma.plottingCompany.update({
       where: { id },
       data: {
         ...(code && { code: code.toUpperCase() }),
         ...(name && { name }),
         ...(description !== undefined && { description: description || null }),
+        ...(groupId !== undefined && { groupId: groupId || null }), // Update group
       },
     });
 
-    console.log(
-      `Updated plotting company: ${updatedPlottingCompany.code} - ${updatedPlottingCompany.name}`,
-    );
+    // Audit log if group changed
+    if (existing.groupId !== updated.groupId) {
+      await prisma.entityGroupAudit.create({
+        data: {
+          action: updated.groupId ? "entity_moved" : "entity_removed",
+          entityId: id,
+          oldGroupId: existing.groupId,
+          newGroupId: updated.groupId,
+          performedBy: userId,
+        },
+      });
+    }
+
+    console.log(`Updated plotting company: ${updated.code}`);
 
     return res.json({
       success: true,
       message: "Plotting company updated successfully",
-      data: updatedPlottingCompany,
+      data: updated,
     });
   } catch (error) {
     console.error("Update plotting company error:", error);
-
-    if (error.code === "P2002") {
-      const field = error.meta?.target?.[0] || "field";
-      return res.status(400).json({
-        error: `A plotting company with this ${field} already exists`,
-      });
-    }
-
     return res.status(500).json({
       error: "Failed to update plotting company",
       message: error.message,

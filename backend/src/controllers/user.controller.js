@@ -303,10 +303,12 @@ export const createUser = async (req, res) => {
       companyType,
       sendActivationEmail,
       scopeEntityIds,
+      scopeGroupIds,
     } = req.body;
 
     console.log("Creating user with accessLevel:", accessLevel);
     console.log("scopeEntityIds received:", scopeEntityIds);
+    console.log("scopeGroupIds received:", scopeGroupIds);
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -347,6 +349,10 @@ export const createUser = async (req, res) => {
             parseInt(accessLevel) === 2 && Array.isArray(scopeEntityIds)
               ? scopeEntityIds
               : [],
+          scopeGroupIds:
+            parseInt(accessLevel) === 2 && Array.isArray(scopeGroupIds)
+              ? scopeGroupIds
+              : [],
         },
         include: {
           role: true,
@@ -366,6 +372,9 @@ export const createUser = async (req, res) => {
       );
       console.log(
         `scopeEntityIds saved: ${JSON.stringify(newUser.scopeEntityIds)}`,
+      );
+      console.log(
+        `scopeGroupIds saved: ${JSON.stringify(newUser.scopeGroupIds)}`,
       );
 
       // 2. Create overtime balance
@@ -572,11 +581,13 @@ export const updateUser = async (req, res) => {
       contractStartDate,
       contractEndDate,
       scopeEntityIds,
+      scopeGroupIds,
     } = req.body;
 
     console.log("Updating user:", userId);
     console.log("New accessLevel:", accessLevel);
     console.log("New scopeEntityIds:", scopeEntityIds);
+    console.log("New scopeGroupIds:", scopeGroupIds);
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
@@ -666,14 +677,22 @@ export const updateUser = async (req, res) => {
         updateData.scopeEntityIds = Array.isArray(scopeEntityIds)
           ? scopeEntityIds
           : [];
+        updateData.scopeGroupIds = Array.isArray(scopeGroupIds)
+          ? scopeGroupIds
+          : [];
         console.log(
           "Setting scopeEntityIds for Level 2:",
           updateData.scopeEntityIds,
         );
+        console.log(
+          "Setting scopeGroupIds for Level 2:",
+          updateData.scopeGroupIds,
+        );
       } else {
         // Non-Level 2: Clear scope
         updateData.scopeEntityIds = [];
-        console.log("Clearing scopeEntityIds for Level", newAccessLevel);
+        updateData.scopeGroupIds = [];
+        console.log("Clearing scope for Level", newAccessLevel);
       }
     }
 
@@ -738,10 +757,11 @@ export const updateUser = async (req, res) => {
       });
 
       console.log(
-        `✅ Updated user: ${updatedUser.name} (Level ${updatedUser.accessLevel})`,
+        `Updated user: ${updatedUser.name} (Level ${updatedUser.accessLevel})`,
       );
-      console.log(`✅ scopeEntityIds:`, updatedUser.scopeEntityIds);
-      console.log(`✅ Ensured balances exist`);
+      console.log(`scopeEntityIds:`, updatedUser.scopeEntityIds);
+      console.log(`scopeGroupIds:`, updatedUser.scopeGroupIds);
+      console.log(`Ensured balances exist`);
 
       return updatedUser;
     });
@@ -783,7 +803,7 @@ export const getUserProfile = async (req, res) => {
         supervisor: { select: { id: true, name: true, email: true } },
         overtimeBalance: true,
         leaveBalances: {
-          // ✅ Changed to plural
+          // Changed to plural
           where: { year: new Date().getFullYear() },
           select: {
             year: true,
@@ -793,9 +813,9 @@ export const getUserProfile = async (req, res) => {
             sickLeaveUsed: true,
             menstrualLeaveUsed: true,
             unpaidLeaveUsed: true,
-            toilBalance: true, // ✅ Added TOIL
-            toilUsed: true, // ✅ Added TOIL
-            toilExpired: true, // ✅ Added TOIL
+            toilBalance: true, // Added TOIL
+            toilUsed: true, // Added TOIL
+            toilExpired: true, // Added TOIL
           },
           take: 1,
         },
@@ -812,7 +832,7 @@ export const getUserProfile = async (req, res) => {
       success: true,
       data: {
         ...userWithoutPassword,
-        leaveBalance: user.leaveBalances?.[0] || null, // ✅ Changed to plural with safe access
+        leaveBalance: user.leaveBalances?.[0] || null, // Changed to plural with safe access
         leaveBalances: undefined, // Remove array from response
       },
     });
@@ -964,7 +984,7 @@ export const deactivateUser = async (req, res) => {
     });
 
     console.log(
-      `✅ User deactivated: ${deactivatedUser.name} (${deactivatedUser.email})`,
+      `User deactivated: ${deactivatedUser.name} (${deactivatedUser.email})`,
     );
 
     return res.json({
@@ -1081,10 +1101,10 @@ export const permanentDeleteUser = async (req, res) => {
         where: { id: userId },
       });
 
-      console.log("✅ All related records deleted");
+      console.log("All related records deleted");
     });
 
-    console.log(`✅ User PERMANENTLY deleted: ${user.name} (${user.email})`);
+    console.log(`User PERMANENTLY deleted: ${user.name} (${user.email})`);
 
     return res.json({
       success: true,

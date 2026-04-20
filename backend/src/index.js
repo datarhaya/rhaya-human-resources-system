@@ -19,6 +19,7 @@ import plottingCompanyRoutes from "./routes/plottingCompany.routes.js";
 import documentRoutes from "./routes/document.routes.js";
 import internalRoutes from "./routes/internal.routes.js";
 import offboardingRoutes from "./routes/offboarding.routes.js";
+import entityGroupRoutes from "./routes/entityGroup.routes.js";
 
 // Import middleware
 import { authenticateToken } from "./middleware/auth.js";
@@ -157,6 +158,7 @@ app.use("/internal", internalRoutes);
 
 app.use("/api/offboarding", offboardingRoutes);
 
+app.use("/api/entity-groups", entityGroupRoutes);
 // ============================================
 // ERROR HANDLING
 // ============================================
