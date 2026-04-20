@@ -38,6 +38,7 @@ model User {
   nik                                                   String?                @unique
   npwp                                                  String?                @unique
   scopeEntityIds                                        String[]               @default([])
+  scopeGroupIds                                         String[]               @default([])
   adjustmentsMade                                       BalanceAdjustmentLog[] @relation("AdjustedBy")
   balanceAdjustments                                    BalanceAdjustmentLog[]
   EmployeeDocument_EmployeeDocument_uploadedByIdTousers EmployeeDocument[]     @relation("EmployeeDocument_uploadedByIdTousers")
@@ -67,6 +68,8 @@ model User {
   recapDateAdjustments                                  RecapDateAdjustment[]  @relation("RecapDateAdjustedBy")
   systemSettingsRecapped                                SystemSettings[]       @relation("SystemSettingsRecappedBy")
   toilEntries                                           TimeOffInLieu[]
+  entityGroupAudits                                     EntityGroupAudit[]
+  managedGroups                                         EntityGroup[]          @relation("GroupManager")
   division                                              Division               @relation(fields: [divisionId], references: [id])
   plottingCompany                                       PlottingCompany?       @relation(fields: [plottingCompanyId], references: [id])
   role                                                  Role                   @relation(fields: [roleId], references: [id])
@@ -84,6 +87,7 @@ model User {
   @@index([nik], map: "idx_users_nik")
   @@index([npwp], map: "idx_users_npwp")
   @@index([scopeEntityIds], map: "idx_users_scopeEntityIds", type: Gin)
+  @@index([scopeGroupIds], type: Gin)
   @@map("users")
 }
 
@@ -107,17 +111,57 @@ model Division {
 }
 
 model PlottingCompany {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  code        String?   @unique
+  id          String             @id @default(cuid())
+  name        String             @unique
+  code        String?            @unique
   description String?
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  groupId     String?
   payslips    Payslip[]
+  group       EntityGroup?       @relation(fields: [groupId], references: [id])
+  auditLogs   EntityGroupAudit[]
   users       User[]
 
   @@map("PlottingCompany")
+}
+
+model EntityGroup {
+  id          String             @id @default(cuid())
+  name        String             @unique
+  code        String?            @unique
+  description String?
+  color       String?            @default("#3B82F6")
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  managerId   String?
+  companies   PlottingCompany[]
+  auditLogs   EntityGroupAudit[]
+  manager     User?              @relation("GroupManager", fields: [managerId], references: [id])
+
+  @@map("entity_groups")
+}
+
+model EntityGroupAudit {
+  id          String           @id @default(cuid())
+  action      String
+  entityId    String?
+  groupId     String?
+  oldGroupId  String?
+  newGroupId  String?
+  changes     Json?
+  performedBy String
+  createdAt   DateTime         @default(now())
+  entity      PlottingCompany? @relation(fields: [entityId], references: [id])
+  group       EntityGroup?     @relation(fields: [groupId], references: [id])
+  user        User             @relation(fields: [performedBy], references: [id])
+
+  @@index([entityId])
+  @@index([groupId])
+  @@index([createdAt])
+  @@map("entity_group_audit")
 }
 
 model LeaveBalance {
