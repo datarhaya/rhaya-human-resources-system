@@ -5,6 +5,7 @@ import { useAuth } from "../hooks/useAuth";
 import apiClient from "../api/client";
 import Select from "react-select";
 import EntitySelector from "../components/EntitySelector";
+import EntityGroupSelector from "../components/EntityGroupSelector";
 
 export default function UserManagement() {
   const { user, loading } = useAuth();
@@ -85,6 +86,7 @@ export default function UserManagement() {
     overtimeRate: "300000",
     sendActivationEmail: false,
     scopeEntityIds: [],
+    scopeGroupIds: [],
   });
 
   // Balance adjustment state
@@ -101,6 +103,11 @@ export default function UserManagement() {
     toilDays: "",
     toilAction: "add", // 'add' or 'subtract'
     toilReason: "",
+  });
+
+  const [scopeData, setScopeData] = useState({
+    entities: [],
+    groups: [],
   });
 
   // Search state
@@ -439,6 +446,7 @@ export default function UserManagement() {
       overtimeRate: "300000",
       sendActivationEmail: false,
       scopeEntityIds: [],
+      scopeGroupIds: [],
     });
     setSelectedUser(null);
     setSelectedSupervisor(null);
@@ -553,7 +561,8 @@ export default function UserManagement() {
 
     if (
       formData.accessLevel === "2" &&
-      (!formData.scopeEntityIds || formData.scopeEntityIds.length === 0)
+      (!formData.scopeEntityIds || formData.scopeEntityIds.length === 0) &&
+      (!formData.scopeGroupIds || formData.scopeGroupIds.length === 0)
     ) {
       if (
         !confirm(
@@ -587,6 +596,8 @@ export default function UserManagement() {
         overtimeRate: parseFloat(formData.overtimeRate || 0),
         scopeEntityIds:
           formData.accessLevel === "2" ? formData.scopeEntityIds : [],
+        scopeGroupIds:
+          formData.accessLevel === "2" ? formData.scopeGroupIds : [],
         dateOfBirth: formData.dateOfBirth || null,
         joinDate: formData.joinDate || null,
         contractStartDate: formData.contractStartDate || null,
@@ -600,13 +611,16 @@ export default function UserManagement() {
 
       if (formData.accessLevel === "2") {
         dataToSubmit.scopeEntityIds = formData.scopeEntityIds || [];
+        dataToSubmit.scopeGroupIds = formData.scopeGroupIds || [];
       } else {
         // Clear scope for non-Level 2 users
         dataToSubmit.scopeEntityIds = [];
+        dataToSubmit.scopeGroupIds = [];
       }
 
       Object.keys(dataToSubmit).forEach((key) => {
         if (key === "scopeEntityIds") return;
+        if (key === "scopeEntityIds" || key === "scopeGroupIds") return;
         if (dataToSubmit[key] === "" || dataToSubmit[key] === null) {
           delete dataToSubmit[key];
         }
@@ -615,6 +629,7 @@ export default function UserManagement() {
       console.log("Submitting user data:", {
         accessLevel: dataToSubmit.accessLevel,
         scopeEntityIds: dataToSubmit.scopeEntityIds,
+        scopeGroupIds: dataToSubmit.scopeGroupIds,
         name: dataToSubmit.name,
       });
 
@@ -859,6 +874,7 @@ export default function UserManagement() {
       bpjsEmployment: user.bpjsEmployment || "",
       overtimeRate: user.overtimeRate?.toString() || "300000",
       scopeEntityIds: user.scopeEntityIds || [],
+      scopeGroupIds: user.scopeGroupIds || [],
     });
 
     // Set selected supervisor for react-select
@@ -1776,55 +1792,58 @@ export default function UserManagement() {
                             Entity Access Scope
                           </h4>
 
-                          {selectedUser.scopeEntityIds &&
-                          selectedUser.scopeEntityIds.length > 0 ? (
-                            <div className="space-y-2">
-                              <div className="text-sm text-gray-600 mb-2">
-                                This admin has access to{" "}
-                                <strong>
-                                  {selectedUser.scopeEntityIds.length}
-                                </strong>{" "}
-                                {selectedUser.scopeEntityIds.length === 1
-                                  ? "entity"
-                                  : "entities"}
-                                :
-                              </div>
-                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 max-h-40 overflow-y-auto">
-                                {plottingCompanies
-                                  .filter((pc) =>
-                                    selectedUser.scopeEntityIds.includes(pc.id),
-                                  )
-                                  .map((entity) => (
-                                    <div
-                                      key={entity.id}
-                                      className="flex items-center py-1.5 px-2 hover:bg-blue-100 rounded"
-                                    >
-                                      <svg
-                                        className="w-4 h-4 text-blue-600 mr-2 flex-shrink-0"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                                        />
-                                      </svg>
-                                      <div className="flex-1 min-w-0">
-                                        <div className="text-sm font-medium text-gray-900 truncate">
-                                          {entity.name}
-                                        </div>
-                                        {entity.code && (
-                                          <div className="text-xs text-gray-500">
-                                            Code: {entity.code}
+                          {(selectedUser.scopeEntityIds &&
+                            selectedUser.scopeEntityIds.length > 0) ||
+                          (selectedUser.scopeGroupIds &&
+                            selectedUser.scopeGroupIds.length > 0) ? (
+                            <div className="space-y-3">
+                              {/* Individual Entities */}
+                              {selectedUser.scopeEntityIds &&
+                                selectedUser.scopeEntityIds.length > 0 && (
+                                  <div>
+                                    <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                                      <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                      Individual Entities (
+                                      {selectedUser.scopeEntityIds.length})
+                                    </div>
+                                    <div className="space-y-1 ml-4">
+                                      {plottingCompanies
+                                        .filter((pc) =>
+                                          selectedUser.scopeEntityIds.includes(
+                                            pc.id,
+                                          ),
+                                        )
+                                        .map((pc) => (
+                                          <div
+                                            key={pc.id}
+                                            className="text-sm text-gray-600"
+                                          >
+                                            {pc.code} - {pc.name}
                                           </div>
-                                        )}
+                                        ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                              {/* Entity Groups */}
+                              {selectedUser.scopeGroupIds &&
+                                selectedUser.scopeGroupIds.length > 0 && (
+                                  <div>
+                                    <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                      Entity Groups (
+                                      {selectedUser.scopeGroupIds.length})
+                                    </div>
+                                    <div className="text-sm text-gray-600 ml-4">
+                                      {selectedUser.scopeGroupIds.length}{" "}
+                                      group(s) assigned
+                                      <div className="text-xs text-gray-500 mt-1">
+                                        (All entities in these groups are
+                                        accessible)
                                       </div>
                                     </div>
-                                  ))}
-                              </div>
+                                  </div>
+                                )}
                             </div>
                           ) : (
                             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
@@ -2692,129 +2711,29 @@ export default function UserManagement() {
 
                       {/* Entity Scope Selector - Only show for Level 2 */}
                       {formData.accessLevel === "2" && (
-                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            <svg
-                              className="w-4 h-4 inline mr-1 text-blue-600"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                              />
-                            </svg>
-                            Entity Access Scope *
+                            Scope Assignment
                           </label>
-                          <p className="text-xs text-gray-600 mb-3">
-                            Select which entities this admin can manage.
+                          <p className="text-sm text-gray-600 mb-3">
+                            Assign individual entities or entire groups. User
+                            will have access to all selected entities plus all
+                            entities in selected groups.
                           </p>
 
-                          {loadingEntities ? (
-                            <div className="text-sm text-gray-500 py-2">
-                              Loading entities...
-                            </div>
-                          ) : availableEntities.length === 0 ? (
-                            <div className="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded p-2">
-                              ⚠️ No entities available. Create plotting
-                              companies first.
-                            </div>
-                          ) : (
-                            <div className="space-y-2 max-h-60 overflow-y-auto border border-gray-300 rounded-lg p-3 bg-white">
-                              {/* Select All / Clear All */}
-                              <div className="pb-2 border-b border-gray-200 flex justify-between items-center">
-                                <span className="text-xs font-medium text-gray-700">
-                                  {formData.scopeEntityIds.length} of{" "}
-                                  {availableEntities.length} selected
-                                </span>
-                                <div className="flex gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const allIds = availableEntities.map(
-                                        (e) => e.id,
-                                      );
-                                      setFormData({
-                                        ...formData,
-                                        scopeEntityIds: allIds,
-                                      });
-                                    }}
-                                    className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                                  >
-                                    Select All
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setFormData({
-                                        ...formData,
-                                        scopeEntityIds: [],
-                                      })
-                                    }
-                                    className="text-xs text-gray-600 hover:text-gray-700 font-medium"
-                                  >
-                                    Clear All
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Entity Checkboxes */}
-                              {availableEntities.map((entity) => (
-                                <label
-                                  key={entity.id}
-                                  className="flex items-start p-2 hover:bg-gray-50 rounded cursor-pointer"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={formData.scopeEntityIds.includes(
-                                      entity.id,
-                                    )}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setFormData({
-                                          ...formData,
-                                          scopeEntityIds: [
-                                            ...formData.scopeEntityIds,
-                                            entity.id,
-                                          ],
-                                        });
-                                      } else {
-                                        setFormData({
-                                          ...formData,
-                                          scopeEntityIds:
-                                            formData.scopeEntityIds.filter(
-                                              (id) => id !== entity.id,
-                                            ),
-                                        });
-                                      }
-                                    }}
-                                    className="mt-1 mr-3 h-4 w-4 text-blue-600 rounded"
-                                  />
-                                  <div className="flex-1">
-                                    <div className="text-sm font-medium text-gray-900">
-                                      {entity.name}
-                                    </div>
-                                    {entity.code && (
-                                      <div className="text-xs text-gray-500">
-                                        Code: {entity.code}
-                                      </div>
-                                    )}
-                                  </div>
-                                </label>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Warning if no entities selected */}
-                          {formData.scopeEntityIds.length === 0 && (
-                            <div className="mt-2 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2">
-                              ⚠️ Warning: Admin with no entity access will not
-                              be able to see any data.
-                            </div>
-                          )}
+                          <EntityGroupSelector
+                            value={{
+                              entities: formData.scopeEntityIds || [],
+                              groups: formData.scopeGroupIds || [],
+                            }}
+                            onChange={(scopeData) => {
+                              setFormData({
+                                ...formData,
+                                scopeEntityIds: scopeData.entities,
+                                scopeGroupIds: scopeData.groups,
+                              });
+                            }}
+                          />
                         </div>
                       )}
 
@@ -2827,7 +2746,7 @@ export default function UserManagement() {
                           )}
                         </label>
 
-                        {/* ✅ Use EntitySelector component */}
+                        {/* Use EntitySelector component */}
                         <EntitySelector
                           value={formData.plottingCompanyId}
                           onChange={(e) => {
@@ -2840,7 +2759,7 @@ export default function UserManagement() {
                           placeholder="Select Plotting Company..."
                         />
 
-                        {/* ✅ Show scope hint for Level 2 admins */}
+                        {/* Show scope hint for Level 2 admins */}
                         {user?.accessLevel === 2 && (
                           <p className="mt-1 text-xs text-gray-500">
                             You can only assign users to entities within your
@@ -2848,7 +2767,7 @@ export default function UserManagement() {
                           </p>
                         )}
 
-                        {/* ✅ Keep the "Create New" option for Level 1 only */}
+                        {/* Keep the "Create New" option for Level 1 only */}
                         {user?.accessLevel === 1 && (
                           <div className="mt-2">
                             {isCreatingPlottingCompany ? (

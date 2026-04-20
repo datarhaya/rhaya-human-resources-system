@@ -392,6 +392,12 @@ export default function Layout({ children }) {
         icon: BuildingIcon,
         type: "link",
       });
+      navItems.push({
+        path: "/settings/entity-groups",
+        label: "Entity Groups",
+        icon: BuildingIcon,
+        type: "link",
+      });
     }
 
     // Only add Approval dropdown if there are children

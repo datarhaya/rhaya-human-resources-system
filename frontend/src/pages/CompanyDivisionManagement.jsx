@@ -17,6 +17,9 @@ export default function CompanyDivisionManagement() {
   const [divisions, setDivisions] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
+  const [entityGroups, setEntityGroups] = useState([]);
+  const [selectedGroupFilter, setSelectedGroupFilter] = useState("");
+
   // Modal state
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState("create"); // 'create' or 'edit'
@@ -65,7 +68,10 @@ export default function CompanyDivisionManagement() {
         apiClient.get("/plotting-companies"),
         apiClient.get("/divisions"),
       ]);
-
+      console.log(
+        "Calling /plotting-companies, result : ",
+        companiesRes.data.data,
+      );
       setPlottingCompanies(companiesRes.data.data || []);
       setDivisions(divisionsRes.data.data || []);
     } catch (error) {
@@ -79,12 +85,26 @@ export default function CompanyDivisionManagement() {
     }
   };
 
+  const fetchEntityGroups = async () => {
+    try {
+      const res = await apiClient.get("/entity-groups");
+      setEntityGroups(res.data.data || []);
+    } catch (error) {
+      console.error("Fetch entity groups error:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchEntityGroups();
+  }, []);
+
   // Reset form
   const resetForm = () => {
     setFormData({
       code: "",
       name: "",
       description: "",
+      groupId: "",
     });
     setSelectedItem(null);
   };
@@ -107,6 +127,7 @@ export default function CompanyDivisionManagement() {
         code: item.code || "",
         name: item.name || "",
         description: item.description || "",
+        groupId: item.groupId || "",
       });
     } else {
       setFormData({
@@ -151,6 +172,7 @@ export default function CompanyDivisionManagement() {
                 code: formData.code.toUpperCase(),
                 name: formData.name,
                 description: formData.description,
+                groupId: formData.groupId,
               }
             : { name: formData.name, description: formData.description };
 
@@ -199,11 +221,23 @@ export default function CompanyDivisionManagement() {
   };
 
   // Filter data
-  const filteredCompanies = plottingCompanies.filter(
-    (company) =>
-      company.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      company.name.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  // const filteredCompanies = plottingCompanies.filter(
+  //   (company) =>
+  //     company.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  //     company.name.toLowerCase().includes(searchTerm.toLowerCase()),
+  // );
+
+  const filteredCompanies = plottingCompanies.filter((entity) => {
+    const matchesSearch =
+      entity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      entity.code.toLowerCase().includes(searchTerm.toLowerCase());
+
+    // ADD GROUP FILTER
+    const matchesGroup =
+      !selectedGroupFilter || entity.groupId === selectedGroupFilter;
+
+    return matchesSearch && matchesGroup;
+  });
 
   const filteredDivisions = divisions.filter((division) =>
     division.name.toLowerCase().includes(searchTerm.toLowerCase()),
@@ -286,9 +320,30 @@ export default function CompanyDivisionManagement() {
             {/* Plotting Companies Table */}
             {activeTab === "companies" && (
               <div className="overflow-x-auto">
+                {/* Group Filter */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Filter by Group
+                  </label>
+                  <select
+                    value={selectedGroupFilter}
+                    onChange={(e) => setSelectedGroupFilter(e.target.value)}
+                    className="w-64 px-3 py-2 border border-gray-300 rounded-lg"
+                  >
+                    <option value="">All Groups</option>
+                    {entityGroups.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        GROUP
+                      </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Code
                       </th>
@@ -306,6 +361,7 @@ export default function CompanyDivisionManagement() {
                       </th>
                     </tr>
                   </thead>
+                  {/* {console.log("filteredCompanies : ", filteredCompanies)}*/}
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredCompanies.length === 0 ? (
                       <tr>
@@ -319,6 +375,24 @@ export default function CompanyDivisionManagement() {
                     ) : (
                       filteredCompanies.map((company) => (
                         <tr key={company.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {/* Entity Group Badge */}
+                            {company.group ? (
+                              <span
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs"
+                                style={{
+                                  backgroundColor: `${company.group.color}20`,
+                                  color: company.group.color,
+                                }}
+                              >
+                                {company.group.code}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400">
+                                No group
+                              </span>
+                            )}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
                               {company.code}
@@ -508,6 +582,27 @@ export default function CompanyDivisionManagement() {
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
+              </div>
+
+              {/* Entity Group */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Entity Group
+                </label>
+                <select
+                  value={formData.groupId}
+                  onChange={(e) =>
+                    setFormData({ ...formData, groupId: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">No Group</option>
+                  {entityGroups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name} {group.code && `(${group.code})`}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Description field */}
