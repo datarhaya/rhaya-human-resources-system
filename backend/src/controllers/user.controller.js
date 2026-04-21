@@ -615,7 +615,7 @@ export const updateUser = async (req, res) => {
       }
     }
 
-    if (accessLevel === 2) {
+    if (req.user.accessLevel === 2) {
       if (
         existingUser.plottingCompanyId &&
         !scopeEntityIds?.includes(existingUser.plottingCompanyId)
