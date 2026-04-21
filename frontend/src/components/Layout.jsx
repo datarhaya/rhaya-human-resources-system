@@ -392,6 +392,10 @@ export default function Layout({ children }) {
         icon: BuildingIcon,
         type: "link",
       });
+    }
+
+    // ADMIN MENUS (Level 1 )
+    if (user?.accessLevel >= 1) {
       navItems.push({
         path: "/settings/entity-groups",
         label: "Entity Groups",
