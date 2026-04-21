@@ -114,7 +114,7 @@ export const getPlottingCompanyById = async (req, res) => {
  */
 export const createPlottingCompany = async (req, res) => {
   try {
-    const { code, name, description } = req.body;
+    const { code, name, description, groupId } = req.body;
 
     // Validate required fields
     if (!code || !name) {
@@ -155,6 +155,7 @@ export const createPlottingCompany = async (req, res) => {
         code: code.toUpperCase(),
         name,
         description: description || null,
+        groupId: groupId || null,
       },
     });
 

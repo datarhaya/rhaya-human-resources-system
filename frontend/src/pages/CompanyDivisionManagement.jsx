@@ -158,6 +158,7 @@ export default function CompanyDivisionManagement() {
                 code: formData.code.toUpperCase(),
                 name: formData.name,
                 description: formData.description,
+                groupId: formData.groupId,
               }
             : { name: formData.name, description: formData.description };
 
