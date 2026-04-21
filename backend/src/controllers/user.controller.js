@@ -1014,6 +1014,7 @@ export const permanentDeleteUser = async (req, res) => {
   try {
     const { userId } = req.params;
     const { confirmUsername } = req.body;
+    const { accessLevel, scopeEntityIds } = req.user;
 
     console.log("⚠️  PERMANENT delete request for user:", userId);
 
