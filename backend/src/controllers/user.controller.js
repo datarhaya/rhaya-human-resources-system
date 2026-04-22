@@ -616,27 +616,29 @@ export const updateUser = async (req, res) => {
     }
 
     if (req.user.accessLevel === 2) {
-      if (
-        existingUser.plottingCompanyId &&
-        !scopeEntityIds?.includes(existingUser.plottingCompanyId)
-      ) {
-        console.warn(
-          `[SCOPE] Update denied: Level 2 admin tried to update user ${userId} outside scope`,
-        );
-        return res.status(403).json({
-          error: "Access denied",
-          message: "You cannot update users outside your scope",
-        });
-      }
+      if (existingUser.accessLevel >= 3) {
+        if (
+          existingUser.plottingCompanyId &&
+          !scopeEntityIds?.includes(existingUser.plottingCompanyId)
+        ) {
+          console.warn(
+            `[SCOPE] Update denied: Level 2 admin tried to update user ${userId} outside scope`,
+          );
+          return res.status(403).json({
+            error: "Access denied",
+            message: "You cannot update users outside your scope",
+          });
+        }
 
-      if (!existingUser.plottingCompanyId) {
-        console.warn(
-          `[SCOPE] Update denied: Level 2 admin tried to update admin user`,
-        );
-        return res.status(403).json({
-          error: "Access denied",
-          message: "You cannot update admin users",
-        });
+        if (!existingUser.plottingCompanyId) {
+          console.warn(
+            `[SCOPE] Update denied: Level 2 admin tried to update admin user`,
+          );
+          return res.status(403).json({
+            error: "Access denied",
+            message: "You cannot update admin users",
+          });
+        }
       }
     }
 
