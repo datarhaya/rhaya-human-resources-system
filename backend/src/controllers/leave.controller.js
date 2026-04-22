@@ -411,7 +411,7 @@ export const getPendingApprovalList = async (req, res) => {
     const userLevel = req.user.accessLevel;
     const scopeEntityIds = req.user.scopeEntityIds;
 
-    // ✅ Get status from query parameter (default to PENDING)
+    // Get status from query parameter (default to PENDING)
     const { status = "PENDING" } = req.query;
 
     console.log(
@@ -424,11 +424,11 @@ export const getPendingApprovalList = async (req, res) => {
     let requests;
 
     if (userLevel === 1) {
-      // ✅ Level 1: See all requests with specified status
+      // Level 1: See all requests with specified status
       console.log(`[LEAVE APPROVAL] Level 1 - fetching ALL ${status} requests`);
 
       requests = await prisma.leaveRequest.findMany({
-        where: { status }, // ✅ Use status from query parameter
+        where: { status }, // Use status from query parameter
         include: {
           employee: {
             select: {
@@ -696,7 +696,7 @@ export const approveLeaveRequest = async (req, res) => {
     }
 
     // Authorization check
-    const isAdmin = approverLevel <= 2 ;
+    const isAdmin = approverLevel <= 2;
     const isCurrentApprover = request.currentApproverId === approverId;
 
     if (!isAdmin && !isCurrentApprover) {
@@ -826,6 +826,7 @@ export const rejectLeaveRequest = async (req, res) => {
     const { comment } = req.body;
     const approverId = req.user.id;
     const approverLevel = req.user.accessLevel;
+    const { scopeEntityIds } = req.user;
 
     if (!comment || !comment.trim()) {
       return res
@@ -847,7 +848,7 @@ export const rejectLeaveRequest = async (req, res) => {
     }
 
     if (req.user.accessLevel === 2) {
-      const employeeEntityId = leaveRequest.employee.plottingCompanyId;
+      const employeeEntityId = request.employee.plottingCompanyId;
 
       if (!employeeEntityId || !scopeEntityIds?.includes(employeeEntityId)) {
         console.warn(
@@ -868,7 +869,7 @@ export const rejectLeaveRequest = async (req, res) => {
     }
 
     // Authorization check
-    const isAdmin = approverLevel === 1;
+    const isAdmin = approverLevel <= 2;
     const isCurrentApprover = request.currentApproverId === approverId;
 
     if (!isAdmin && !isCurrentApprover) {
