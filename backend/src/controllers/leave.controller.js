@@ -658,6 +658,7 @@ export const approveLeaveRequest = async (req, res) => {
     const { comment } = req.body;
     const approverId = req.user.id;
     const approverLevel = req.user.accessLevel;
+    const { scopeEntityIds } = req.user;
 
     const request = await prisma.leaveRequest.findUnique({
       where: { id: requestId },
