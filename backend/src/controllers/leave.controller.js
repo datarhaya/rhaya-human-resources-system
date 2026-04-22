@@ -696,7 +696,7 @@ export const approveLeaveRequest = async (req, res) => {
     }
 
     // Authorization check
-    const isAdmin = approverLevel === 1;
+    const isAdmin = approverLevel <= 2 ;
     const isCurrentApprover = request.currentApproverId === approverId;
 
     if (!isAdmin && !isCurrentApprover) {
