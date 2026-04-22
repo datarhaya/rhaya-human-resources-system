@@ -676,7 +676,7 @@ export const approveLeaveRequest = async (req, res) => {
     }
 
     if (req.user.accessLevel === 2) {
-      const employeeEntityId = leaveRequest.employee.plottingCompanyId;
+      const employeeEntityId = request.employee.plottingCompanyId;
 
       if (!employeeEntityId || !scopeEntityIds?.includes(employeeEntityId)) {
         console.warn(
