@@ -72,8 +72,14 @@ export const getAllUsers = async (req, res) => {
             totalPaid: true,
           },
         },
+        supervisor: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
         leaveBalances: {
-          // ← Changed to plural!
           where: { year: currentYear },
           select: {
             year: true,
@@ -586,8 +592,9 @@ export const updateUser = async (req, res) => {
 
     console.log("Updating user:", userId);
     console.log("New accessLevel:", accessLevel);
-    console.log("New scopeEntityIds:", scopeEntityIds);
-    console.log("New scopeGroupIds:", scopeGroupIds);
+    console.log("New supervisorId:", supervisorId);
+    // console.log("New scopeEntityIds:", scopeEntityIds);
+    // console.log("New scopeGroupIds:", scopeGroupIds);
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
@@ -618,11 +625,16 @@ export const updateUser = async (req, res) => {
     if (req.user.accessLevel === 2) {
       if (existingUser.accessLevel >= 3) {
         if (
-          existingUser.plottingCompanyId &&
-          !scopeEntityIds?.includes(existingUser.plottingCompanyId)
+          !req.user.scopeEntityIds?.includes(existingUser.plottingCompanyId)
         ) {
           console.warn(
             `[SCOPE] Update denied: Level 2 admin tried to update user ${userId} outside scope`,
+          );
+          console.log(
+            "Company ID:",
+            existingUser.plottingCompanyId,
+            "Scope:",
+            !req.user.scopeEntityIds,
           );
           return res.status(403).json({
             error: "Access denied",
