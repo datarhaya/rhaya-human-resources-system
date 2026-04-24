@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import apiClient from "../api/client";
+import { Users, X } from "lucide-react";
 
 export default function CompanyDivisionManagement() {
   const { user, loading } = useAuth();
@@ -10,52 +11,53 @@ export default function CompanyDivisionManagement() {
   const hasCheckedAccess = useRef(false);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState("companies"); // 'companies' or 'divisions'
+  const [activeTab, setActiveTab] = useState("companies");
 
   // Data state
   const [plottingCompanies, setPlottingCompanies] = useState([]);
   const [divisions, setDivisions] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
-
   const [entityGroups, setEntityGroups] = useState([]);
   const [selectedGroupFilter, setSelectedGroupFilter] = useState("");
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState("create"); // 'create' or 'edit'
-  const [modalType, setModalType] = useState("company"); // 'company' or 'division'
+  const [modalMode, setModalMode] = useState("create");
+  const [modalType, setModalType] = useState("company");
   const [selectedItem, setSelectedItem] = useState(null);
+
+  // ✅ NEW: Employee list modal
+  const [showEmployeeModal, setShowEmployeeModal] = useState(false);
+  const [employeeList, setEmployeeList] = useState([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [selectedCompanyName, setSelectedCompanyName] = useState("");
 
   // Form state
   const [formData, setFormData] = useState({
     code: "",
     name: "",
     description: "",
+    groupId: "",
   });
 
   // Search state
   const [searchTerm, setSearchTerm] = useState("");
-
-  // Submitting state
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Access control check
+  // Access control
   useEffect(() => {
     if (hasCheckedAccess.current) return;
     if (loading) return;
-
     if (!user) {
       navigate("/login");
       return;
     }
-
     if (user.accessLevel > 2) {
       hasCheckedAccess.current = true;
       alert("Access denied. Only System Administrators can access this page.");
       navigate("/");
       return;
     }
-
     hasCheckedAccess.current = true;
     fetchData();
   }, [user, loading, navigate]);
@@ -68,10 +70,6 @@ export default function CompanyDivisionManagement() {
         apiClient.get("/plotting-companies"),
         apiClient.get("/divisions"),
       ]);
-      console.log(
-        "Calling /plotting-companies, result : ",
-        companiesRes.data.data,
-      );
       setPlottingCompanies(companiesRes.data.data || []);
       setDivisions(divisionsRes.data.data || []);
     } catch (error) {
@@ -98,18 +96,61 @@ export default function CompanyDivisionManagement() {
     fetchEntityGroups();
   }, []);
 
-  // Reset form
+  // ✅ NEW: Fetch employees
+  const fetchEmployees = async (companyId, companyName) => {
+    try {
+      setLoadingEmployees(true);
+      setSelectedCompanyName(companyName);
+      setShowEmployeeModal(true);
+
+      console.log("🔍 Fetching employees for company ID:", companyId);
+
+      const res = await apiClient.get("/users", {
+        params: { plottingCompanyId: companyId },
+      });
+
+      console.log("📦 Full API Response:", res);
+      console.log("📦 Response data:", res.data);
+
+      // Try multiple response structures
+      let employees = [];
+
+      if (res.data.users) {
+        employees = res.data.users;
+        console.log("✅ Found employees in res.data.users");
+      } else if (res.data.data) {
+        employees = res.data.data;
+        console.log("✅ Found employees in res.data.data");
+      } else if (Array.isArray(res.data)) {
+        employees = res.data;
+        console.log("✅ Found employees in res.data (array)");
+      }
+
+      console.log("👥 Final employee list:", employees);
+      console.log("👥 Employee count:", employees.length);
+
+      if (employees.length === 0) {
+        console.warn("⚠️ No employees found for this company");
+      }
+
+      setEmployeeList(employees);
+    } catch (error) {
+      console.error("❌ Fetch employees error:", error);
+      console.error("❌ Error response:", error.response?.data);
+      alert(
+        "Failed to load employees: " +
+          (error.response?.data?.error || error.message),
+      );
+    } finally {
+      setLoadingEmployees(false);
+    }
+  };
+
   const resetForm = () => {
-    setFormData({
-      code: "",
-      name: "",
-      description: "",
-      groupId: "",
-    });
+    setFormData({ code: "", name: "", description: "", groupId: "" });
     setSelectedItem(null);
   };
 
-  // Open modals
   const openCreateModal = (type) => {
     setModalType(type);
     setModalMode("create");
@@ -136,14 +177,11 @@ export default function CompanyDivisionManagement() {
         description: item.description || "",
       });
     }
-
     setShowModal(true);
   };
 
-  // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (isSubmitting) return;
     setIsSubmitting(true);
 
@@ -158,7 +196,7 @@ export default function CompanyDivisionManagement() {
                 code: formData.code.toUpperCase(),
                 name: formData.name,
                 description: formData.description,
-                groupId: formData.groupId,
+                groupId: formData.groupId || null,
               }
             : { name: formData.name, description: formData.description };
 
@@ -173,7 +211,7 @@ export default function CompanyDivisionManagement() {
                 code: formData.code.toUpperCase(),
                 name: formData.name,
                 description: formData.description,
-                groupId: formData.groupId,
+                groupId: formData.groupId || null,
               }
             : { name: formData.name, description: formData.description };
 
@@ -194,7 +232,6 @@ export default function CompanyDivisionManagement() {
     }
   };
 
-  // Delete/Deactivate
   const handleDelete = async (item, type) => {
     const itemName =
       type === "company" ? `${item.code} - ${item.name}` : item.name;
@@ -221,22 +258,12 @@ export default function CompanyDivisionManagement() {
     }
   };
 
-  // Filter data
-  // const filteredCompanies = plottingCompanies.filter(
-  //   (company) =>
-  //     company.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-  //     company.name.toLowerCase().includes(searchTerm.toLowerCase()),
-  // );
-
   const filteredCompanies = plottingCompanies.filter((entity) => {
     const matchesSearch =
       entity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       entity.code.toLowerCase().includes(searchTerm.toLowerCase());
-
-    // ADD GROUP FILTER
     const matchesGroup =
       !selectedGroupFilter || entity.groupId === selectedGroupFilter;
-
     return matchesSearch && matchesGroup;
   });
 
@@ -297,7 +324,7 @@ export default function CompanyDivisionManagement() {
 
           {/* Tab Content */}
           <div className="p-6">
-            {/* Search and Add Button */}
+            {/* Search and Add */}
             <div className="flex justify-between items-center mb-6">
               <input
                 type="text"
@@ -318,7 +345,7 @@ export default function CompanyDivisionManagement() {
               </button>
             </div>
 
-            {/* Plotting Companies Table */}
+            {/* Companies Table */}
             {activeTab === "companies" && (
               <div className="overflow-x-auto">
                 {/* Group Filter */}
@@ -339,35 +366,35 @@ export default function CompanyDivisionManagement() {
                     ))}
                   </select>
                 </div>
+
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         GROUP
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Code
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Company Name
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Description
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Employees
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  {/* {console.log("filteredCompanies : ", filteredCompanies)}*/}
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredCompanies.length === 0 ? (
                       <tr>
                         <td
-                          colSpan="5"
+                          colSpan="6"
                           className="px-6 py-8 text-center text-gray-500"
                         >
                           No companies found
@@ -376,16 +403,22 @@ export default function CompanyDivisionManagement() {
                     ) : (
                       filteredCompanies.map((company) => (
                         <tr key={company.id} className="hover:bg-gray-50">
+                          {/* Group */}
                           <td className="px-6 py-4 whitespace-nowrap">
-                            {/* Entity Group Badge */}
                             {company.group ? (
                               <span
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs"
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
                                 style={{
                                   backgroundColor: `${company.group.color}20`,
                                   color: company.group.color,
                                 }}
                               >
+                                <span
+                                  className="w-2 h-2 rounded-full"
+                                  style={{
+                                    backgroundColor: company.group.color,
+                                  }}
+                                />
                                 {company.group.code}
                               </span>
                             ) : (
@@ -394,26 +427,43 @@ export default function CompanyDivisionManagement() {
                               </span>
                             )}
                           </td>
+                          {/* Code */}
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
                               {company.code}
                             </span>
                           </td>
+                          {/* Name */}
                           <td className="px-6 py-4">
                             <div className="text-sm font-medium text-gray-900">
                               {company.name}
                             </div>
                           </td>
+                          {/* Description */}
                           <td className="px-6 py-4">
                             <div className="text-sm text-gray-500">
                               {company.description || "-"}
                             </div>
                           </td>
+                          {/* Employees - Clickable */}
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="text-sm text-gray-900">
-                              {company._count?.users || 0}
-                            </span>
+                            {company._count?.users > 0 ? (
+                              <button
+                                onClick={() =>
+                                  fetchEmployees(company.id, company.name)
+                                }
+                                className="flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline"
+                              >
+                                <Users className="w-4 h-4" />
+                                <span className="font-medium">
+                                  {company._count.users}
+                                </span>
+                              </button>
+                            ) : (
+                              <span className="text-sm text-gray-400">0</span>
+                            )}
                           </td>
+                          {/* Actions */}
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
                             <button
                               onClick={() => openEditModal(company, "company")}
@@ -423,7 +473,7 @@ export default function CompanyDivisionManagement() {
                             </button>
                             <button
                               onClick={() => handleDelete(company, "company")}
-                              className="text-red-600 hover:text-red-800"
+                              className="text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
                               disabled={company._count?.users > 0}
                               title={
                                 company._count?.users > 0
@@ -431,9 +481,7 @@ export default function CompanyDivisionManagement() {
                                   : ""
                               }
                             >
-                              {company._count?.users > 0
-                                ? "Deactivate"
-                                : "Deactivate"}
+                              Deactivate
                             </button>
                           </td>
                         </tr>
@@ -450,16 +498,16 @@ export default function CompanyDivisionManagement() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Division Name
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Description
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Employees
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Actions
                       </th>
                     </tr>
@@ -503,7 +551,7 @@ export default function CompanyDivisionManagement() {
                             </button>
                             <button
                               onClick={() => handleDelete(division, "division")}
-                              className="text-red-600 hover:text-red-800"
+                              className="text-red-600 hover:text-red-800 disabled:opacity-50"
                               disabled={division._count?.users > 0}
                               title={
                                 division._count?.users > 0
@@ -511,7 +559,7 @@ export default function CompanyDivisionManagement() {
                                   : ""
                               }
                             >
-                              {division._count?.users > 0 ? "Delete" : "Delete"}
+                              Delete
                             </button>
                           </td>
                         </tr>
@@ -525,28 +573,23 @@ export default function CompanyDivisionManagement() {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Create/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">
-                {modalMode === "create" ? "Create" : "Edit"}{" "}
-                {modalType === "company" ? "Plotting Company" : "Division"}
-              </h2>
-            </div>
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h2 className="text-xl font-bold mb-4">
+              {modalMode === "create" ? "Create" : "Edit"}{" "}
+              {modalType === "company" ? "Plotting Company" : "Division"}
+            </h2>
 
-            <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
-              {/* Code field (only for companies) */}
+            <form onSubmit={handleSubmit} className="space-y-4">
               {modalType === "company" && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Company Code <span className="text-red-500">*</span>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Company Code *
                   </label>
                   <input
                     type="text"
-                    required
-                    maxLength="10"
                     value={formData.code}
                     onChange={(e) =>
                       setFormData({
@@ -554,61 +597,55 @@ export default function CompanyDivisionManagement() {
                         code: e.target.value.toUpperCase(),
                       })
                     }
-                    placeholder="e.g., RFI, RG"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    required
+                    placeholder="e.g., KGI"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Max 10 characters, auto-uppercase
-                  </p>
                 </div>
               )}
 
-              {/* Name field */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {modalType === "company" ? "Company Name" : "Division Name"}{" "}
-                  <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {modalType === "company" ? "Company" : "Division"} Name *
                 </label>
                 <input
                   type="text"
-                  required
                   value={formData.name}
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
-                  placeholder={
-                    modalType === "company"
-                      ? "e.g., PT Rhayakan Film Indonesia"
-                      : "e.g., Human Resources"
-                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  required
                 />
               </div>
 
-              {/* Entity Group */}
+              {modalType === "company" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Entity Group
+                  </label>
+                  <select
+                    value={formData.groupId}
+                    onChange={(e) =>
+                      setFormData({ ...formData, groupId: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">No Group</option>
+                    {entityGroups.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.name} {group.code && `(${group.code})`}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Optional: Assign to a group
+                  </p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Entity Group
-                </label>
-                <select
-                  value={formData.groupId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, groupId: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">No Group</option>
-                  {entityGroups.map((group) => (
-                    <option key={group.id} value={group.id}>
-                      {group.name} {group.code && `(${group.code})`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Description field */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Description
                 </label>
                 <textarea
@@ -616,59 +653,178 @@ export default function CompanyDivisionManagement() {
                   onChange={(e) =>
                     setFormData({ ...formData, description: e.target.value })
                   }
-                  rows="3"
-                  placeholder="Optional description..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  rows={3}
                 />
               </div>
 
-              {/* Buttons */}
-              <div className="flex space-x-3 pt-4">
+              <div className="flex gap-2 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                   disabled={isSubmitting}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                   disabled={isSubmitting}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
-                  {isSubmitting ? (
-                    <>
-                      <svg
-                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      Saving...
-                    </>
-                  ) : modalMode === "create" ? (
-                    "Create"
-                  ) : (
-                    "Update"
-                  )}
+                  {isSubmitting
+                    ? "Saving..."
+                    : modalMode === "create"
+                      ? "Create"
+                      : "Update"}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Employee List Modal */}
+      {showEmployeeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4 pb-4 border-b">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  Employee List
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  {selectedCompanyName}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowEmployeeModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto">
+              {loadingEmployees ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : employeeList.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No employees found
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {employeeList.map((employee, index) => (
+                    <div
+                      key={employee.id}
+                      className="flex items-center gap-3 p-2.5 hover:bg-gray-50 rounded-lg border border-gray-100 transition-colors"
+                    >
+                      {/* Number */}
+                      <div className="text-xs font-medium text-gray-400 w-6">
+                        {index + 1}.
+                      </div>
+
+                      {/* Employee Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm text-gray-900">
+                            {employee.name}
+                          </span>
+                          {employee.nip && (
+                            <span className="text-xs text-gray-400">
+                              ({employee.nip})
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                          <span>{employee.email}</span>
+                          {employee.supervisor && (
+                            <>
+                              <span className="text-gray-300">•</span>
+                              <span className="flex items-center gap-1">
+                                <svg
+                                  className="w-3 h-3"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                  />
+                                </svg>
+                                {employee.supervisor.name}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Badges */}
+                      <div className="flex items-center gap-1.5">
+                        {/* Division */}
+                        {employee.division && (
+                          <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded font-medium">
+                            {employee.division.name}
+                          </span>
+                        )}
+
+                        {/* Access Level */}
+                        <span
+                          className={`px-2 py-0.5 text-xs font-medium rounded ${
+                            employee.accessLevel === 1
+                              ? "bg-purple-100 text-purple-800"
+                              : employee.accessLevel === 2
+                                ? "bg-blue-100 text-blue-800"
+                                : employee.accessLevel === 3
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          L{employee.accessLevel}
+                        </span>
+
+                        {/* View Details Button */}
+                        <button
+                          onClick={() => {
+                            setShowEmployeeModal(false);
+                            // Navigate to user detail page
+                            navigate(`/users/${employee.id}`);
+                          }}
+                          className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded border border-blue-200 hover:border-blue-300 transition-colors"
+                          title="View employee details"
+                        >
+                          View
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="mt-4 pt-4 border-t">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-600">
+                  Total:{" "}
+                  <span className="font-medium">{employeeList.length}</span>{" "}
+                  employees
+                </div>
+                <button
+                  onClick={() => setShowEmployeeModal(false)}
+                  className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
