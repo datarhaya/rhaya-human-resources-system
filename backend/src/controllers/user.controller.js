@@ -19,7 +19,7 @@ const prisma = new PrismaClient();
 
 export const getAllUsers = async (req, res) => {
   try {
-    const { search, divisionId, roleId, status } = req.query;
+    const { search, divisionId, roleId, status, plottingCompanyId } = req.query;
     const { accessLevel, scopeEntityIds } = req.user;
 
     const currentYear = new Date().getFullYear();
@@ -58,6 +58,7 @@ export const getAllUsers = async (req, res) => {
     if (divisionId) where.divisionId = divisionId;
     if (roleId) where.roleId = roleId;
     if (status) where.employeeStatus = status;
+    if (plottingCompanyId) where.plottingCompanyId = plottingCompanyId;
 
     const users = await prisma.user.findMany({
       where,
