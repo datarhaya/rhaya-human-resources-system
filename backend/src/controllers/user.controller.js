@@ -1170,7 +1170,7 @@ export const adjustUserBalance = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    if (accessLevel === 2) {
+    if (req.user.accessLevel === 2) {
       if (
         user.plottingCompanyId &&
         !scopeEntityIds?.includes(user.plottingCompanyId)
